@@ -8,7 +8,7 @@ include third_party/autodiff/LICENSE
 recursive-include disper26 *.py *.pyi *.csv py.typed
 
 include README.md LICENSE NOTICE CITATION.cff AGENTS.md .gitmodules
-recursive-include docs *.md
+recursive-include docs *.md *.png
 recursive-include examples *.py *.md
 recursive-include tests *.py *.json *.csv *.txt
 recursive-include paper *.py *.cpp *.hpp *.h *.cmake *.in *.md *.json *.npz *.csv *.txt CMakeLists.txt

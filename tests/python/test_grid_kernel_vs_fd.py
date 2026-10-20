@@ -22,11 +22,14 @@ Two things make this test the one that catches such a defect:
   Overtones are included. Every outlier in 2805 saved data points was a
   branch-1 datum; a fundamental-only test passes straight through the bug.
 
-Tolerances are set from the FD reference's own noise, not from what the code
-currently achieves: the central difference at h=1e-4 in log-parameter space
-agrees with h=3e-4 to a few times 1e-8, so nothing below that is measurable
-here. Both paths now sit at 1e-8, having been 3.85e-5 (AD) and 1.2e-7
-(weak-form).
+The FD reference uses fourth-order central differences in log-parameter space,
+computed by Richardson extrapolation of second-order differences. The former
+second-order reference at h=1e-4 lost accuracy for the small Rayleigh branch-1
+gradient at direction 9: phase velocities near 4.224 km/s differed by only
+3.3e-9 km/s, and the AD/FD relative discrepancy reached 7.95e-7. Fourth-order
+references at h=1e-3 and 2e-3 agree within 1e-7 across the selected cases and
+directions. Check this step-size stability independently before comparing
+either gradient path, retaining the existing relative tolerance of 5e-7.
 """
 
 import sys
@@ -52,7 +55,7 @@ BASIS = shallow_basis(REF)
 ENG = ForwardEngine()
 P = BASIS.n_params
 M0 = np.zeros(P)
-H_FD = 1e-4
+H_FD = 1e-3
 
 # Overtones first: they are the cases that failed. R1_7.143s and L1_10s are the
 # two the investigation used.
@@ -63,18 +66,22 @@ CASES = [
     Datum("Rayleigh", 0, 20.0),
 ]
 DIRS = (0, 3, 6, 9, 12)
-RTOL = 5e-7          # ~20x the FD reference's own spread; both paths are at 1e-8
+RTOL = 5e-7          # Existing tolerance, also required for FD step-size stability.
 
 
-def fd_gradient(datum, c0, dirs):
+def fd_gradient(datum, c0, dirs, h=H_FD):
+    """Fourth-order reference: (4 D(h) - D(2h)) / 3 for central D."""
     out = {}
     for j in dirs:
-        mp, mm = M0.copy(), M0.copy()
-        mp[j] += H_FD
-        mm[j] -= H_FD
-        cp = ENG.phase_velocity(BASIS.m_to_forward_model(mp), datum, c_hint=c0).c
-        cm = ENG.phase_velocity(BASIS.m_to_forward_model(mm), datum, c_hint=c0).c
-        out[j] = (cp - cm) / (2.0 * H_FD)
+        central = []
+        for step in (h, 2.0 * h):
+            mp, mm = M0.copy(), M0.copy()
+            mp[j] += step
+            mm[j] -= step
+            cp = ENG.phase_velocity(BASIS.m_to_forward_model(mp), datum, c_hint=c0).c
+            cm = ENG.phase_velocity(BASIS.m_to_forward_model(mm), datum, c_hint=c0).c
+            central.append((cp - cm) / (2.0 * step))
+        out[j] = (4.0 * central[0] - central[1]) / 3.0
     return out
 
 
@@ -104,10 +111,17 @@ def test_both_gradient_paths_match_finite_differences():
         solution, g_ad = ad_gradient(datum)
         g_wf = weakform_gradient(datum, solution)
         g_fd = fd_gradient(datum, solution.c, DIRS)
+        g_fd_coarse = fd_gradient(datum, solution.c, DIRS, h=2.0 * H_FD)
 
-        worst_ad = worst_wf = 0.0
+        worst_ad = worst_wf = worst_step = 0.0
         for j, fd in g_fd.items():
             den = max(abs(fd), 1e-12)
+            e_step = abs(fd - g_fd_coarse[j]) / den
+            worst_step = max(worst_step, e_step)
+            assert e_step < RTOL, (
+                f"{datum.label()} dir {j}: fourth-order FD {fd!r} at h={H_FD:g} "
+                f"vs {g_fd_coarse[j]!r} at h={2.0 * H_FD:g} "
+                f"(step-size rel {e_step:.2e})")
             e_ad = abs(g_ad[j] - fd) / den
             e_wf = abs(g_wf[j] - fd) / den
             worst_ad = max(worst_ad, e_ad)
@@ -119,7 +133,8 @@ def test_both_gradient_paths_match_finite_differences():
                 f"{datum.label()} dir {j}: weak-form {g_wf[j]!r} vs FD {fd!r} "
                 f"(rel {e_wf:.2e})")
         print(f"OK {datum.label():>12}  c={solution.c:.8f}  "
-              f"worst AD {worst_ad:.1e}, weak-form {worst_wf:.1e}")
+              f"worst AD {worst_ad:.1e}, weak-form {worst_wf:.1e}, "
+              f"FD step {worst_step:.1e}")
 
 
 def test_ad_error_is_not_a_uniform_scale_factor():

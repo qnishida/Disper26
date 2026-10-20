@@ -318,6 +318,28 @@ Both phase velocity and kernels have confirmed O(h²) convergence (ratio ≈ 4.0
 | 3 → 4 | 4.03 | 3.85 |
 | 4 → 5 | 4.01 | 3.96 |
 
+### Diagnostic plots
+
+These saved plots illustrate the native phase- and group-velocity kernel
+diagnostics for the synthetic two-node Rayleigh model in the corresponding
+Python tests.
+
+![Phase-velocity kernel convergence](figures/romberg/kernel_convergence_native.png)
+
+![Group-velocity kernel convergence](figures/romberg/kernel_U_convergence_native.png)
+
+Pytest writes regenerated plots to its temporary directory. To retain local
+output, run the scripts from the repository root with the in-place extension
+from this checkout:
+
+```bash
+PYTHONPATH=. python tests/python/test_romberg_kernel_native.py
+PYTHONPATH=. python tests/python/test_romberg_group_velocity_kernel.py
+```
+
+Direct execution writes to the ignored `build/test-results/romberg/` directory.
+The saved documentation images are preserved during both kinds of execution.
+
 ## Implementation Status
 
 | Feature | Status |

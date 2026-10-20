@@ -47,8 +47,6 @@ release item. External-program comparison assets are excluded as described above
   and [NOTICE](../NOTICE). Retain the reviewed dependency notices and the
   separate PREM CC BY 4.0 attribution, source links, and change descriptions
   in every source distribution. Review the terms of any new or replaced inputs.
-- Resolve the known AD/finite-difference regression discrepancy recorded below
-  before declaring the release validated; preserve the numerical tolerance.
 - Check public documentation references, including literal paths in prose and
   docstrings. Historical research notes are identified as archival records;
   running the public examples must not depend on those records.
@@ -114,15 +112,28 @@ A GitHub-style source export without submodule contents fetched the pinned
 autodiff commit and built the C library. An explicit dependency-source override
 was also confirmed to take precedence over the bundled source.
 
-With Python 3.8.18, NumPy 1.24.4, SciPy 1.10.1, and pytest 8.3.4, the Python
-suite reported 424 passed and one failed after excluding the external-comparison
-test. The baseline before the publication-preparation changes
-reported 419 passed and the same failure, with identical numerical values:
+With Python 3.8.18, NumPy 1.24.4, SciPy 1.10.1, and pytest 8.3.4, the full
+Python suite now passes all 425 tests. The run completed with nine warnings
+from convergence-limit cases and test functions returning values.
+
+The earlier result of 424 passed and one failed, and the pre-preparation
+baseline of 419 passed and the same failure, used a second-order finite-difference
+reference at a log-parameter step of 1e-4. In
 `test_grid_kernel_vs_fd.py::test_both_gradient_paths_match_finite_differences`,
-Rayleigh branch 1 at 7.143 s, direction 9. The AD/finite-difference relative
-discrepancy was 7.9455e-7 against the existing 5e-7 tolerance. Its cause remains
-unresolved; neither numerical implementations nor tolerances were changed.
-Resolve this failure before declaring the release validated.
+Rayleigh branch 1 at 7.143 s, direction 9, phase velocities near 4.224 km/s
+differed by only 3.3e-9 km/s. The resulting AD/reference relative discrepancy
+was 7.9455e-7 against the existing 5e-7 tolerance.
+
+The reference now uses fourth-order central differences, constructed as
+`(4 D(h) - D(2h)) / 3`, where `D` is the second-order central difference and
+`h=1e-3`. Before comparison with AD or weak-form gradients, the test checks
+agreement with the fourth-order reference at `h=2e-3`. Across all four
+wave/branch/period cases and five parameter directions, the maximum gradient
+discrepancy is 4.94e-8 and the maximum reference step-size discrepancy is
+9.80e-8. Both checks retain the existing 5e-7 tolerance. The previously failing
+regression is resolved by improving its finite-difference reference; solver
+formulas, defaults, floating-point precision, and numerical tolerances are
+unchanged.
 
 The targeted tracking, practice-example, and provenance checks passed all 58
 tests. The Disper26 data exporter and three retained result figures also ran;
@@ -150,9 +161,10 @@ verified all 254 frozen-source hashes, and replayed six retained Disper26 figure
 as PDF/PNG pairs without external comparison files. The archive review also
 checked decoded NPZ text fields and the absence of Git objects, compiled
 binaries, developer environment names, and local paths. Numerical implementations
-and tolerances were unchanged. The full Python suite and native checks were not
-rerun for this scope and documentation change; the failure recorded above
-remains unresolved.
+and tolerances were unchanged. These scope checks preceded the finite-difference
+reference correction and successful full Python run described above. Native
+CTest was not rerun for this test-reference and documentation change; native
+sources are unchanged from the 21-check validation recorded above.
 
 ## GitHub and Zenodo
 

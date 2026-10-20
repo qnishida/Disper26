@@ -1,9 +1,10 @@
+from pathlib import Path
 
 import disper26py
 import numpy as np
 import matplotlib.pyplot as plt
 
-def test_romberg_kernel_native():
+def test_romberg_kernel_native(tmp_path):
     max_steps_loop = 10
     n0 = 1 
     # n=0 (1 layer) might be too crude, let's start from 1.
@@ -98,8 +99,12 @@ def test_romberg_kernel_native():
         plt.title('Convergence of Native Romberg Kernel (Vs Node 0)')
         plt.grid(True, which="both", ls="-")
         
-        plt.savefig('kernel_convergence_native.png')
-        print("\nPlot saved to kernel_convergence_native.png")
+        output_path = tmp_path / 'kernel_convergence_native.png'
+        plt.savefig(output_path)
+        plt.close()
+        print(f"\nPlot saved to {output_path}")
 
 if __name__ == "__main__":
-    test_romberg_kernel_native()
+    output_dir = Path(__file__).resolve().parents[2] / 'build/test-results/romberg'
+    output_dir.mkdir(parents=True, exist_ok=True)
+    test_romberg_kernel_native(output_dir)
