@@ -1,0 +1,143 @@
+{
+  "amplitude_levels": [
+    0.005,
+    0.01,
+    0.02,
+    0.04,
+    0.06,
+    0.08,
+    0.1
+  ],
+  "artifact_sha256": "4e92574a29a6a1398052b4a7744fc3c4131de4ae779906e348c05719fe555bb5",
+  "basis_fingerprint": "614fcbad59d8faf31d5f8b5c6302dce28afaac73d11ebf9a321f89defd6a7b95",
+  "code_commit": "c72cf1d961f2bc50118fd69869b88dbc5c015629",
+  "curves": {
+    "love": {
+      "exact_error_message_count": 0,
+      "exact_success_fraction": 1.0,
+      "file": "split_love.npz",
+      "sha256": "28557e0c6f2ff76f714d021a2b39a4262ffeb74c154b4a5fc1d460a092fbcaeb"
+    },
+    "rayleigh": {
+      "exact_error_message_count": 0,
+      "exact_success_fraction": 1.0,
+      "file": "split_rayleigh.npz",
+      "sha256": "5478b7b21778691e46a52536283f465aa1bc79050f6055513c3c5fb534a77b15"
+    }
+  },
+  "dataset": {
+    "diagnostic_root_orders": [
+      0,
+      1,
+      2
+    ],
+    "fixed_moho": true,
+    "frequency_hz": [
+      0.0075,
+      0.01,
+      0.0125,
+      0.015,
+      0.0175,
+      0.02,
+      0.0225,
+      0.025,
+      0.0275,
+      0.03
+    ],
+    "frequency_interpolation": false,
+    "inversion_maximum_depth_km": 60.0,
+    "inversion_node_depths_km": [
+      0.0,
+      5.0,
+      10.0,
+      15.0,
+      20.0,
+      30.0,
+      40.0,
+      50.0,
+      60.0
+    ],
+    "maximum_physical_shear_anomaly": 0.08,
+    "medium": "ocean_free_sediment_free_solid_vti",
+    "parameter_count": 18,
+    "parameter_names": [
+      "vsv",
+      "vsh"
+    ],
+    "reference_bottom_depth_km": 2400.0,
+    "reference_max_spacing_km": 15.0,
+    "reference_model": "prem_noocean_flat",
+    "response_kind_by_wave": [
+      [
+        "rayleigh",
+        "phase_velocity"
+      ],
+      [
+        "love",
+        "normalized_squared_slowness"
+      ]
+    ],
+    "schema_name": "rayleigh-love-long-period-mixed-response-taylor-v2",
+    "schema_version": 2,
+    "target_root_orders": [
+      0,
+      1
+    ],
+    "waves": [
+      "rayleigh",
+      "love"
+    ]
+  },
+  "direction_count": 32,
+  "evidence_role": "sealed_holdout",
+  "frozen_gate": {
+    "curve_rms_error_over_sigma_p90_maximum": 0.3333333333333333,
+    "frequency_buffer_hz": 0.0025,
+    "minimum_batch_speedup": 1000.0,
+    "minimum_scalar_speedup": 1000.0,
+    "mode_identity": {
+      "maximum_group_velocity_relative_jump": 0.2,
+      "minimum_adjacent_relative_gap": 0.02,
+      "minimum_eigenfunction_overlap": 0.8,
+      "minimum_kernel_overlap": 0.8
+    },
+    "order_fit_amplitude_levels": [
+      0.01,
+      0.02,
+      0.04,
+      0.06
+    ],
+    "pointwise_error_over_sigma_p90_maximum": 0.3333333333333333,
+    "pointwise_error_over_sigma_p99_maximum": 1.0,
+    "primary_point_support": 1.0,
+    "reference_truncation_error_over_sigma_p99_maximum": 0.03333333333333333,
+    "relative_observation_sigma": 0.001,
+    "taylor2_residual_order_minimum": 2.7,
+    "taylor2_to_taylor1_p90_maximum": 0.5
+  },
+  "gate_lock_sha256": "74779295e1b2b096947755a7c025638162dfef2fa5960637a16c9835a31fc38c",
+  "holdout_open_marker_sha256": "106937ee07def8f70d0449f15e5454a6b2968f4cb58e11f1bc8902533ef4fd4b",
+  "kind": "holdout",
+  "model_count": 448,
+  "plan_sha256": "13c4ed729479b8cfed7ebe733a3d6bb640d296758e512175c660ee8d77ce45b4",
+  "prior": {
+    "correlation_length_logdepth": 0.4,
+    "depth_kernel": "gaussian",
+    "jitter": 1e-10,
+    "parameter_correlation": "birch_tight_aniso",
+    "vsh_sigma": 0.035,
+    "vsv_sigma": 0.035,
+    "z0_km": 30.0
+  },
+  "prior_fingerprint": "5acf188524dc4c24b5ab849c77e8817fc8735d0b38af02a0d75af59ee2037186",
+  "quick": false,
+  "reference_fingerprint": "23173cc887fdc8fceee261ceaf7002d8e9305bd03d1622544ecde1c6fde13963",
+  "response_kind_by_wave": {
+    "love": "normalized_squared_slowness",
+    "rayleigh": "phase_velocity"
+  },
+  "schema_name": "rayleigh-love-long-period-mixed-response-taylor-v2",
+  "schema_version": 2,
+  "seed": 20270511,
+  "workflow_profile": "mixed-response-v2"
+}

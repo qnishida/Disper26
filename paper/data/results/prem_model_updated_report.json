@@ -1,0 +1,16 @@
+{
+  "code_commit": "2780fba8f4339299a5b6d15ff358672a81976110",
+  "model_sha256": "caf39a2a3d6692511c71e392479a113bd0654338eb43929a963c1fb4ed1d98c4",
+  "extension_sha256": "73063ead843f549e45b32c1c2754be3b64f2cd1c8cd7a333678579f2abe5d3ed",
+  "generator_sha256": "9386e00fb1a6e42f09853bf23b22f0febfb5fc85e63c73bb5be39f6ac8ba6034",
+  "data_sha256": "820cd07792c497765eb71cfe93bd00793b25f0570989c34fd34141c4e1e0df16",
+  "root_tolerance": 1e-12,
+  "cases": {
+    "Rayleigh": {
+      "level7_vs8_max_relative": 1.5140245215138445e-12
+    },
+    "Love": {
+      "level7_vs8_max_relative": 1.2103935483515866e-14
+    }
+  }
+}

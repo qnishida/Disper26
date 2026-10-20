@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: >-
+  If you use Disper26, please cite the software version you used using the
+  metadata below. Please also cite the accompanying paper when it is available.
+type: software
+title: Disper26
+version: 0.1.104
+authors:
+  - family-names: Nishida
+    given-names: Kiwamu
+abstract: >-
+  Disper26 computes Rayleigh and Love surface-wave dispersion in isotropic and
+  vertically transversely isotropic layered media. It provides C++, C, Fortran
+  and Python interfaces, automatic-differentiation kernels and phase-velocity
+  Hessians, and Romberg refinement for gradient models.
+keywords:
+  - surface waves
+  - seismic dispersion
+  - transverse isotropy
+  - automatic differentiation
+  - sensitivity kernels
+license: GPL-2.0-or-later

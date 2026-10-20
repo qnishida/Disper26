@@ -1,0 +1,166 @@
+{
+  "artifact_array_bytes": 166560,
+  "artifact_file_bytes": 79298,
+  "artifact_sha256": "4e92574a29a6a1398052b4a7744fc3c4131de4ae779906e348c05719fe555bb5",
+  "artifact_was_modified": false,
+  "batch_size": 8,
+  "code_commit": "c72cf1d961f2bc50118fd69869b88dbc5c015629",
+  "curve_results": [
+    {
+      "batch_speedup": 9362.60597742881,
+      "exact_batch_seconds": 1.5947113577276468,
+      "exact_scalar_seconds": 0.19950675405561924,
+      "passed": true,
+      "root_order": 0,
+      "scalar_speedup": 6343.83872305141,
+      "surrogate_batch_seconds": 0.00017032772302627563,
+      "surrogate_scalar_seconds": 3.144890069961548e-05,
+      "wave": "rayleigh"
+    },
+    {
+      "batch_speedup": 9985.690648259175,
+      "exact_batch_seconds": 1.7218019235879183,
+      "exact_scalar_seconds": 0.21535203233361244,
+      "passed": true,
+      "root_order": 1,
+      "scalar_speedup": 6817.397370127956,
+      "surrogate_batch_seconds": 0.00017242692410945892,
+      "surrogate_scalar_seconds": 3.15885990858078e-05,
+      "wave": "rayleigh"
+    },
+    {
+      "batch_speedup": 2037.1968635266967,
+      "exact_batch_seconds": 0.3617368210107088,
+      "exact_scalar_seconds": 0.0446996595710516,
+      "passed": true,
+      "root_order": 0,
+      "scalar_speedup": 1151.8093112550996,
+      "surrogate_batch_seconds": 0.00017756596207618713,
+      "surrogate_scalar_seconds": 3.880821168422699e-05,
+      "wave": "love"
+    },
+    {
+      "batch_speedup": 2398.5943163308166,
+      "exact_batch_seconds": 0.43610853515565395,
+      "exact_scalar_seconds": 0.056681204587221146,
+      "passed": true,
+      "root_order": 1,
+      "scalar_speedup": 1482.245007306381,
+      "surrogate_batch_seconds": 0.0001818183809518814,
+      "surrogate_scalar_seconds": 3.824010491371155e-05,
+      "wave": "love"
+    }
+  ],
+  "dataset": {
+    "diagnostic_root_orders": [
+      0,
+      1,
+      2
+    ],
+    "fixed_moho": true,
+    "frequency_hz": [
+      0.0075,
+      0.01,
+      0.0125,
+      0.015,
+      0.0175,
+      0.02,
+      0.0225,
+      0.025,
+      0.0275,
+      0.03
+    ],
+    "frequency_interpolation": false,
+    "inversion_maximum_depth_km": 60.0,
+    "inversion_node_depths_km": [
+      0.0,
+      5.0,
+      10.0,
+      15.0,
+      20.0,
+      30.0,
+      40.0,
+      50.0,
+      60.0
+    ],
+    "maximum_physical_shear_anomaly": 0.08,
+    "medium": "ocean_free_sediment_free_solid_vti",
+    "parameter_count": 18,
+    "parameter_names": [
+      "vsv",
+      "vsh"
+    ],
+    "reference_bottom_depth_km": 2400.0,
+    "reference_max_spacing_km": 15.0,
+    "reference_model": "prem_noocean_flat",
+    "response_kind_by_wave": [
+      [
+        "rayleigh",
+        "phase_velocity"
+      ],
+      [
+        "love",
+        "normalized_squared_slowness"
+      ]
+    ],
+    "schema_name": "rayleigh-love-long-period-mixed-response-taylor-v2",
+    "schema_version": 2,
+    "target_root_orders": [
+      0,
+      1
+    ],
+    "waves": [
+      "rayleigh",
+      "love"
+    ]
+  },
+  "gate": {
+    "curve_rms_error_over_sigma_p90_maximum": 0.3333333333333333,
+    "frequency_buffer_hz": 0.0025,
+    "minimum_batch_speedup": 1000.0,
+    "minimum_scalar_speedup": 1000.0,
+    "mode_identity": {
+      "maximum_group_velocity_relative_jump": 0.2,
+      "minimum_adjacent_relative_gap": 0.02,
+      "minimum_eigenfunction_overlap": 0.8,
+      "minimum_kernel_overlap": 0.8
+    },
+    "order_fit_amplitude_levels": [
+      0.01,
+      0.02,
+      0.04,
+      0.06
+    ],
+    "pointwise_error_over_sigma_p90_maximum": 0.3333333333333333,
+    "pointwise_error_over_sigma_p99_maximum": 1.0,
+    "primary_point_support": 1.0,
+    "reference_truncation_error_over_sigma_p99_maximum": 0.03333333333333333,
+    "relative_observation_sigma": 0.001,
+    "taylor2_residual_order_minimum": 2.7,
+    "taylor2_to_taylor1_p90_maximum": 0.5
+  },
+  "passed": true,
+  "plan_sha256": "13c4ed729479b8cfed7ebe733a3d6bb640d296758e512175c660ee8d77ce45b4",
+  "prior": {
+    "correlation_length_logdepth": 0.4,
+    "depth_kernel": "gaussian",
+    "jitter": 1e-10,
+    "parameter_correlation": "birch_tight_aniso",
+    "vsh_sigma": 0.035,
+    "vsv_sigma": 0.035,
+    "z0_km": 30.0
+  },
+  "quick": false,
+  "repeats": 5,
+  "response_kind_by_wave": {
+    "love": "normalized_squared_slowness",
+    "rayleigh": "phase_velocity"
+  },
+  "schema_name": "rayleigh-love-long-period-mixed-response-taylor-v2",
+  "schema_version": 2,
+  "split_kind": "development",
+  "split_manifest_sha256": "646030d84daf054f9dde017f17c022bf79f24855227514a88b06e485ab2d83fe",
+  "split_seed": 20270510,
+  "surrogate_exact_solver_call_count": 0,
+  "workflow_profile": "mixed-response-v2"
+}

@@ -1,0 +1,37 @@
+add_library(disper26_fortran STATIC disper26.f90 disper26_api.f90)
+set_target_properties(disper26_fortran PROPERTIES
+    Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
+target_include_directories(disper26_fortran PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/modules)
+target_link_libraries(disper26_fortran PUBLIC disper26_c)
+
+add_executable(disper26_fortran_example example.f90)
+target_link_libraries(disper26_fortran_example PRIVATE disper26_fortran)
+
+add_executable(test_fortran_reference ../tests/test_fortran_reference.cpp)
+target_compile_options(test_fortran_reference PRIVATE ${DISPER26_MATH_FLAGS})
+target_link_libraries(test_fortran_reference PRIVATE Eigen3::Eigen autodiff::autodiff)
+add_executable(test_fortran_interface ../tests/test_fortran_interface.f90)
+target_link_libraries(test_fortran_interface PRIVATE disper26_fortran)
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(test_fortran_interface PRIVATE -fcheck=all -fbacktrace)
+endif()
+add_executable(test_c_interface ../tests/test_c_interface.cpp)
+target_link_libraries(test_c_interface PRIVATE disper26_c)
+
+set(reference_file ${CMAKE_CURRENT_BINARY_DIR}/fortran_reference.txt)
+add_test(NAME fortran_reference COMMAND test_fortran_reference ${reference_file})
+set_tests_properties(fortran_reference PROPERTIES FIXTURES_SETUP fortran_reference)
+add_test(NAME fortran_interface COMMAND test_fortran_interface ${reference_file})
+set_tests_properties(fortran_interface PROPERTIES FIXTURES_REQUIRED fortran_reference)
+add_test(NAME fortran_c_buffers COMMAND test_c_interface)
+add_test(NAME fortran_example COMMAND disper26_fortran_example)
+
+add_executable(test_api_fortran ../tests/test_api_fortran.f90)
+target_link_libraries(test_api_fortran PRIVATE disper26_fortran)
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(test_api_fortran PRIVATE -fcheck=all -fbacktrace)
+endif()
+add_test(NAME public_api_fortran COMMAND test_api_fortran)
+install(TARGETS disper26_fortran ARCHIVE DESTINATION lib)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules/ DESTINATION include/disper26
+    FILES_MATCHING PATTERN "*.mod")

@@ -1,0 +1,17 @@
+{
+  "artifact_sha256": "4e92574a29a6a1398052b4a7744fc3c4131de4ae779906e348c05719fe555bb5",
+  "code_commit": "c72cf1d961f2bc50118fd69869b88dbc5c015629",
+  "gate_lock_sha256": "74779295e1b2b096947755a7c025638162dfef2fa5960637a16c9835a31fc38c",
+  "holdout_report_sha256": "4b8ac69fae6394be1787b7950718fad0509f46a5ace4961a6842ce3084604387",
+  "holdout_split_manifest_sha256": "d302932f49c555e8d44f6beedd0d3d983a951f60e8d6d95e58b500fc33910d64",
+  "plan_sha256": "13c4ed729479b8cfed7ebe733a3d6bb640d296758e512175c660ee8d77ce45b4",
+  "response_kind_by_wave": {
+    "love": "normalized_squared_slowness",
+    "rayleigh": "phase_velocity"
+  },
+  "schema_name": "rayleigh-love-long-period-mixed-response-taylor-v2",
+  "schema_version": 2,
+  "status": "go",
+  "thresholds_were_modified_after_holdout": false,
+  "workflow_profile": "mixed-response-v2"
+}

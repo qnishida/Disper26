@@ -1,0 +1,15 @@
+{
+  "artifact_sha256": "4e92574a29a6a1398052b4a7744fc3c4131de4ae779906e348c05719fe555bb5",
+  "code_commit": "c72cf1d961f2bc50118fd69869b88dbc5c015629",
+  "gate_lock_sha256": "74779295e1b2b096947755a7c025638162dfef2fa5960637a16c9835a31fc38c",
+  "output_dir": "holdout",
+  "response_kind_by_wave": {
+    "love": "normalized_squared_slowness",
+    "rayleigh": "phase_velocity"
+  },
+  "schema_name": "rayleigh-love-long-period-mixed-response-taylor-v2",
+  "schema_version": 2,
+  "sealed_holdout_seed": 20270511,
+  "status": "sealed_holdout_opened",
+  "workflow_profile": "mixed-response-v2"
+}

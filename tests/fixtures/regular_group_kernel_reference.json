@@ -1,0 +1,378 @@
+{
+  "digits": 90,
+  "baseline": "f968f16",
+  "model": {
+    "vs": [
+      3.0,
+      3.3,
+      3.6,
+      3.9,
+      4.6
+    ],
+    "vp": [
+      5.2,
+      5.7,
+      6.2,
+      6.7,
+      8.0
+    ],
+    "rho": [
+      2.5,
+      2.6,
+      2.7,
+      2.8,
+      3.3
+    ],
+    "thicknesses": [
+      5.0,
+      5.0,
+      5.0,
+      5.0
+    ],
+    "omega": 0.3141592653589793
+  },
+  "cases": [
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 0,
+      "parameter": "Vs",
+      "reference_dU": "0.0598587723830392664411674419396853968626146684491908178",
+      "baseline_dU": 0.059858772380583666,
+      "baseline_relative_error": 4.102322857754977e-11
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 0,
+      "parameter": "Vp",
+      "reference_dU": "0.1315381149323387023744437758143356374287911661262708203",
+      "baseline_dU": 0.13153811492819995,
+      "baseline_relative_error": 3.146431943458815e-11
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 0,
+      "parameter": "Rho",
+      "reference_dU": "-0.2066639121330966142197490876827651249555461367356533777",
+      "baseline_dU": -0.2066639121343126,
+      "baseline_relative_error": 5.883851520360972e-12
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 1,
+      "parameter": "Vs",
+      "reference_dU": "0.0007742442304066064491853260106210893038115769380158256302",
+      "baseline_dU": 0.0007742442299645818,
+      "baseline_relative_error": 5.709111703774567e-10
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 1,
+      "parameter": "Vp",
+      "reference_dU": "0.1025585251802093486059279819966272754340328311135099423",
+      "baseline_dU": 0.10255852516401011,
+      "baseline_relative_error": 1.5795117883100857e-10
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 1,
+      "parameter": "Rho",
+      "reference_dU": "-0.1575341097219090062766795169605906299510296796737806964",
+      "baseline_dU": -0.15753410971704956,
+      "baseline_relative_error": 3.084692052295848e-11
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 2,
+      "parameter": "Vs",
+      "reference_dU": "0.1250032816742396161670904873399288766783382324934436438",
+      "baseline_dU": 0.12500328167430888,
+      "baseline_relative_error": 5.54099139665777e-13
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 2,
+      "parameter": "Vp",
+      "reference_dU": "0.06706881124386816739051208731122343439278388815667425078",
+      "baseline_dU": 0.067068811239124,
+      "baseline_relative_error": 7.073575588532141e-11
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 2,
+      "parameter": "Rho",
+      "reference_dU": "-0.02318187494054487365016086679728175955431557674683836128",
+      "baseline_dU": -0.02318187493150698,
+      "baseline_relative_error": 3.89868932742226e-10
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 3,
+      "parameter": "Vs",
+      "reference_dU": "0.217634606456514740585135021175421078608032243926146715",
+      "baseline_dU": 0.2176346063255107,
+      "baseline_relative_error": 6.019448504659714e-10
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 3,
+      "parameter": "Vp",
+      "reference_dU": "0.04021987621059605998184238342083070868205265152149935021",
+      "baseline_dU": 0.040219876210335695,
+      "baseline_relative_error": 6.473541783303658e-12
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 3,
+      "parameter": "Rho",
+      "reference_dU": "0.08752442627265142162923392668926568781590402015911356553",
+      "baseline_dU": 0.0875244262730231,
+      "baseline_relative_error": 4.246641784956201e-12
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": -1,
+      "parameter": "Vs",
+      "reference_dU": "0.3001870916102045591945681469681652264569994279364701758",
+      "baseline_dU": 0.30018709154289225,
+      "baseline_relative_error": 2.242345287723567e-10
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": -1,
+      "parameter": "Vp",
+      "reference_dU": "-0.009183153017450205567194782047030914474916747785800404582",
+      "baseline_dU": -0.00918315302082868,
+      "baseline_relative_error": 3.6789920363057506e-10
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": -1,
+      "parameter": "Rho",
+      "reference_dU": "0.2253812212612652828402889183330555878175460149839801261",
+      "baseline_dU": 0.2253812212301781,
+      "baseline_relative_error": 1.379315950028918e-10
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 0,
+      "parameter": "Thickness",
+      "reference_dU": "-0.07383812112453237922255790226216696984721678570061425433",
+      "baseline_dU": -0.07383812112915705,
+      "baseline_relative_error": 6.263259995559136e-11
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 1,
+      "parameter": "Thickness",
+      "reference_dU": "-0.06807710193849505378693397065109189185048889438239597855",
+      "baseline_dU": -0.06807710193646184,
+      "baseline_relative_error": 2.9866344554865154e-11
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 2,
+      "parameter": "Thickness",
+      "reference_dU": "-0.05831518796256931737773734981724339317382821578944878811",
+      "baseline_dU": -0.058315187963794306,
+      "baseline_relative_error": 2.1006334932354544e-11
+    },
+    {
+      "case": "Rayleigh_-1",
+      "phase_velocity": 3.9001997478666355,
+      "layer_index": 3,
+      "parameter": "Thickness",
+      "reference_dU": "-0.04124407950735652280955493807474626491002742434279478843",
+      "baseline_dU": -0.041244079507660986,
+      "baseline_relative_error": 7.381976335258097e-12
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 0,
+      "parameter": "Vs",
+      "reference_dU": "0.05985983834473645780571225092462694214226278499241616438",
+      "baseline_dU": 0.05985983834685557,
+      "baseline_relative_error": 3.5401244688462523e-11
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 0,
+      "parameter": "Vp",
+      "reference_dU": "0.1315386437104375162440531420455110461660749034730258226",
+      "baseline_dU": 0.13153864372557572,
+      "baseline_relative_error": 1.1508560978755445e-10
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 0,
+      "parameter": "Rho",
+      "reference_dU": "-0.2066632054275584631453519090176634212979211866819511885",
+      "baseline_dU": -0.20666320541725353,
+      "baseline_relative_error": 4.986343421299771e-11
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 1,
+      "parameter": "Vs",
+      "reference_dU": "0.0007742614372110968101794398203708924023733550943914235375",
+      "baseline_dU": 0.0007742614375828495,
+      "baseline_relative_error": 4.801383904216645e-10
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 1,
+      "parameter": "Vp",
+      "reference_dU": "0.1025592565090868271490558490742089644805259444447171076",
+      "baseline_dU": 0.10255925650613863,
+      "baseline_relative_error": 2.8746256788188037e-11
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 1,
+      "parameter": "Rho",
+      "reference_dU": "-0.157533808808168444940321771296759119943107202793997099",
+      "baseline_dU": -0.15753380880480586,
+      "baseline_relative_error": 2.1345174897091503e-11
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 2,
+      "parameter": "Vs",
+      "reference_dU": "0.1250025201743282969855040843156597604932757875483003106",
+      "baseline_dU": 0.12500252017538746,
+      "baseline_relative_error": 8.473136569529961e-12
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 2,
+      "parameter": "Vp",
+      "reference_dU": "0.06706951664571468905890478392493989959259546262710297544",
+      "baseline_dU": 0.06706951664748176,
+      "baseline_relative_error": 2.6346831942116258e-11
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 2,
+      "parameter": "Rho",
+      "reference_dU": "-0.02318209226299730166605560085348947979348359856282830577",
+      "baseline_dU": -0.023182092256003792,
+      "baseline_relative_error": 3.016772231014639e-10
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 3,
+      "parameter": "Vs",
+      "reference_dU": "0.2176342826566375558019495211470830510277821844123521701",
+      "baseline_dU": 0.21763428251998646,
+      "baseline_relative_error": 6.278932671636437e-10
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 3,
+      "parameter": "Vp",
+      "reference_dU": "0.04022043335299035967027010301410555527643972404880815986",
+      "baseline_dU": 0.04022043335307999,
+      "baseline_relative_error": 2.228446057349231e-12
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 3,
+      "parameter": "Rho",
+      "reference_dU": "0.08752435292801208994965476809389662044539095703173982922",
+      "baseline_dU": 0.08752435292921422,
+      "baseline_relative_error": 1.3734796953022338e-11
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": -1,
+      "parameter": "Vs",
+      "reference_dU": "0.3001846707107194111097085866493357301140322560887693416",
+      "baseline_dU": 0.30018467067451815,
+      "baseline_relative_error": 1.2059663369526236e-10
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": -1,
+      "parameter": "Vp",
+      "reference_dU": "-0.009182768411709764034069160850804852265938496271009741373",
+      "baseline_dU": -0.0091827684168273,
+      "baseline_relative_error": 5.572976451623067e-10
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": -1,
+      "parameter": "Rho",
+      "reference_dU": "0.2253886307577915649338109852165219384016914526909173094",
+      "baseline_dU": 0.22538863075453916,
+      "baseline_relative_error": 1.4430209156050674e-11
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 0,
+      "parameter": "Thickness",
+      "reference_dU": "-0.07383789448332593599206854989370715982302452466796002723",
+      "baseline_dU": -0.07383789448426424,
+      "baseline_relative_error": 1.2707634364322285e-11
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 1,
+      "parameter": "Thickness",
+      "reference_dU": "-0.0680767482683093391398579739875364309737123375522685565",
+      "baseline_dU": -0.06807674826859407,
+      "baseline_relative_error": 4.182498300205093e-12
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 2,
+      "parameter": "Thickness",
+      "reference_dU": "-0.05831479718768195134900130448263348221195689598475415538",
+      "baseline_dU": -0.05831479718468106,
+      "baseline_relative_error": 5.146026008890588e-11
+    },
+    {
+      "case": "Rayleigh_+1",
+      "phase_velocity": 3.900207548273931,
+      "layer_index": 3,
+      "parameter": "Thickness",
+      "reference_dU": "-0.04124367290395496004142006760809456891540185834262063924",
+      "baseline_dU": -0.041243672902059034,
+      "baseline_relative_error": 4.5968901810837756e-11
+    }
+  ]
+}

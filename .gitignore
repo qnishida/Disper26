@@ -1,0 +1,14 @@
+/build/
+/build-*/
+/cmake-build-*/
+/.venv/
+/dist/
+*.so
+*.o
+*.egg-info/
+__pycache__/
+.pytest_cache/
+/paper/results/
+/paper/Fig/
+/paper/reference_sources/**/build/
+/paper/reference_sources/**/*.so

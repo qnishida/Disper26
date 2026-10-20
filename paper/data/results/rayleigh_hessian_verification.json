@@ -1,0 +1,2825 @@
+{
+  "role": "Post-holdout independent verification of frozen Rayleigh phase Hessians",
+  "code_commit": "c72cf1d961f2bc50118fd69869b88dbc5c015629",
+  "artifact_sha256": "4e92574a29a6a1398052b4a7744fc3c4131de4ae779906e348c05719fe555bb5",
+  "extension_sha256": "73063ead843f549e45b32c1c2754be3b64f2cd1c8cd7a333678579f2abe5d3ed",
+  "script_sha256": "6c720c5699603086526aec61acf8cbe621d2873f030ef050e9b0f31291928631",
+  "source_files_sha256": {
+    "setup.py": "24b5cc9326c5202a3c183c8e4c188468141cc76fed99281ef08dcc13fb99cb29",
+    "tests/model_PREM_aniso.csv": "fd602a8b6a985b2569df64113891c2ae5ee3ab57cf827ae0ab0927ff886a90b7",
+    "src/bindings.cpp": "fadc51ed0ebcdd32ac59e92f264870d91a137f62477d7205e6d653ba1cb92d60",
+    "src/disper26.cpp": "65898b5c9db5dbf86fbde342b648412ef12197ff082bdeab12b1a3dbddc5570e",
+    "src/autodiff_utils.hpp": "a0dad1706fbec5988dca9d17cffaa154937f36c82f73779824adb780a2bd0f29",
+    "src/disper26_analytical.hpp": "a2bfc5bc067fa5e45cae828852fa9cf71b993e4011017b70bfef65743672e602",
+    "src/eval_counters.hpp": "b049ca3f098d1b6aaf798ca582e8d59b4a2b3f8fa18e7c348a3e805047f1cfcc",
+    "src/grid_hessian.hpp": "2b95a14259a4b21853ff28cc5e6a5e3d86b25e5ab700fa2534086bcff6f663f8",
+    "src/grid_refinement_geometry.hpp": "4618d7c762d0c95e0ea88af57bbdcc2a58612c98ead5184c41214d7e212642ea",
+    "src/romberg_engine.hpp": "7b61e304e74d86d3581e05b6c27b29cd335ab54f59224d3ae1ec487079586b64",
+    "src/sensitivity_utils.hpp": "fcf1d2002cbbe552e1792e5d00afa5cdad2bbb605dcec3b1abf1e148788fc292",
+    "src/velocity_grid.hpp": "6f7e9ccccc425755324eb2a12ac6ad12f914554dd77889d7507f4feb6dcf2f99",
+    "inversion/disper26_inv/__init__.py": "0a0e5fc6b25befbe8e68783e1f9b6b01d6fde165992765d6823204b8ed9dff94",
+    "inversion/disper26_inv/atlas.py": "a25dd7851ca95250dd37008b3b36830d22de4bbbb3e4e8342d7a52aaa16c10fd",
+    "inversion/disper26_inv/certified_atlas.py": "6c6ca6e46379f20dad7f26762105b2e321242f2fa204c00968dd7540a0d3ba97",
+    "inversion/disper26_inv/certified_atlas_calibration.py": "667278f3c2698885d154fe70abc410a124038904966c657dd1cbea9c98a4292d",
+    "inversion/disper26_inv/data.py": "479271feffe5e4b9b23e44865ab27c2077f7d83e2cf3955078a2daa8ecc1bdd2",
+    "inversion/disper26_inv/depth_hessian.py": "5f1e2ae79bfdf0347b25e865d7e94944757e110e82f5d9f61114939ac38d9260",
+    "inversion/disper26_inv/derivatives.py": "b59d2241c31fdae73aa2cd45f4952c3c09e779db44780518b1354bd787ad5acb",
+    "inversion/disper26_inv/diagnostics.py": "9d35a5df61d4e304ceef70b27fc3e4ae12f704979571e886083fb41ef9c670fc",
+    "inversion/disper26_inv/engine.py": "62bee8c87f25f678196a767c3642800b3833faa1d69a80ad2326d04c2062b906",
+    "inversion/disper26_inv/gravity.py": "4c9b46f17f769e893548902c791f812881cc61aa879149abb628cc994f4c39d8",
+    "inversion/disper26_inv/landing.py": "32a30eabdab0c9a7fb27d1c4754d24fa20f5ec97973abd1620134e1cee1e5129",
+    "inversion/disper26_inv/laplace.py": "731c836f66bc2e842a4170da2305560eb01772a75d3efa70f73369d12a85a877",
+    "inversion/disper26_inv/linearized.py": "ea54e3a0f209c20d64079847dc682044a397a913de7143203fcdd4366d16ee81",
+    "inversion/disper26_inv/long_period_taylor.py": "6334bb08bcb412d6ffb1d81ce2b53e6f6e2e85f9c23b563af09520610abc9aaf",
+    "inversion/disper26_inv/long_period_taylor_exact.py": "3b4b64e15299233d04076df589573b5ed0acfe25e9a1d45ef821f38f9f4f90af",
+    "inversion/disper26_inv/long_period_taylor_io.py": "88f23e5154a64c5d7a34ed5e6367e4f383ce58dee35e74892ad6e85b719dd12c",
+    "inversion/disper26_inv/long_period_taylor_manifest.py": "468bb9d1cb413424c239e5bcefbdaa94157cb0dec40016fa75c4684d2a691efb",
+    "inversion/disper26_inv/long_period_taylor_mode.py": "0ea59bef1d9b44d6546aa40646e768aea058ec5598aa0f23e4ccca54ae3e1274",
+    "inversion/disper26_inv/long_period_taylor_reference.py": "f570756aec444a76a2452bc2c70168b5bd029c04e3e0202650e1e43187e162ef",
+    "inversion/disper26_inv/long_period_taylor_validation.py": "18ca895004886abee21804199f98a6142a848a26f9a5c94d54e274c58d55412b",
+    "inversion/disper26_inv/model.py": "14e01b002e27bce5a7df1d4e218aa91810d7261efb6b858fab37526c12751176",
+    "inversion/disper26_inv/parallel.py": "5da086c8daf6836af7c7e0399e672932f134151d982a1571f8dad0778608623d",
+    "inversion/disper26_inv/physics.py": "ead75ecf53276b3d3016b626e81df6e8f113d9487cb5a68056b18aaaca97b8fb",
+    "inversion/disper26_inv/pipeline.py": "7719979440df2144889b5b2838fa1959e7ad5836679302ccac43cbc788aa4c05",
+    "inversion/disper26_inv/prem.py": "949f76ff61cd3003e53b5c7d854c96135a7d90ab52fd35b614ecc8deccf33946",
+    "inversion/disper26_inv/priors.py": "7f56cea21beb459160109dd9e8b396beb2644b61a9b425ce12eba93bf4a025cc",
+    "inversion/disper26_inv/response_support.py": "15aebd31d86f91512e93acddd2853c2137965377dd449eb837abd86e0731838d",
+    "inversion/disper26_inv/search.py": "f95ff89223c4405b7f861850cf9b3d87c6301ca91090ffe57c65f0b441c46f97",
+    "inversion/disper26_inv/shallow.py": "d562795af766c1fa34f8280dbccb7a6ff6ae9cf2c9bc28ebb36956b511f1bf2c",
+    "inversion/disper26_inv/surrogate.py": "ae6d2d27ed83802d6a3fdcee9e4eac0cdbd81a8fd493b8c9083ada8565be382c",
+    "inversion/disper26_inv/surrogate_hmc.py": "7658767a83e067efff824fdcc5d99b1a3fca6804f0063c49b7410c6f092d65eb",
+    "inversion/disper26_inv/two_stage_is.py": "e1d9ca3f2ec64df6d0e5db0f635ae1575fbdedfd7eab73393a6f3445020333af",
+    "inversion/disper26_inv/units.py": "24eba02a83d5b653656b38d74ebfce796f7914cc6e06618c8241b09dc436762b",
+    "third_party/autodiff/autodiff/common/binomialcoefficient.hpp": "c0a7737a44ab6d04f759f972f160fe738380b4f386546368a8277dbb51f52352",
+    "third_party/autodiff/autodiff/common/classtraits.hpp": "56f50dc02bb1476c473914d3faf01c59cef3fff4ff9e6c24fa06b7164d8ad7ab",
+    "third_party/autodiff/autodiff/common/eigen.hpp": "b58be325f09f0d3eb2f40b835cb04131de181ff913f582e15e45bce1bb887c31",
+    "third_party/autodiff/autodiff/common/meta.hpp": "bacc414bdb92477166cacd640d1cf5565ce29cb4e3a3fff40d6b28c6eb59b3b5",
+    "third_party/autodiff/autodiff/common/numbertraits.hpp": "8ef69a5866674c3b4dacecc90787ab1bc40e15ff417bd29841298663824ded13",
+    "third_party/autodiff/autodiff/common/vectortraits.hpp": "63c7939ce18015c5375f2f4cda9ba4237214d62179ed5316023b7d8817a76f29",
+    "third_party/autodiff/autodiff/forward/dual/dual.hpp": "60250da37b1c168478a5dd3fc82481bdfe527b40818c63284b860788cfd2766e",
+    "third_party/autodiff/autodiff/forward/dual/eigen.hpp": "fba2e63d85a46f8b2ea51ee1226faf55af9ec25e7bb83b0f7a368c1a405d9645",
+    "third_party/autodiff/autodiff/forward/dual.hpp": "86211a114bb1d6eee9e08af5b10971eaf4c2f8973b8032136b7cecaa6ba03922",
+    "third_party/autodiff/autodiff/forward/real/eigen.hpp": "c24ae548fecca8d74fc44fd36b4cc68a70a31cdea1061a8fc2d06e18e93b942b",
+    "third_party/autodiff/autodiff/forward/real/real.hpp": "312c3056db3e2a60c7232c1d264de5b6acd25e66cdf67c6b703ec299806384db",
+    "third_party/autodiff/autodiff/forward/real.hpp": "06b224d7d866b8986f368b3c76df4089ffc76f98b8788039a7efc8c22a7065a4",
+    "third_party/autodiff/autodiff/forward/utils/derivative.hpp": "f79e0d94ee131a14b7c5552cac2f32792359a969df149132d6d69361bf41db13",
+    "third_party/autodiff/autodiff/forward/utils/gradient.hpp": "d65eea1666b6e8a536eb330fea2e6228623bc5ac24b878817f61a150ab5d66eb",
+    "third_party/autodiff/autodiff/forward/utils/taylorseries.hpp": "6d3767f34fa05f7a382a83b5269754693203537df024206961bb528ac5f56bf9",
+    "third_party/autodiff/autodiff/pybind11/eigen.hpp": "680c4716dd5ef0eb6412bcfa144b90351156ce7533e68dc0124cd9475e22e3bf",
+    "third_party/autodiff/autodiff/reverse/var/eigen.hpp": "216aa50e6db6bb6553c90063fe1b2c963af6df85309456177f4564fbdf29576c",
+    "third_party/autodiff/autodiff/reverse/var/var.hpp": "74423ee8d0e4928d6c1c665fa058a04c4553be6ed79240fd23219c9784fd3655",
+    "third_party/autodiff/autodiff/reverse/var.hpp": "75aaebd0c53bfc533f51fd976dbb3b945cbcd97e2fa741222e4edb6ce88ea7c6"
+  },
+  "fingerprints": {
+    "reference_fingerprint": "23173cc887fdc8fceee261ceaf7002d8e9305bd03d1622544ecde1c6fde13963",
+    "basis_fingerprint": "614fcbad59d8faf31d5f8b5c6302dce28afaac73d11ebf9a321f89defd6a7b95",
+    "prior_fingerprint": "5acf188524dc4c24b5ab849c77e8817fc8735d0b38af02a0d75af59ee2037186"
+  },
+  "engine_settings": {
+    "max_steps": 6,
+    "tolerance": 1e-09,
+    "hessian_max_levels": 5,
+    "hessian_tolerance": 1e-06
+  },
+  "parameter_directions": "20-km Vsv and Vsh log parameters in the coupled 18-parameter basis",
+  "independent_route": "central differences of propagation/full-AD gradients, not variational gradients",
+  "coordinate_conversion": "H_m = L^{-T} H_z L^{-1}; Rayleigh response r=c",
+  "tolerances": {
+    "column": 0.005,
+    "step_convergence": 0.005,
+    "cross_term_column_scaled": 0.01,
+    "reference_phase": 2e-08
+  },
+  "tolerance_source": "Disper26 tests/python/test_plan_l_love_hessian_fd.py and reference-depth gate",
+  "cases": [
+    {
+      "mode": 0,
+      "frequency_hz": 0.0075,
+      "reference_phase_relative_difference": 1.5543122344752192e-15,
+      "reference_gradient_relative_difference": 1.3349290728480088e-13,
+      "columns": [
+        {
+          "index": 4,
+          "norm": 0.03277444995109643,
+          "relative_difference": 1.670018826184381e-08,
+          "step_relative_difference": 2.579588766757869e-08
+        },
+        {
+          "index": 13,
+          "norm": 0.02100517588154244,
+          "relative_difference": 5.626532196247018e-09,
+          "step_relative_difference": 6.759467945280566e-09
+        }
+      ],
+      "cross_term_column_scaled_difference": 7.997085054541333e-10
+    },
+    {
+      "mode": 0,
+      "frequency_hz": 0.02,
+      "reference_phase_relative_difference": 2.220446049250313e-16,
+      "reference_gradient_relative_difference": 1.8919779027061515e-14,
+      "columns": [
+        {
+          "index": 4,
+          "norm": 0.049120131603387886,
+          "relative_difference": 7.92482017960676e-08,
+          "step_relative_difference": 2.481675870422611e-08
+        },
+        {
+          "index": 13,
+          "norm": 0.041264819236792726,
+          "relative_difference": 2.6589847262535502e-08,
+          "step_relative_difference": 4.27312319259832e-09
+        }
+      ],
+      "cross_term_column_scaled_difference": 5.807585774971583e-10
+    },
+    {
+      "mode": 0,
+      "frequency_hz": 0.03,
+      "reference_phase_relative_difference": 2.220446049250313e-16,
+      "reference_gradient_relative_difference": 4.7434462270219965e-14,
+      "columns": [
+        {
+          "index": 4,
+          "norm": 0.10762034220183321,
+          "relative_difference": 2.0110047691782182e-07,
+          "step_relative_difference": 9.918645659375797e-09
+        },
+        {
+          "index": 13,
+          "norm": 0.05658546219786826,
+          "relative_difference": 4.594181925296927e-08,
+          "step_relative_difference": 8.047692841097302e-09
+        }
+      ],
+      "cross_term_column_scaled_difference": 5.446647979322989e-09
+    },
+    {
+      "mode": 1,
+      "frequency_hz": 0.0075,
+      "reference_phase_relative_difference": 1.4432899320127035e-15,
+      "reference_gradient_relative_difference": 3.70391219905329e-13,
+      "columns": [
+        {
+          "index": 4,
+          "norm": 0.004442449581479614,
+          "relative_difference": 2.422637541880747e-08,
+          "step_relative_difference": 1.1036643122936432e-08
+        },
+        {
+          "index": 13,
+          "norm": 0.001259162029459665,
+          "relative_difference": 2.0604366840543068e-08,
+          "step_relative_difference": 1.8019053787526723e-08
+        }
+      ],
+      "cross_term_column_scaled_difference": 1.1125996272904227e-09
+    },
+    {
+      "mode": 1,
+      "frequency_hz": 0.02,
+      "reference_phase_relative_difference": 5.551115123125783e-16,
+      "reference_gradient_relative_difference": 2.095954363215427e-13,
+      "columns": [
+        {
+          "index": 4,
+          "norm": 0.002623883265128525,
+          "relative_difference": 1.8960813058165266e-07,
+          "step_relative_difference": 1.401053879751673e-08
+        },
+        {
+          "index": 13,
+          "norm": 0.003505885373939099,
+          "relative_difference": 3.6721962497688056e-08,
+          "step_relative_difference": 1.2553102557068944e-08
+        }
+      ],
+      "cross_term_column_scaled_difference": 4.1386820635024946e-09
+    },
+    {
+      "mode": 1,
+      "frequency_hz": 0.03,
+      "reference_phase_relative_difference": 8.881784197001252e-16,
+      "reference_gradient_relative_difference": 2.9346059937205565e-13,
+      "columns": [
+        {
+          "index": 4,
+          "norm": 0.02032014583330978,
+          "relative_difference": 1.0001127406090886e-07,
+          "step_relative_difference": 3.818856917375103e-09
+        },
+        {
+          "index": 13,
+          "norm": 0.0035579186285117645,
+          "relative_difference": 5.452387073544891e-08,
+          "step_relative_difference": 1.9560304923919013e-08
+        }
+      ],
+      "cross_term_column_scaled_difference": 1.4523334613675055e-09
+    }
+  ],
+  "branch_confirmations": [
+    {
+      "datum": "R0_133.333s",
+      "phase_velocity": 4.341793136883255,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_133.333s",
+      "phase_velocity": 4.341799001983471,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_133.333s",
+      "phase_velocity": 4.34178727224142,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_133.333s",
+      "phase_velocity": 4.341796069376083,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_133.333s",
+      "phase_velocity": 4.341790204505013,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_133.333s",
+      "phase_velocity": 4.34179475487548,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_133.333s",
+      "phase_velocity": 4.341791518890158,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_133.333s",
+      "phase_velocity": 4.341793945879479,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_133.333s",
+      "phase_velocity": 4.341792327886812,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_50s",
+      "phase_velocity": 3.9768635347927686,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_50s",
+      "phase_velocity": 3.976871923661301,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_50s",
+      "phase_velocity": 3.976855145447136,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_50s",
+      "phase_velocity": 3.9768677292867,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_50s",
+      "phase_velocity": 3.97685934017956,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_50s",
+      "phase_velocity": 3.9768660366483184,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_50s",
+      "phase_velocity": 3.9768610327845715,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_50s",
+      "phase_velocity": 3.9768647857396227,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_50s",
+      "phase_velocity": 3.97686228380775,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_33.3333s",
+      "phase_velocity": 3.92671111552547,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_33.3333s",
+      "phase_velocity": 3.926729563784337,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_33.3333s",
+      "phase_velocity": 3.9266926658870127,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_33.3333s",
+      "phase_velocity": 3.9267203398273702,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_33.3333s",
+      "phase_velocity": 3.926701890878671,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_33.3333s",
+      "phase_velocity": 3.9267141095740272,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_33.3333s",
+      "phase_velocity": 3.926708121203432,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_33.3333s",
+      "phase_velocity": 3.9267126125839336,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R0_33.3333s",
+      "phase_velocity": 3.926709618398636,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 0,
+            "count_above": 1,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 0,
+                "count_above": 1,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_133.333s",
+      "phase_velocity": 6.559966097368366,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_133.333s",
+      "phase_velocity": 6.559966168397484,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_133.333s",
+      "phase_velocity": 6.559966026432972,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_133.333s",
+      "phase_velocity": 6.559966132871214,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_133.333s",
+      "phase_velocity": 6.55996606188896,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_133.333s",
+      "phase_velocity": 6.559965378538854,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_133.333s",
+      "phase_velocity": 6.5599668161862565,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_133.333s",
+      "phase_velocity": 6.559965737955064,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_133.333s",
+      "phase_velocity": 6.5599664567787705,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_50s",
+      "phase_velocity": 5.004349171291986,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_50s",
+      "phase_velocity": 5.004348895204589,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_50s",
+      "phase_velocity": 5.004349447324598,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_50s",
+      "phase_velocity": 5.004349033255136,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_50s",
+      "phase_velocity": 5.004349309315139,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_50s",
+      "phase_velocity": 5.0043490398372485,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_50s",
+      "phase_velocity": 5.004349302724621,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_50s",
+      "phase_velocity": 5.004349105567381,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_50s",
+      "phase_velocity": 5.0043492370110645,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_33.3333s",
+      "phase_velocity": 4.748730692892837,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_33.3333s",
+      "phase_velocity": 4.748731326141299,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_33.3333s",
+      "phase_velocity": 4.748730059492544,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_33.3333s",
+      "phase_velocity": 4.748731009536047,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_33.3333s",
+      "phase_velocity": 4.748730376211668,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_33.3333s",
+      "phase_velocity": 4.748730757838889,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_33.3333s",
+      "phase_velocity": 4.748730627917663,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0002,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_33.3333s",
+      "phase_velocity": 4.748730725369503,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "datum": "R1_33.3333s",
+      "phase_velocity": 4.7487306604088895,
+      "delta_m": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0001,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "confirmation": {
+        "accepted": true,
+        "status": "accepted",
+        "base_level": 1,
+        "accepted_level": 1,
+        "last_level": 1,
+        "records": [
+          {
+            "scan_level": 1,
+            "count_below": 1,
+            "count_above": 2,
+            "window_rel": 0.0003,
+            "accepted": true,
+            "window_attempts": [
+              {
+                "count_below": 1,
+                "count_above": 2,
+                "window_rel": 0.0003,
+                "accepted": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "failures": [],
+  "passed": true,
+  "summary": {
+    "maximum_column_relative_difference": 2.0110047691782182e-07,
+    "maximum_step_relative_difference": 2.579588766757869e-08,
+    "maximum_cross_term_column_scaled_difference": 5.446647979322989e-09,
+    "branch_confirmed_solutions": 54
+  },
+  "data_sha256": "9b779a34e6ca07050bb2fdf1596cc6c8bebcee24303bbb9f13433d390c03e696"
+}

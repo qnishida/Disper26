@@ -1,0 +1,26 @@
+{
+  "python": "3.8.18",
+  "numpy": "1.24.4",
+  "matplotlib": "3.7.3",
+  "sha256": {
+    "scripts/plot_kernel_figures.py": "29c7fcb50544917f63940229b6e0e1a1fb94ddf952a9eb9741b55df94fa908f5",
+    "scripts/generate_kernel_figures.py": "6ebab21342efaffb1b1c2035936d6961dd3e293b7b3c02f3446cb24d57200680",
+    "scripts/generate_model_figure.py": "9386e00fb1a6e42f09853bf23b22f0febfb5fc85e63c73bb5be39f6ac8ba6034",
+    "scripts/continuous_group_kernel.cpp": "80615bdd766b614f861c063bad0dfb1b5ba3f30cde75e47a7475a28192809949",
+    "scripts/verify_kernel_figures.py": "c41504d74d1902727f691f3ebdbd0b12ad614c6cc65fef424714143d0ca3201b",
+    "data/results/prem_like_kernel_model.json": "caf39a2a3d6692511c71e392479a113bd0654338eb43929a963c1fb4ed1d98c4",
+    "data/results/prem_model_updated.npz": "820cd07792c497765eb71cfe93bd00793b25f0570989c34fd34141c4e1e0df16",
+    "data/results/prem_model_updated_report.json": "c728f09f58ec1506a997e55a06078f6022b375dc11c7db9e45f8ca24fea51278",
+    "Fig/prem_model_updated.pdf": "809e9f22fc2ef8bc9b2db208e4f2a2b78d5f35b62da68ed64a241f1afcb7baf4",
+    "Fig/prem_model_updated.png": "84cf7b8ee58f6860942ccb1da0581ab720c355b2430b395ee678621ec6485327",
+    "data/results/prem_convergence_updated.npz": "37f22736bbd113e4f87e95e8c086d95e4034fe97933a14d98b5346f46c504fed",
+    "data/results/prem_convergence_updated_report.json": "521b29033a802497655ce3f801a7b5a5e03ff74ae13e24c794bf68ba07eba28a",
+    "Fig/prem_convergence_updated.pdf": "1698e32f8a5b56530e2deabe9ef25dbaa99eb1226a007617e39dd5726bb1c1de",
+    "Fig/prem_convergence_updated.png": "7193f7f2ebcbdcb8d7afdd015b604c151db1139173f5d52076f9fe223bb20b04",
+    "data/results/prem_group_kernels_updated.npz": "3f50a5919675f85d903ae0bb6fc6f0ff1fda39759fcc228baff9912ca49f2b04",
+    "data/results/prem_group_kernels_updated_report.json": "6d8e73e790e35d3b6684a1d9db7bb23bd49d4897475ac87dd8d336ec4706429d",
+    "Fig/prem_group_kernels_updated.pdf": "c2f19a1a7e550925224cf45eef16c1718077677053ae29e934c6c9718c2e5144",
+    "Fig/prem_group_kernels_updated.png": "b2ed4d7aab556882a3106849e60bc39e3642940cd884e896ae05561cac80b1b2",
+    "data/results/prem_group_kernels_verification.json": "19742de2a8f4f5d2a702ad99bfe8c549f7691f39417de36fc3c48d2f549e7e66"
+  }
+}

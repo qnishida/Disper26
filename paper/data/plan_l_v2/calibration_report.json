@@ -1,0 +1,2070 @@
+{
+  "artifact_sha256": "4e92574a29a6a1398052b4a7744fc3c4131de4ae779906e348c05719fe555bb5",
+  "artifact_was_modified": false,
+  "code_commit": "c72cf1d961f2bc50118fd69869b88dbc5c015629",
+  "dataset": {
+    "diagnostic_root_orders": [
+      0,
+      1,
+      2
+    ],
+    "fixed_moho": true,
+    "frequency_hz": [
+      0.0075,
+      0.01,
+      0.0125,
+      0.015,
+      0.0175,
+      0.02,
+      0.0225,
+      0.025,
+      0.0275,
+      0.03
+    ],
+    "frequency_interpolation": false,
+    "inversion_maximum_depth_km": 60.0,
+    "inversion_node_depths_km": [
+      0.0,
+      5.0,
+      10.0,
+      15.0,
+      20.0,
+      30.0,
+      40.0,
+      50.0,
+      60.0
+    ],
+    "maximum_physical_shear_anomaly": 0.08,
+    "medium": "ocean_free_sediment_free_solid_vti",
+    "parameter_count": 18,
+    "parameter_names": [
+      "vsv",
+      "vsh"
+    ],
+    "reference_bottom_depth_km": 2400.0,
+    "reference_max_spacing_km": 15.0,
+    "reference_model": "prem_noocean_flat",
+    "response_kind_by_wave": [
+      [
+        "rayleigh",
+        "phase_velocity"
+      ],
+      [
+        "love",
+        "normalized_squared_slowness"
+      ]
+    ],
+    "schema_name": "rayleigh-love-long-period-mixed-response-taylor-v2",
+    "schema_version": 2,
+    "target_root_orders": [
+      0,
+      1
+    ],
+    "waves": [
+      "rayleigh",
+      "love"
+    ]
+  },
+  "evidence_role": "opened_selection_only",
+  "gate": {
+    "curve_rms_error_over_sigma_p90_maximum": 0.3333333333333333,
+    "frequency_buffer_hz": 0.0025,
+    "minimum_batch_speedup": 1000.0,
+    "minimum_scalar_speedup": 1000.0,
+    "mode_identity": {
+      "maximum_group_velocity_relative_jump": 0.2,
+      "minimum_adjacent_relative_gap": 0.02,
+      "minimum_eigenfunction_overlap": 0.8,
+      "minimum_kernel_overlap": 0.8
+    },
+    "order_fit_amplitude_levels": [
+      0.01,
+      0.02,
+      0.04,
+      0.06
+    ],
+    "pointwise_error_over_sigma_p90_maximum": 0.3333333333333333,
+    "pointwise_error_over_sigma_p99_maximum": 1.0,
+    "primary_point_support": 1.0,
+    "reference_truncation_error_over_sigma_p99_maximum": 0.03333333333333333,
+    "relative_observation_sigma": 0.001,
+    "taylor2_residual_order_minimum": 2.7,
+    "taylor2_to_taylor1_p90_maximum": 0.5
+  },
+  "gate_lock_sha256": "",
+  "gate_result": {
+    "curve_results": [
+      {
+        "buffered_candidate_frequency_count": 10,
+        "curve_rms_error_over_sigma": {
+          "maximum": 0.08599057392378887,
+          "p50": 0.0006433656549916613,
+          "p90": 0.0202219625286091,
+          "p99": 0.05006940387913088
+        },
+        "exact_branch_failure_count": 0,
+        "frequency_results": [
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0075,
+            "minimum_response_order1": 4.315081599251358,
+            "minimum_response_order2": 4.314959702873119,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.00014486447672956704,
+              "p50": 2.836166556274833e-06,
+              "p90": 3.539705141596405e-05,
+              "p99": 0.0001229551799058759
+            },
+            "taylor1_residual_order": 2.0461150844188882,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.0164491751665198,
+              "p50": 0.00015821993643041604,
+              "p90": 0.004946350808906104,
+              "p99": 0.012917211696016957
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 1.644917516652189e-05,
+              "p50": 1.582199363747705e-07,
+              "p90": 4.946350808920918e-06,
+              "p99": 1.2917211696054094e-05
+            },
+            "taylor2_residual_order": 3.016604711629024,
+            "taylor2_signed_relative_error": {
+              "maximum": 1.3636141504402843e-05,
+              "p50": 4.666871333824929e-10,
+              "p90": 2.3063613701523875e-06,
+              "p99": 1.0247156343619073e-05
+            },
+            "taylor2_to_taylor1_p90": 0.13973906331333905,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.01,
+            "minimum_response_order1": 4.123904447251396,
+            "minimum_response_order2": 4.124010424921228,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0001471458338627718,
+              "p50": 4.848262455781072e-06,
+              "p90": 5.5049082951885704e-05,
+              "p99": 0.00012746590171148776
+            },
+            "taylor1_residual_order": 2.037619736419774,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.016938230253242516,
+              "p50": 0.0001486508000177161,
+              "p90": 0.004571404210408305,
+              "p99": 0.0148195886277815
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 1.6938230253282782e-05,
+              "p50": 1.4865080011361442e-07,
+              "p90": 4.571404210407246e-06,
+              "p99": 1.481958862771584e-05
+            },
+            "taylor2_residual_order": 3.0083294520078625,
+            "taylor2_signed_relative_error": {
+              "maximum": 1.6002413727900233e-05,
+              "p50": 1.2323475573339238e-12,
+              "p90": 1.8170681181928214e-06,
+              "p99": 1.2536208621400943e-05
+            },
+            "taylor2_to_taylor1_p90": 0.08304233177513182,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0125,
+            "minimum_response_order1": 4.027450442889639,
+            "minimum_response_order2": 4.027899666462411,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.00020445213759456848,
+              "p50": 6.187962532988589e-06,
+              "p90": 8.488397441186456e-05,
+              "p99": 0.00017405884092260653
+            },
+            "taylor1_residual_order": 1.9882672860294215,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.018721921413119208,
+              "p50": 0.0001292831937906916,
+              "p90": 0.005572599126676432,
+              "p99": 0.01646675090652322
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 1.872192141316731e-05,
+              "p50": 1.2928319376159791e-07,
+              "p90": 5.572599126713034e-06,
+              "p99": 1.646675090652084e-05
+            },
+            "taylor2_residual_order": 2.994451739520848,
+            "taylor2_signed_relative_error": {
+              "maximum": 1.872192141316731e-05,
+              "p50": 9.175415982554114e-11,
+              "p90": 1.9599243768153586e-06,
+              "p99": 1.45531252452269e-05
+            },
+            "taylor2_to_taylor1_p90": 0.06564960188685665,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.015,
+            "minimum_response_order1": 3.96890352067303,
+            "minimum_response_order2": 3.969550261296543,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0003422909689183573,
+              "p50": 7.60352598838665e-06,
+              "p90": 0.00011220919260993555,
+              "p99": 0.00024310465285434042
+            },
+            "taylor1_residual_order": 2.0271607661040676,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.022032931159910354,
+              "p50": 0.00024136378533005205,
+              "p90": 0.007279918887249313,
+              "p99": 0.01900243827475757
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 2.2032931159987612e-05,
+              "p50": 2.4136378529160396e-07,
+              "p90": 7.27991888727075e-06,
+              "p99": 1.9002438274736695e-05
+            },
+            "taylor2_residual_order": 3.007565600665665,
+            "taylor2_signed_relative_error": {
+              "maximum": 2.2032931159987612e-05,
+              "p50": -1.1929346399597307e-13,
+              "p90": 3.7686755489429982e-06,
+              "p99": 1.7498621052625137e-05
+            },
+            "taylor2_to_taylor1_p90": 0.06487809704305947,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0175,
+            "minimum_response_order1": 3.9275148942207405,
+            "minimum_response_order2": 3.9280464256303356,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0005325487309342236,
+              "p50": 9.939911852274719e-06,
+              "p90": 0.00013802337673398667,
+              "p99": 0.0003264022845552595
+            },
+            "taylor1_residual_order": 2.0399634635518935,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.0412510194033033,
+              "p50": 0.00028084063495990364,
+              "p90": 0.010294201584397243,
+              "p99": 0.025327024289371784
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 4.125101940322118e-05,
+              "p50": 2.808406349141812e-07,
+              "p90": 1.0294201584426506e-05,
+              "p99": 2.532702428928226e-05
+            },
+            "taylor2_residual_order": 3.006042596917511,
+            "taylor2_signed_relative_error": {
+              "maximum": 4.125101940322118e-05,
+              "p50": 2.96040969516298e-13,
+              "p90": 5.007408269852575e-06,
+              "p99": 2.2294813497869603e-05
+            },
+            "taylor2_to_taylor1_p90": 0.07458302954192017,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.02,
+            "minimum_response_order1": 3.8941927852240585,
+            "minimum_response_order2": 3.894235925493483,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0007497426154505771,
+              "p50": 1.142706907741875e-05,
+              "p90": 0.0001674708862891005,
+              "p99": 0.0004934895440729034
+            },
+            "taylor1_residual_order": 2.0374124674729686,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.062151219056336415,
+              "p50": 0.00027571375688683334,
+              "p90": 0.014098865391964449,
+              "p99": 0.04009054875899503
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 6.215121905639442e-05,
+              "p50": 2.7571375688095756e-07,
+              "p90": 1.4098865391920509e-05,
+              "p99": 4.0090548759004225e-05
+            },
+            "taylor2_residual_order": 3.0268617102194555,
+            "taylor2_signed_relative_error": {
+              "maximum": 6.215121905639442e-05,
+              "p50": 6.126987805998851e-12,
+              "p90": 6.848144359250517e-06,
+              "p99": 3.852684931198619e-05
+            },
+            "taylor2_to_taylor1_p90": 0.0841869635035072,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0225,
+            "minimum_response_order1": 3.864654160410271,
+            "minimum_response_order2": 3.8638672250794768,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.000947971526949809,
+              "p50": 1.3985816982364785e-05,
+              "p90": 0.00022885434599422263,
+              "p99": 0.0006729097376987239
+            },
+            "taylor1_residual_order": 2.037305547338436,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.07623630729710648,
+              "p50": 0.000449840079681922,
+              "p90": 0.018603766294988396,
+              "p99": 0.059881870195875944
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 7.623630729702846e-05,
+              "p50": 4.4984007963044803e-07,
+              "p90": 1.860376629502225e-05,
+              "p99": 5.9881870195868134e-05
+            },
+            "taylor2_residual_order": 3.02052853753194,
+            "taylor2_signed_relative_error": {
+              "maximum": 7.623630729702846e-05,
+              "p50": 1.438617669435871e-09,
+              "p90": 8.866453646083622e-06,
+              "p99": 5.9881870195868134e-05
+            },
+            "taylor2_to_taylor1_p90": 0.0812908586647155,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.025,
+            "minimum_response_order1": 3.8367888046637364,
+            "minimum_response_order2": 3.834923785145755,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.001173426535232558,
+              "p50": 2.2082020563529703e-05,
+              "p90": 0.0003231486052476029,
+              "p99": 0.0008134288051684885
+            },
+            "taylor1_residual_order": 2.051897986840551,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.10855002127952257,
+              "p50": 0.0007147173362038917,
+              "p90": 0.025147003188670903,
+              "p99": 0.07393908227001006
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.00010855002127962976,
+              "p50": 7.147173362032078e-07,
+              "p90": 2.5147003188674685e-05,
+              "p99": 7.393908227008473e-05
+            },
+            "taylor2_residual_order": 2.9799940462197028,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.00010855002127962976,
+              "p50": 4.426794486533936e-10,
+              "p90": 1.2259621174282026e-05,
+              "p99": 7.393908227008473e-05
+            },
+            "taylor2_to_taylor1_p90": 0.07781869635304955,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0275,
+            "minimum_response_order1": 3.8095001569293028,
+            "minimum_response_order2": 3.8064307437547265,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0013126426173168948,
+              "p50": 3.3078564266375565e-05,
+              "p90": 0.000444328622638257,
+              "p99": 0.0009782090002138349
+            },
+            "taylor1_residual_order": 2.0600135420771934,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.1515028810873823,
+              "p50": 0.0007357788194253144,
+              "p90": 0.029346723146184334,
+              "p99": 0.08277512784715584
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.0001515028810874508,
+              "p50": 7.35778819427324e-07,
+              "p90": 2.9346723146217444e-05,
+              "p99": 8.277512784711235e-05
+            },
+            "taylor2_residual_order": 2.973095672178269,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.0001515028810874508,
+              "p50": -1.5780710072021975e-12,
+              "p90": 1.5928225536554484e-05,
+              "p99": 7.953940538547593e-05
+            },
+            "taylor2_to_taylor1_p90": 0.0660473389536951,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.03,
+            "minimum_response_order1": 3.782167852068497,
+            "minimum_response_order2": 3.77788881948608,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.001389680443986796,
+              "p50": 4.05598905590665e-05,
+              "p90": 0.0005704024704469066,
+              "p99": 0.001100063655272117
+            },
+            "taylor1_residual_order": 1.98435201152681,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.183415676190582,
+              "p50": 0.000904886945837734,
+              "p90": 0.029509590284890013,
+              "p99": 0.11172742304861187
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.0001834156761906236,
+              "p50": 9.048869458183617e-07,
+              "p90": 2.9509590284870755e-05,
+              "p99": 0.00011172742304857012
+            },
+            "taylor2_residual_order": 2.981694495014685,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.0001834156761906236,
+              "p50": -8.183730915156673e-10,
+              "p90": 1.2698483486839328e-05,
+              "p99": 0.00010920199286730301
+            },
+            "taylor2_to_taylor1_p90": 0.05173468176207264,
+            "unsupported_point_count": 0
+          }
+        ],
+        "low_frequency_contiguous_pass_count": 10,
+        "minimum_primary_contiguous_support_count": 10,
+        "minimum_primary_model_support_fraction": 1.0,
+        "minimum_response_order1": 3.782167852068497,
+        "minimum_response_order2": 3.77788881948608,
+        "mode_identity_failure_count": 0,
+        "nonpositive_response_count": 0,
+        "p90_error_over_sigma_by_amplitude": {
+          "0.005": 1.0929562252658763e-05,
+          "0.01": 8.835393590488022e-05,
+          "0.02": 0.0007086614827259378,
+          "0.04": 0.005746118675043969,
+          "0.06": 0.01959910414011727,
+          "0.08": 0.046143112927946275
+        },
+        "passed": true,
+        "pointwise_taylor1_to_taylor2_improvement_median": 38.157602481293864,
+        "prediction_nonfinite_count": 0,
+        "primary_frequency_count": 10,
+        "primary_model_count": 384,
+        "response_kind": "phase_velocity",
+        "root_order": 0,
+        "stress_10_percent": {
+          "exact_branch_failure_count": 0,
+          "mode_identity_failure_count": 0,
+          "model_count": 64,
+          "taylor1_absolute_relative_error": {
+            "maximum": 0.0023275138190912426,
+            "p50": 0.00017689175680013491,
+            "p90": 0.001014901471091623,
+            "p99": 0.0018212782657077914
+          },
+          "taylor2_absolute_error_over_sigma": {
+            "maximum": 0.38381282752480644,
+            "p50": 0.019360675203292623,
+            "p90": 0.0880082822260964,
+            "p99": 0.22847552759918954
+          },
+          "taylor2_absolute_relative_error": {
+            "maximum": 0.00038381282752486534,
+            "p50": 1.9360675203305977e-05,
+            "p90": 8.800828222605977e-05,
+            "p99": 0.00022847552759915684
+          }
+        },
+        "supported_fraction": 1.0,
+        "supported_point_count": 3840,
+        "surrogate_to_exact_anomaly_error_ratio_median": 0.00012076767202702789,
+        "taylor1_absolute_relative_error": {
+          "maximum": 0.001389680443986796,
+          "p50": 1.0834016993088724e-05,
+          "p90": 0.00018881448643961457,
+          "p99": 0.0007912280544247713
+        },
+        "taylor2_absolute_error_over_sigma": {
+          "maximum": 0.183415676190582,
+          "p50": 0.00032352020809830025,
+          "p90": 0.01318040317809528,
+          "p99": 0.058978481522978785
+        },
+        "taylor2_absolute_relative_error": {
+          "maximum": 0.0001834156761906236,
+          "p50": 3.2352020806758475e-07,
+          "p90": 1.3180403178059126e-05,
+          "p99": 5.897848152294893e-05
+        },
+        "taylor2_signed_relative_error": {
+          "maximum": 0.0001834156761906236,
+          "p50": 1.2714584940454188e-10,
+          "p90": 5.83282226798154e-06,
+          "p99": 5.292701151483171e-05
+        },
+        "taylor2_to_taylor1_p90": 0.06980610135692315,
+        "wave": "rayleigh",
+        "zero_mode_failure_probability_upper_95": 0.0007798343838957278
+      },
+      {
+        "buffered_candidate_frequency_count": 10,
+        "curve_rms_error_over_sigma": {
+          "maximum": 0.07078142224599882,
+          "p50": 0.0003999614274879115,
+          "p90": 0.01857117592808962,
+          "p99": 0.052673426357641544
+        },
+        "exact_branch_failure_count": 0,
+        "frequency_results": [
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0075,
+            "minimum_response_order1": 6.554893655304765,
+            "minimum_response_order2": 6.55481392106131,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 1.381130097222183e-05,
+              "p50": 3.847691794622854e-07,
+              "p90": 5.151913029921572e-06,
+              "p99": 1.1675914206759066e-05
+            },
+            "taylor1_residual_order": 1.9990511231224593,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.0009311811591366662,
+              "p50": 7.631270560462552e-06,
+              "p90": 0.00026951998627237136,
+              "p99": 0.0006996429027925984
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 9.311811591805608e-07,
+              "p50": 7.631270504404597e-09,
+              "p90": 2.6951998622903866e-07,
+              "p99": 6.996429027694725e-07
+            },
+            "taylor2_residual_order": 2.999371399831516,
+            "taylor2_signed_relative_error": {
+              "maximum": 8.748744921849294e-07,
+              "p50": 1.1340040018126274e-11,
+              "p90": 1.363367825968353e-07,
+              "p99": 4.881376787713188e-07
+            },
+            "taylor2_to_taylor1_p90": 0.05231454503670874,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.01,
+            "minimum_response_order1": 5.916533392086198,
+            "minimum_response_order2": 5.916383497983922,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 3.101778619862827e-05,
+              "p50": 4.1946059559094806e-07,
+              "p90": 5.660947401686654e-06,
+              "p99": 2.0645375299106543e-05
+            },
+            "taylor1_residual_order": 2.0258280133013766,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.0017316563734656007,
+              "p50": 6.6410589056461745e-06,
+              "p90": 0.0002648892248166779,
+              "p99": 0.0010018006813267656
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 1.7316563734048884e-06,
+              "p50": 6.641058925005439e-09,
+              "p90": 2.6488922484357856e-07,
+              "p99": 1.0018006813017363e-06
+            },
+            "taylor2_residual_order": 2.965879161649841,
+            "taylor2_signed_relative_error": {
+              "maximum": 1.7316563734048884e-06,
+              "p50": 7.1944672441759394e-12,
+              "p90": 1.3089816714995094e-07,
+              "p99": 9.726466781212474e-07
+            },
+            "taylor2_to_taylor1_p90": 0.04679238403887236,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0125,
+            "minimum_response_order1": 5.516158279797535,
+            "minimum_response_order2": 5.515882421049252,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 5.9864083563399006e-05,
+              "p50": 5.400781490916273e-07,
+              "p90": 1.160888607665278e-05,
+              "p99": 4.06645672031814e-05
+            },
+            "taylor1_residual_order": 2.003874463156388,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.0050171000017244175,
+              "p50": 2.3349025100756126e-05,
+              "p90": 0.0007130023670989454,
+              "p99": 0.0026563692295426514
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 5.017100001669661e-06,
+              "p50": 2.3349025046748295e-08,
+              "p90": 7.130023670920415e-07,
+              "p99": 2.656369229515633e-06
+            },
+            "taylor2_residual_order": 3.0732020127328386,
+            "taylor2_signed_relative_error": {
+              "maximum": 5.017100001669661e-06,
+              "p50": -7.76601005725297e-14,
+              "p90": 3.5419079020826404e-07,
+              "p99": 2.386550557862411e-06
+            },
+            "taylor2_to_taylor1_p90": 0.061418672074489276,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.015,
+            "minimum_response_order1": 5.270396481439358,
+            "minimum_response_order2": 5.269923107124139,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.00010615641373301621,
+              "p50": 1.038105178485793e-06,
+              "p90": 2.2777974129151162e-05,
+              "p99": 7.131980998835945e-05
+            },
+            "taylor1_residual_order": 2.0562259476006695,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.01085761313073051,
+              "p50": 4.429163897688686e-05,
+              "p90": 0.0015427087759756156,
+              "p99": 0.006114643568774145
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 1.0857613130799137e-05,
+              "p50": 4.429163896757515e-08,
+              "p90": 1.542708775947865e-06,
+              "p99": 6.114643568770912e-06
+            },
+            "taylor2_residual_order": 3.078707948939178,
+            "taylor2_signed_relative_error": {
+              "maximum": 1.0857613130799137e-05,
+              "p50": -3.272382365082649e-13,
+              "p90": 6.253107409648347e-07,
+              "p99": 5.283691708874996e-06
+            },
+            "taylor2_to_taylor1_p90": 0.06772809413166873,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0175,
+            "minimum_response_order1": 5.109171655263015,
+            "minimum_response_order2": 5.108427797274921,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.00017437424321031791,
+              "p50": 2.1554733824480365e-06,
+              "p90": 3.948481523350366e-05,
+              "p99": 0.00011362113497096267
+            },
+            "taylor1_residual_order": 2.056752553578348,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.020788594666904428,
+              "p50": 7.660010289630104e-05,
+              "p90": 0.003194714075221957,
+              "p99": 0.012023599095607393
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 2.07885946668096e-05,
+              "p50": 7.660010287180441e-08,
+              "p90": 3.1947140751831243e-06,
+              "p99": 1.2023599095603044e-05
+            },
+            "taylor2_residual_order": 3.084821076052776,
+            "taylor2_signed_relative_error": {
+              "maximum": 2.07885946668096e-05,
+              "p50": 1.6573298289301874e-11,
+              "p90": 1.407093213101617e-06,
+              "p99": 1.0989612568457218e-05
+            },
+            "taylor2_to_taylor1_p90": 0.08090994110749555,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.02,
+            "minimum_response_order1": 4.995548257598172,
+            "minimum_response_order2": 4.994442149367639,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.00027079729641754646,
+              "p50": 3.870876525757794e-06,
+              "p90": 6.698188316767155e-05,
+              "p99": 0.00017213619236388763
+            },
+            "taylor1_residual_order": 2.0647405161163155,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.036698482165005514,
+              "p50": 0.00010491747383471657,
+              "p90": 0.006476656094614275,
+              "p99": 0.022623572042989728
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 3.6698482164920776e-05,
+              "p50": 1.049174738199099e-07,
+              "p90": 6.476656094589471e-06,
+              "p99": 2.2623572043026788e-05
+            },
+            "taylor2_residual_order": 3.0756864086037474,
+            "taylor2_signed_relative_error": {
+              "maximum": 3.6698482164920776e-05,
+              "p50": -2.5757174171303632e-14,
+              "p90": 3.151590152161709e-06,
+              "p99": 2.1170774443954907e-05
+            },
+            "taylor2_to_taylor1_p90": 0.09669265461493316,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0225,
+            "minimum_response_order1": 4.909382154069325,
+            "minimum_response_order2": 4.9078115359754335,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.00039979850488269797,
+              "p50": 6.576071716946075e-06,
+              "p90": 0.00010384367371860658,
+              "p99": 0.00025505193300910293
+            },
+            "taylor1_residual_order": 2.0736275281545096,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.059793585502005725,
+              "p50": 0.00019571382598985526,
+              "p90": 0.01273793870976192,
+              "p99": 0.03745264325108484
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 5.9793585502010416e-05,
+              "p50": 1.9571382597893816e-07,
+              "p90": 1.2737938709683756e-05,
+              "p99": 3.7452643251001475e-05
+            },
+            "taylor2_residual_order": 3.0420610960267194,
+            "taylor2_signed_relative_error": {
+              "maximum": 5.9793585502010416e-05,
+              "p50": 1.0730305533002138e-13,
+              "p90": 5.850797390505307e-06,
+              "p99": 3.7452643251001475e-05
+            },
+            "taylor2_to_taylor1_p90": 0.1226645615812934,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.025,
+            "minimum_response_order1": 4.839695103694959,
+            "minimum_response_order2": 4.837580136875513,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0005549371834050465,
+              "p50": 9.733445441195698e-06,
+              "p90": 0.0001595422020563619,
+              "p99": 0.0003714187598214381
+            },
+            "taylor1_residual_order": 2.0707502146433945,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.08950320836154758,
+              "p50": 0.00039173631074962086,
+              "p90": 0.020192330997676967,
+              "p99": 0.059912163135953586
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 8.950320836165204e-05,
+              "p50": 3.9173631077860094e-07,
+              "p90": 2.0192330997637064e-05,
+              "p99": 5.991216313592915e-05
+            },
+            "taylor2_residual_order": 3.0058078874095164,
+            "taylor2_signed_relative_error": {
+              "maximum": 8.950320836165204e-05,
+              "p50": 3.1030733538273125e-13,
+              "p90": 9.626754615177368e-06,
+              "p99": 5.991216313592915e-05
+            },
+            "taylor2_to_taylor1_p90": 0.1265641989227632,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0275,
+            "minimum_response_order1": 4.7808367458617385,
+            "minimum_response_order2": 4.778045061622901,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0007151619154233124,
+              "p50": 1.4898363490445377e-05,
+              "p90": 0.00022338501149166132,
+              "p99": 0.0005012875003553365
+            },
+            "taylor1_residual_order": 2.0773775669530545,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.1215209460782577,
+              "p50": 0.0006663511151542748,
+              "p90": 0.031162165772185044,
+              "p99": 0.08872736287632636
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.00012152094607831287,
+              "p50": 6.663511151749901e-07,
+              "p90": 3.1162165772169454e-05,
+              "p99": 8.872736287631315e-05
+            },
+            "taylor2_residual_order": 3.0158647725897407,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.00012152094607831287,
+              "p50": 5.686562332130052e-13,
+              "p90": 1.469375225835454e-05,
+              "p99": 8.872736287631315e-05
+            },
+            "taylor2_to_taylor1_p90": 0.1394998060258519,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.03,
+            "minimum_response_order1": 4.73014539720833,
+            "minimum_response_order2": 4.72676886745887,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "phase_velocity",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0008592176114170513,
+              "p50": 2.227218599470948e-05,
+              "p90": 0.00028145853586083455,
+              "p99": 0.0006305241717394224
+            },
+            "taylor1_residual_order": 2.0570362229382075,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.14896646010410278,
+              "p50": 0.0009157177532563308,
+              "p90": 0.04048198441595347,
+              "p99": 0.1167504190785117
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.0001489664601042051,
+              "p50": 9.157177532359562e-07,
+              "p90": 4.048198441595207e-05,
+              "p99": 0.00011675041907857519
+            },
+            "taylor2_residual_order": 3.013662088513014,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.0001489664601042051,
+              "p50": 1.312283615106935e-13,
+              "p90": 2.020322343097013e-05,
+              "p99": 0.00011675041907857519
+            },
+            "taylor2_to_taylor1_p90": 0.1438293007960794,
+            "unsupported_point_count": 0
+          }
+        ],
+        "low_frequency_contiguous_pass_count": 10,
+        "minimum_primary_contiguous_support_count": 10,
+        "minimum_primary_model_support_fraction": 1.0,
+        "minimum_response_order1": 4.73014539720833,
+        "minimum_response_order2": 4.72676886745887,
+        "mode_identity_failure_count": 0,
+        "nonpositive_response_count": 0,
+        "p90_error_over_sigma_by_amplitude": {
+          "0.005": 1.0626081401888278e-05,
+          "0.01": 8.49907974314001e-05,
+          "0.02": 0.0006750072300199822,
+          "0.04": 0.005650969204691759,
+          "0.06": 0.01964661550775257,
+          "0.08": 0.04575247440080809
+        },
+        "passed": true,
+        "pointwise_taylor1_to_taylor2_improvement_median": 30.24796787731323,
+        "prediction_nonfinite_count": 0,
+        "primary_frequency_count": 10,
+        "primary_model_count": 384,
+        "response_kind": "phase_velocity",
+        "root_order": 1,
+        "stress_10_percent": {
+          "exact_branch_failure_count": 0,
+          "mode_identity_failure_count": 0,
+          "model_count": 64,
+          "taylor1_absolute_relative_error": {
+            "maximum": 0.0014484991885301834,
+            "p50": 4.417623420538419e-05,
+            "p90": 0.00043368449209557635,
+            "p99": 0.0010727193443750688
+          },
+          "taylor2_absolute_error_over_sigma": {
+            "maximum": 0.3133533942532398,
+            "p50": 0.004686786233509729,
+            "p90": 0.08904996551245227,
+            "p99": 0.2419509692396767
+          },
+          "taylor2_absolute_relative_error": {
+            "maximum": 0.00031335339425320186,
+            "p50": 4.686786233498719e-06,
+            "p90": 8.904996551252213e-05,
+            "p99": 0.00024195096923965717
+          }
+        },
+        "supported_fraction": 1.0,
+        "supported_point_count": 3840,
+        "surrogate_to_exact_anomaly_error_ratio_median": 0.0004852846898948719,
+        "taylor1_absolute_relative_error": {
+          "maximum": 0.0008592176114170513,
+          "p50": 2.446404029576854e-06,
+          "p90": 8.558332479084992e-05,
+          "p99": 0.00037641749815202634
+        },
+        "taylor2_absolute_error_over_sigma": {
+          "maximum": 0.14896646010410278,
+          "p50": 7.75171312458816e-05,
+          "p90": 0.008279539782731127,
+          "p99": 0.05988462284891955
+        },
+        "taylor2_absolute_relative_error": {
+          "maximum": 0.0001489664601042051,
+          "p50": 7.751713115844439e-08,
+          "p90": 8.279539782751748e-06,
+          "p99": 5.988462284886921e-05
+        },
+        "taylor2_signed_relative_error": {
+          "maximum": 0.0001489664601042051,
+          "p50": 6.901812454884748e-12,
+          "p90": 2.0974075569224476e-06,
+          "p99": 5.252062807916681e-05
+        },
+        "taylor2_to_taylor1_p90": 0.09674244139247264,
+        "wave": "rayleigh",
+        "zero_mode_failure_probability_upper_95": 0.0007798343838957278
+      },
+      {
+        "buffered_candidate_frequency_count": 10,
+        "curve_rms_error_over_sigma": {
+          "maximum": 0.48039287091996286,
+          "p50": 0.004023017747237446,
+          "p90": 0.11607938621340323,
+          "p99": 0.4339225266661657
+        },
+        "exact_branch_failure_count": 0,
+        "frequency_results": [
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0075,
+            "minimum_response_order1": 0.9684598468006801,
+            "minimum_response_order2": 0.9685660042723888,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0007929362326380973,
+              "p50": 9.802431760519426e-06,
+              "p90": 0.00015083112128245755,
+              "p99": 0.0006071498836804456
+            },
+            "taylor1_residual_order": 2.011899399999528,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.03026024916334755,
+              "p50": 0.00017042108071008616,
+              "p90": 0.006765945379124346,
+              "p99": 0.02695769759548907
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 3.0260249163305275e-05,
+              "p50": 1.7042108069187378e-07,
+              "p90": 6.765945379094694e-06,
+              "p99": 2.695769759548439e-05
+            },
+            "taylor2_residual_order": 3.0014253063111918,
+            "taylor2_signed_relative_error": {
+              "maximum": 2.8139636471635754e-05,
+              "p50": 3.424830419263003e-10,
+              "p90": 2.837859377846641e-06,
+              "p99": 1.829838120087421e-05
+            },
+            "taylor2_to_taylor1_p90": 0.044857754298758296,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.01,
+            "minimum_response_order1": 0.9612517632336507,
+            "minimum_response_order2": 0.9626391515174376,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0009259168642737903,
+              "p50": 2.744084235128952e-05,
+              "p90": 0.00033917064525873503,
+              "p99": 0.0008243032869307155
+            },
+            "taylor1_residual_order": 2.001970581582689,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.02771096727486392,
+              "p50": 0.00024866156787964653,
+              "p90": 0.008639867110044224,
+              "p99": 0.024789415738282375
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 2.7710967274829912e-05,
+              "p50": 2.486615678365389e-07,
+              "p90": 8.639867110049602e-06,
+              "p99": 2.4789415738234494e-05
+            },
+            "taylor2_residual_order": 3.0098188831916812,
+            "taylor2_signed_relative_error": {
+              "maximum": 2.7710967274829912e-05,
+              "p50": 9.750855678447579e-10,
+              "p90": 4.254098156031282e-06,
+              "p99": 2.3208923753341732e-05
+            },
+            "taylor2_to_taylor1_p90": 0.025473510844249838,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0125,
+            "minimum_response_order1": 0.9539572934008727,
+            "minimum_response_order2": 0.9573349657701657,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0020274958240404928,
+              "p50": 4.268133704377064e-05,
+              "p90": 0.0006903484239210388,
+              "p99": 0.0015964227458175034
+            },
+            "taylor1_residual_order": 2.000780802233023,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.08487201084116111,
+              "p50": 0.0005836796794741693,
+              "p90": 0.017051436229505435,
+              "p99": 0.05191663195120793
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 8.487201084106388e-05,
+              "p50": 5.83679679477811e-07,
+              "p90": 1.7051436229487124e-05,
+              "p99": 5.191663195122546e-05
+            },
+            "taylor2_residual_order": 2.985104081276907,
+            "taylor2_signed_relative_error": {
+              "maximum": 8.487201084106388e-05,
+              "p50": 1.2258661863384646e-09,
+              "p90": 8.234967529796577e-06,
+              "p99": 5.191663195122546e-05
+            },
+            "taylor2_to_taylor1_p90": 0.024699753977329923,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.015,
+            "minimum_response_order1": 0.9461057132341419,
+            "minimum_response_order2": 0.9520416390345071,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0034773795614702063,
+              "p50": 6.402911511638187e-05,
+              "p90": 0.0011644919339540256,
+              "p99": 0.002615248562612097
+            },
+            "taylor1_residual_order": 2.0000217327433014,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.19052157894928712,
+              "p50": 0.0009019606612147429,
+              "p90": 0.03356640075591531,
+              "p99": 0.12428090407773057
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.00019052157894927646,
+              "p50": 9.019606612148401e-07,
+              "p90": 3.356640075594663e-05,
+              "p99": 0.000124280904077685
+            },
+            "taylor2_residual_order": 2.9624474849613454,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.00019052157894927646,
+              "p50": 1.7307796307264312e-09,
+              "p90": 1.4343598295751818e-05,
+              "p99": 0.00010486625655474793
+            },
+            "taylor2_to_taylor1_p90": 0.028824931952917965,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0175,
+            "minimum_response_order1": 0.9374848150628805,
+            "minimum_response_order2": 0.9463404449450907,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.005139605321309748,
+              "p50": 0.0001043758884811119,
+              "p90": 0.0018245309016187816,
+              "p99": 0.0037604608645250594
+            },
+            "taylor1_residual_order": 2.004039384781038,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.28229493817033663,
+              "p50": 0.0014110411555065161,
+              "p90": 0.04697594693715773,
+              "p99": 0.210036974015295
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.0002822949381704465,
+              "p50": 1.411041155530146e-06,
+              "p90": 4.697594693712225e-05,
+              "p99": 0.0002100369740153463
+            },
+            "taylor2_residual_order": 3.00470068131953,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.0002822949381704465,
+              "p50": 1.0808449690813404e-09,
+              "p90": 2.139322349354876e-05,
+              "p99": 0.0001681757388915014
+            },
+            "taylor2_to_taylor1_p90": 0.025746862876065132,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.02,
+            "minimum_response_order1": 0.9278260142884142,
+            "minimum_response_order2": 0.9399113082445473,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.006853115937589083,
+              "p50": 0.00014549289230325613,
+              "p90": 0.002428251257663749,
+              "p99": 0.004923093932222218
+            },
+            "taylor1_residual_order": 1.9968720875527737,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.436863797541842,
+              "p50": 0.0021826836174386986,
+              "p90": 0.07039390586932004,
+              "p99": 0.28141570589829557
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.0004368637975418199,
+              "p50": 2.182683617457659e-06,
+              "p90": 7.039390586934811e-05,
+              "p99": 0.0002814157058982272
+            },
+            "taylor2_residual_order": 2.9935445264603464,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.0004368637975418199,
+              "p50": 1.2106109448239977e-09,
+              "p90": 3.308809116857601e-05,
+              "p99": 0.0002343776884468571
+            },
+            "taylor2_to_taylor1_p90": 0.028989547785542986,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0225,
+            "minimum_response_order1": 0.9170290623206785,
+            "minimum_response_order2": 0.9323237687428846,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.008381250699834197,
+              "p50": 0.00015239360289165393,
+              "p90": 0.003077664134261915,
+              "p99": 0.00607514485302177
+            },
+            "taylor1_residual_order": 2.0023320009345165,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.5872619294387612,
+              "p50": 0.0022635962303762507,
+              "p90": 0.0959296398860409,
+              "p99": 0.3146638488141182
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.0005872619294386983,
+              "p50": 2.2635962303452217e-06,
+              "p90": 9.592963988608316e-05,
+              "p99": 0.00031466384881407086
+            },
+            "taylor2_residual_order": 3.002132226970191,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.0005872619294386983,
+              "p50": 1.8453788497296841e-09,
+              "p90": 3.9396703406424646e-05,
+              "p99": 0.0002808960054765898
+            },
+            "taylor2_to_taylor1_p90": 0.031169625956956153,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.025,
+            "minimum_response_order1": 0.9052754861045165,
+            "minimum_response_order2": 0.9232669686265186,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.010070890137447996,
+              "p50": 0.00019727953384618413,
+              "p90": 0.003606428296856178,
+              "p99": 0.007321411513604297
+            },
+            "taylor1_residual_order": 2.0310178571033317,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.6686684183965718,
+              "p50": 0.003823005704451708,
+              "p90": 0.12599595225832527,
+              "p99": 0.5144668406736945
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.000668668418396523,
+              "p50": 3.823005704506333e-06,
+              "p90": 0.00012599595225831758,
+              "p99": 0.0005144668406737402
+            },
+            "taylor2_residual_order": 2.91847602463847,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.000668668418396523,
+              "p50": 9.232553610516447e-11,
+              "p90": 5.802259429208415e-05,
+              "p99": 0.00040486670612895515
+            },
+            "taylor2_to_taylor1_p90": 0.03493649169959977,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0275,
+            "minimum_response_order1": 0.8930886920935595,
+            "minimum_response_order2": 0.9127954429875861,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.011650595442303402,
+              "p50": 0.00023305527198214104,
+              "p90": 0.004174427118260414,
+              "p99": 0.008689142581123228
+            },
+            "taylor1_residual_order": 1.9852489094759687,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.894742131368448,
+              "p50": 0.003990202361952767,
+              "p90": 0.173871837578198,
+              "p99": 0.6617978351171896
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.0008947421313685311,
+              "p50": 3.990202361969786e-06,
+              "p90": 0.0001738718375781544,
+              "p99": 0.0006617978351171085
+            },
+            "taylor2_residual_order": 2.986732244597304,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.0008947421313685311,
+              "p50": 1.0917642345731338e-08,
+              "p90": 7.728476155282048e-05,
+              "p99": 0.0006617978351171085
+            },
+            "taylor2_to_taylor1_p90": 0.041651664444583965,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.03,
+            "minimum_response_order1": 0.881234546430551,
+            "minimum_response_order2": 0.9015022702678737,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.012605828894840077,
+              "p50": 0.0002446637628739645,
+              "p90": 0.004320296064210887,
+              "p99": 0.009404656531793936
+            },
+            "taylor1_residual_order": 1.9970386627540466,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 1.1583357772897462,
+              "p50": 0.004259212213573927,
+              "p90": 0.19551574801769947,
+              "p99": 0.8338802986262286
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.001158335777289743,
+              "p50": 4.259212213530983e-06,
+              "p90": 0.00019551574801764934,
+              "p99": 0.0008338802986262459
+            },
+            "taylor2_residual_order": 2.9112396293806584,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.001158335777289743,
+              "p50": 1.9427864539345308e-08,
+              "p90": 8.822575867470925e-05,
+              "p99": 0.0008338802986262459
+            },
+            "taylor2_to_taylor1_p90": 0.04525517351398481,
+            "unsupported_point_count": 0
+          }
+        ],
+        "low_frequency_contiguous_pass_count": 10,
+        "minimum_primary_contiguous_support_count": 10,
+        "minimum_primary_model_support_fraction": 1.0,
+        "minimum_response_order1": 0.881234546430551,
+        "minimum_response_order2": 0.9015022702678737,
+        "mode_identity_failure_count": 0,
+        "nonpositive_response_count": 0,
+        "p90_error_over_sigma_by_amplitude": {
+          "0.005": 6.862760113236996e-05,
+          "0.01": 0.0005439470086857453,
+          "0.02": 0.00429813185399327,
+          "0.04": 0.034213852748408026,
+          "0.06": 0.1156482622820364,
+          "0.08": 0.27439153727208093
+        },
+        "passed": true,
+        "pointwise_taylor1_to_taylor2_improvement_median": 73.98597183757997,
+        "prediction_nonfinite_count": 0,
+        "primary_frequency_count": 10,
+        "primary_model_count": 384,
+        "response_kind": "normalized_squared_slowness",
+        "root_order": 0,
+        "stress_10_percent": {
+          "exact_branch_failure_count": 0,
+          "mode_identity_failure_count": 0,
+          "model_count": 64,
+          "taylor1_absolute_relative_error": {
+            "maximum": 0.02047127509036062,
+            "p50": 0.0013459452812031314,
+            "p90": 0.009020121997007836,
+            "p99": 0.015249033536030661
+          },
+          "taylor2_absolute_error_over_sigma": {
+            "maximum": 2.369213872773638,
+            "p50": 0.06429320868545232,
+            "p90": 0.539159946421568,
+            "p99": 1.68976727007622
+          },
+          "taylor2_absolute_relative_error": {
+            "maximum": 0.0023692138727735568,
+            "p50": 6.429320868545085e-05,
+            "p90": 0.0005391599464215302,
+            "p99": 0.0016897672700761396
+          }
+        },
+        "supported_fraction": 1.0,
+        "supported_point_count": 3840,
+        "surrogate_to_exact_anomaly_error_ratio_median": 0.00029957428844732526,
+        "taylor1_absolute_relative_error": {
+          "maximum": 0.012605828894840077,
+          "p50": 7.976490783107026e-05,
+          "p90": 0.0019254585443393864,
+          "p99": 0.006737030600492971
+        },
+        "taylor2_absolute_error_over_sigma": {
+          "maximum": 1.1583357772897462,
+          "p50": 0.0011618637638837821,
+          "p90": 0.05895232422081698,
+          "p99": 0.39988162927590937
+        },
+        "taylor2_absolute_relative_error": {
+          "maximum": 0.001158335777289743,
+          "p50": 1.1618637638655116e-06,
+          "p90": 5.8952324220906674e-05,
+          "p99": 0.0003998816292759037
+        },
+        "taylor2_signed_relative_error": {
+          "maximum": 0.001158335777289743,
+          "p50": 1.5246683915393078e-09,
+          "p90": 2.415550442134151e-05,
+          "p99": 0.00031056734287817717
+        },
+        "taylor2_to_taylor1_p90": 0.030617290823642673,
+        "wave": "love",
+        "zero_mode_failure_probability_upper_95": 0.0007798343838957278
+      },
+      {
+        "buffered_candidate_frequency_count": 10,
+        "curve_rms_error_over_sigma": {
+          "maximum": 0.6445982417778934,
+          "p50": 0.002462075807378342,
+          "p90": 0.1310818502202444,
+          "p99": 0.44384608434302325
+        },
+        "exact_branch_failure_count": 0,
+        "frequency_results": [
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0075,
+            "minimum_response_order1": 0.9914264749966983,
+            "minimum_response_order2": 0.9908055070144703,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.00033964427375154926,
+              "p50": 1.4245318344152658e-05,
+              "p90": 0.00014425430312391406,
+              "p99": 0.0003121343427925227
+            },
+            "taylor1_residual_order": 2.0008019408200868,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.026476705222346013,
+              "p50": 0.00021439967009289083,
+              "p90": 0.00823426715531666,
+              "p99": 0.021754794028994953
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 2.6476705222266972e-05,
+              "p50": 2.1439967012870653e-07,
+              "p90": 8.234267155282635e-06,
+              "p99": 2.175479402895309e-05
+            },
+            "taylor2_residual_order": 3.0229429995685604,
+            "taylor2_signed_relative_error": {
+              "maximum": 2.6476705222266972e-05,
+              "p50": 1.875721800104202e-13,
+              "p90": 3.749382922291207e-06,
+              "p99": 2.1616787372669154e-05
+            },
+            "taylor2_to_taylor1_p90": 0.05708160503336543,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.01,
+            "minimum_response_order1": 0.9877581837610715,
+            "minimum_response_order2": 0.9869018310873064,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.00048210016195826544,
+              "p50": 1.9066986107929562e-05,
+              "p90": 0.0001953031411964123,
+              "p99": 0.0004360137938358577
+            },
+            "taylor1_residual_order": 2.0018616596567598,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.04356543425968342,
+              "p50": 0.00036349664468910683,
+              "p90": 0.013913133194276514,
+              "p99": 0.03543676301289274
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 4.3565434259651425e-05,
+              "p50": 3.6349664467305587e-07,
+              "p90": 1.391313319428766e-05,
+              "p99": 3.543676301294375e-05
+            },
+            "taylor2_residual_order": 3.0188461577024333,
+            "taylor2_signed_relative_error": {
+              "maximum": 4.3565434259651425e-05,
+              "p50": 2.1432855490388647e-13,
+              "p90": 5.84433232706516e-06,
+              "p99": 3.543676301294375e-05
+            },
+            "taylor2_to_taylor1_p90": 0.07123865550270649,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0125,
+            "minimum_response_order1": 0.9850031892257369,
+            "minimum_response_order2": 0.9839678656928263,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0006639970201359757,
+              "p50": 2.168147523667896e-05,
+              "p90": 0.00024221167556822678,
+              "p99": 0.0005891598394205833
+            },
+            "taylor1_residual_order": 2.0015494071163062,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.06345543903045688,
+              "p50": 0.0005106016686886796,
+              "p90": 0.018821321818474637,
+              "p99": 0.05144989398998702
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 6.345543903041317e-05,
+              "p50": 5.106016687239645e-07,
+              "p90": 1.8821321818518474e-05,
+              "p99": 5.144989398992107e-05
+            },
+            "taylor2_residual_order": 3.0083319335161827,
+            "taylor2_signed_relative_error": {
+              "maximum": 6.345543903041317e-05,
+              "p50": 7.689404668553834e-13,
+              "p90": 8.226346717665756e-06,
+              "p99": 5.144989398992107e-05
+            },
+            "taylor2_to_taylor1_p90": 0.07770608817417159,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.015,
+            "minimum_response_order1": 0.9829338259367517,
+            "minimum_response_order2": 0.981491794212908,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0009249961690017683,
+              "p50": 2.552589997084631e-05,
+              "p90": 0.0003137992878442297,
+              "p99": 0.0008020963329937661
+            },
+            "taylor1_residual_order": 1.996416315443332,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.09384874992972782,
+              "p50": 0.0007351304262846778,
+              "p90": 0.024305642314274838,
+              "p99": 0.07502815684806753
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 9.384874992979242e-05,
+              "p50": 7.351304263103486e-07,
+              "p90": 2.430564231429288e-05,
+              "p99": 7.502815684806709e-05
+            },
+            "taylor2_residual_order": 3.0027386559401816,
+            "taylor2_signed_relative_error": {
+              "maximum": 9.384874992979242e-05,
+              "p50": 2.8537727736477336e-12,
+              "p90": 1.1009451638588352e-05,
+              "p99": 7.502815684806709e-05
+            },
+            "taylor2_to_taylor1_p90": 0.07745601489815435,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0175,
+            "minimum_response_order1": 0.981408878499528,
+            "minimum_response_order2": 0.9793504985247681,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0012859527060540277,
+              "p50": 2.9745116790047543e-05,
+              "p90": 0.0003462954343913415,
+              "p99": 0.0011179269914428883
+            },
+            "taylor1_residual_order": 1.9777195079526906,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.14934838790586663,
+              "p50": 0.0009823262820931836,
+              "p90": 0.03127605643053593,
+              "p99": 0.11619661970027252
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.00014934838790581217,
+              "p50": 9.82326281984136e-07,
+              "p90": 3.127605643049591e-05,
+              "p99": 0.00011619661970032412
+            },
+            "taylor2_residual_order": 3.0161876316624117,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.00014934838790581217,
+              "p50": -1.1128986621145032e-11,
+              "p90": 1.525310451255812e-05,
+              "p99": 0.00011619661970032412
+            },
+            "taylor2_to_taylor1_p90": 0.09031610966938557,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.02,
+            "minimum_response_order1": 0.9804923517821669,
+            "minimum_response_order2": 0.9775760923306555,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0017622232263513338,
+              "p50": 3.3577984770272185e-05,
+              "p90": 0.0005271356195573393,
+              "p99": 0.0015312117601398226
+            },
+            "taylor1_residual_order": 1.9688454790218122,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.2649506251990078,
+              "p50": 0.0016293972985216725,
+              "p90": 0.04612487710349645,
+              "p99": 0.20251147935619815
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.0002649506251990452,
+              "p50": 1.6293972985303995e-06,
+              "p90": 4.612487710351495e-05,
+              "p99": 0.00020251147935623594
+            },
+            "taylor2_residual_order": 2.982699965526054,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.0002649506251990452,
+              "p50": -1.5232231032058507e-09,
+              "p90": 2.2273732160060788e-05,
+              "p99": 0.00020251147935623594
+            },
+            "taylor2_to_taylor1_p90": 0.08750096823706997,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0225,
+            "minimum_response_order1": 0.9804328920074821,
+            "minimum_response_order2": 0.9765110379661578,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0023189363939249974,
+              "p50": 4.2010951103510497e-05,
+              "p90": 0.0007628847613674875,
+              "p99": 0.0018901545180741446
+            },
+            "taylor1_residual_order": 1.9966599605713937,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.44556169469394474,
+              "p50": 0.0022193516695734883,
+              "p90": 0.07631417333415332,
+              "p99": 0.36875866805582
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.0004455616946938967,
+              "p50": 2.2193516696078497e-06,
+              "p90": 7.631417333414656e-05,
+              "p99": 0.0003687586680558432
+            },
+            "taylor2_residual_order": 2.9526227353267864,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.0004455616946938967,
+              "p50": -1.1817671285996312e-09,
+              "p90": 3.597811285862558e-05,
+              "p99": 0.00034613193633664945
+            },
+            "taylor2_to_taylor1_p90": 0.10003368424524792,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.025,
+            "minimum_response_order1": 0.9814525886575693,
+            "minimum_response_order2": 0.9766874499986544,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0030444264911342334,
+              "p50": 4.915232686603099e-05,
+              "p90": 0.0009175631808365112,
+              "p99": 0.002346153283420478
+            },
+            "taylor1_residual_order": 2.0253315510999452,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 0.7206015518833139,
+              "p50": 0.002907302453913881,
+              "p90": 0.14796260348097318,
+              "p99": 0.5888578631048342
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.0007206015518832487,
+              "p50": 2.9073024538917025e-06,
+              "p90": 0.00014796260348095544,
+              "p99": 0.0005888578631048673
+            },
+            "taylor2_residual_order": 2.9793183479716063,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.0007206015518832487,
+              "p50": -1.969261809176004e-09,
+              "p90": 5.6701688145555057e-05,
+              "p99": 0.0005103393043235
+            },
+            "taylor2_to_taylor1_p90": 0.1612560383537436,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.0275,
+            "minimum_response_order1": 0.9834759482577187,
+            "minimum_response_order2": 0.97843266716726,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.0036685375294253086,
+              "p50": 5.908903290230416e-05,
+              "p90": 0.000977024298416362,
+              "p99": 0.002582396385360177
+            },
+            "taylor1_residual_order": 2.0529349364741813,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 1.1040681313178147,
+              "p50": 0.0035078872078482645,
+              "p90": 0.22588334103911098,
+              "p99": 0.8140812889299412
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.0011040681313178036,
+              "p50": 3.5078872078209145e-06,
+              "p90": 0.00022588334103917896,
+              "p99": 0.000814081288929941
+            },
+            "taylor2_residual_order": 3.009215806339325,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.0009543401030271959,
+              "p50": -1.416371464557642e-09,
+              "p90": 7.935831512329011e-05,
+              "p99": 0.000614724128472557
+            },
+            "taylor2_to_taylor1_p90": 0.2311952132667616,
+            "unsupported_point_count": 0
+          },
+          {
+            "assessed_point_count": 384,
+            "exact_branch_failure_count": 0,
+            "frequency_hz": 0.03,
+            "minimum_response_order1": 0.9860754929888976,
+            "minimum_response_order2": 0.9814984837172653,
+            "mode_identity_failure_count": 0,
+            "nonpositive_response_count": 0,
+            "passed": true,
+            "prediction_nonfinite_count": 0,
+            "response_kind": "normalized_squared_slowness",
+            "taylor1_absolute_relative_error": {
+              "maximum": 0.003886360116238219,
+              "p50": 5.783319858293501e-05,
+              "p90": 0.0008973956972066486,
+              "p99": 0.002432469356639038
+            },
+            "taylor1_residual_order": 2.111680688301921,
+            "taylor2_absolute_error_over_sigma": {
+              "maximum": 1.5664795669917189,
+              "p50": 0.004287793390322533,
+              "p90": 0.25953497723866215,
+              "p99": 0.9398187489773748
+            },
+            "taylor2_absolute_relative_error": {
+              "maximum": 0.0015664795669917408,
+              "p50": 4.287793390289618e-06,
+              "p90": 0.00025953497723865123,
+              "p99": 0.0009398187489773693
+            },
+            "taylor2_residual_order": 3.0420402849016774,
+            "taylor2_signed_relative_error": {
+              "maximum": 0.0010303353767211476,
+              "p50": -1.3252343666891875e-11,
+              "p90": 8.671824794965746e-05,
+              "p99": 0.0005911131810073744
+            },
+            "taylor2_to_taylor1_p90": 0.2892090724821991,
+            "unsupported_point_count": 0
+          }
+        ],
+        "low_frequency_contiguous_pass_count": 10,
+        "minimum_primary_contiguous_support_count": 10,
+        "minimum_primary_model_support_fraction": 1.0,
+        "minimum_response_order1": 0.9804328920074821,
+        "minimum_response_order2": 0.9765110379661578,
+        "mode_identity_failure_count": 0,
+        "nonpositive_response_count": 0,
+        "p90_error_over_sigma_by_amplitude": {
+          "0.005": 9.26937449344626e-05,
+          "0.01": 0.0007388365290670352,
+          "0.02": 0.005892615503313081,
+          "0.04": 0.04659394135599281,
+          "0.06": 0.15602161377369292,
+          "0.08": 0.35339946239368336
+        },
+        "passed": true,
+        "pointwise_taylor1_to_taylor2_improvement_median": 28.4087375305509,
+        "prediction_nonfinite_count": 0,
+        "primary_frequency_count": 10,
+        "primary_model_count": 384,
+        "response_kind": "normalized_squared_slowness",
+        "root_order": 1,
+        "stress_10_percent": {
+          "exact_branch_failure_count": 0,
+          "mode_identity_failure_count": 0,
+          "model_count": 64,
+          "taylor1_absolute_relative_error": {
+            "maximum": 0.006647638114805177,
+            "p50": 0.0004021916223184707,
+            "p90": 0.002197661004406071,
+            "p99": 0.004509871247879766
+          },
+          "taylor2_absolute_error_over_sigma": {
+            "maximum": 3.080823450400997,
+            "p50": 0.04793472524089233,
+            "p90": 0.6681444858928095,
+            "p99": 1.8687042958478775
+          },
+          "taylor2_absolute_relative_error": {
+            "maximum": 0.003080823450400949,
+            "p50": 4.7934725240894593e-05,
+            "p90": 0.0006681444858927855,
+            "p99": 0.0018687042958479062
+          }
+        },
+        "supported_fraction": 1.0,
+        "supported_point_count": 3840,
+        "surrogate_to_exact_anomaly_error_ratio_median": 0.0011637453428532197,
+        "taylor1_absolute_relative_error": {
+          "maximum": 0.003886360116238219,
+          "p50": 3.039922032560538e-05,
+          "p90": 0.0004876409783799662,
+          "p99": 0.0017216257379569966
+        },
+        "taylor2_absolute_error_over_sigma": {
+          "maximum": 1.5664795669917189,
+          "p50": 0.0011880633961872185,
+          "p90": 0.05431169380754733,
+          "p99": 0.5383531313744488
+        },
+        "taylor2_absolute_relative_error": {
+          "maximum": 0.0015664795669917408,
+          "p50": 1.1880633962180198e-06,
+          "p90": 5.431169380760714e-05,
+          "p99": 0.0005383531313744409
+        },
+        "taylor2_signed_relative_error": {
+          "maximum": 0.0010303353767211476,
+          "p50": -3.015508953652102e-10,
+          "p90": 1.8698485180612676e-05,
+          "p99": 0.00033803169014981206
+        },
+        "taylor2_to_taylor1_p90": 0.11137639414152736,
+        "wave": "love",
+        "zero_mode_failure_probability_upper_95": 0.0007798343838957278
+      }
+    ],
+    "passed": true,
+    "split_kind": "calibration"
+  },
+  "plan_sha256": "13c4ed729479b8cfed7ebe733a3d6bb640d296758e512175c660ee8d77ce45b4",
+  "prior": {
+    "correlation_length_logdepth": 0.4,
+    "depth_kernel": "gaussian",
+    "jitter": 1e-10,
+    "parameter_correlation": "birch_tight_aniso",
+    "vsh_sigma": 0.035,
+    "vsv_sigma": 0.035,
+    "z0_km": 30.0
+  },
+  "quick": false,
+  "response_kind_by_wave": {
+    "love": "normalized_squared_slowness",
+    "rayleigh": "phase_velocity"
+  },
+  "schema_name": "rayleigh-love-long-period-mixed-response-taylor-v2",
+  "schema_version": 2,
+  "split_kind": "calibration",
+  "split_manifest_sha256": "43be24f647fd095c17986c19772bc822a9b2b30b8c12c7d4c58812850f3f3bfc",
+  "split_seed": 20270507,
+  "workflow_profile": "mixed-response-v2"
+}

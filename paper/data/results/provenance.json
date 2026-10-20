@@ -1,0 +1,88 @@
+{
+  "plan_l_code_commit": "c72cf1d961f2bc50118fd69869b88dbc5c015629",
+  "plan_l_artifact_sha256": "4e92574a29a6a1398052b4a7744fc3c4131de4ae779906e348c05719fe555bb5",
+  "plan_l_frequency_hz": [
+    0.0075,
+    0.01,
+    0.0125,
+    0.015,
+    0.0175,
+    0.02,
+    0.0225,
+    0.025,
+    0.0275,
+    0.03
+  ],
+  "plan_l_8pct_summary": [
+    {
+      "curve": "rayleigh0",
+      "order2_8pct_p99_percent": 0.013094226856757426,
+      "order2_8pct_max_percent": 0.015510295635828938
+    },
+    {
+      "curve": "rayleigh1",
+      "order2_8pct_p99_percent": 0.01642031477107459,
+      "order2_8pct_max_percent": 0.022101126896106837
+    },
+    {
+      "curve": "love0",
+      "order2_8pct_p99_percent": 0.06692950323512034,
+      "order2_8pct_max_percent": 0.11529824484194454
+    },
+    {
+      "curve": "love1",
+      "order2_8pct_p99_percent": 0.0691985006081243,
+      "order2_8pct_max_percent": 0.10957612486068988
+    }
+  ],
+  "sources": [
+    {
+      "role": "frozen v2 response jets",
+      "path": "long_period_mixed_response_v2.npz",
+      "sha256": "4e92574a29a6a1398052b4a7744fc3c4131de4ae779906e348c05719fe555bb5"
+    },
+    {
+      "role": "opened sealed-holdout validation",
+      "path": "holdout_report.json",
+      "sha256": "4b8ac69fae6394be1787b7950718fad0509f46a5ace4961a6842ce3084604387"
+    },
+    {
+      "role": "opened sealed-holdout manifest",
+      "path": "split_manifest.json",
+      "sha256": "d302932f49c555e8d44f6beedd0d3d983a951f60e8d6d95e58b500fc33910d64"
+    },
+    {
+      "role": "rayleigh exact holdout curves and perturbations",
+      "path": "split_rayleigh.npz",
+      "sha256": "5478b7b21778691e46a52536283f465aa1bc79050f6055513c3c5fb534a77b15"
+    },
+    {
+      "role": "love exact holdout curves and perturbations",
+      "path": "split_love.npz",
+      "sha256": "28557e0c6f2ff76f714d021a2b39a4262ffeb74c154b4a5fc1d460a092fbcaeb"
+    },
+    {
+      "role": "v2 timing: minimum of five repeats, batch size eight",
+      "path": "benchmark_report.json",
+      "sha256": "a36fabd1da0719f405f9c6d843e22db579389ce31bca7738ac36b307598665c4"
+    },
+    {
+      "role": "recorded Plan L scope, costs, and stress-test results",
+      "path": "long_period_mixed_response_go_20260903.md",
+      "sha256": "63cbf549ac64f6193f3adfb78e49a46e7fc817db2745bd700ea63284e17b0da9"
+    },
+    {
+      "role": "recorded Plan L scope, costs, and stress-test results",
+      "path": "long_period_taylor_no_go_20260903.md",
+      "sha256": "b5056ccb17e0b577e95f9d19b05bbff22bdc7f35907b466a3631e837c4d4b740"
+    }
+  ],
+  "exports": {
+    "long_period_mixed_response_go_20260903.md": "07eeef9f9925cc28ecb5a796d8f4833da0e61d469875aa8ce3d0bf1a4bc488db",
+    "long_period_taylor_no_go_20260903.md": "b5056ccb17e0b577e95f9d19b05bbff22bdc7f35907b466a3631e837c4d4b740",
+    "plan_l_v2_benchmark_report.json": "b74bbe8c0df8eb7ca458bff9b3f9c92f063007b8cd4f655fb8c1cd608d2eecb4",
+    "plan_l_v2_holdout_curves.npz": "46652e2614cf2481bc01aaf2678b0786bde7a19dfb38477466288e10fe58b3c0",
+    "plan_l_v2_holdout_report.json": "20649afefc9be3c82e545aeb0e893ac2c1ece779d84d0f3ede1fc12d518afb0d"
+  },
+  "public_copy_note": "Public narrative copies omit developer-specific environment names. Source hashes identify historical originals; export hashes verify the redistributed copies. Numerical arrays and recorded results are unchanged. External-comparison records are excluded from this export."
+}

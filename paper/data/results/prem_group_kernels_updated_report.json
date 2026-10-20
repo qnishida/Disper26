@@ -1,0 +1,54 @@
+{
+  "code_commit": "2780fba8f4339299a5b6d15ff358672a81976110",
+  "extension_path": "disper26py.cpython-38-x86_64-linux-gnu.so",
+  "extension_sha256": "73063ead843f549e45b32c1c2754be3b64f2cd1c8cd7a333678579f2abe5d3ed",
+  "diagnostic_sha256": "598bcec5d7dc697c0a40321d2da0e2397710a8594af19d339c052bb6d4d5231e",
+  "model_sha256": "caf39a2a3d6692511c71e392479a113bd0654338eb43929a963c1fb4ed1d98c4",
+  "generator_sha256": "6ebab21342efaffb1b1c2035936d6961dd3e293b7b3c02f3446cb24d57200680",
+  "helper_source_sha256": "80615bdd766b614f861c063bad0dfb1b5ba3f30cde75e47a7475a28192809949",
+  "root_tolerance": 1e-12,
+  "kernel_normalized_tolerance": 1e-05,
+  "cases": {
+    "Rayleigh_05": {
+      "quadrature_16_vs_32_max": 2.277339497800494e-15,
+      "quadrature_vs_analytic_max": 1.5605567105037397e-14,
+      "projected_vs_frequency_ad": 1.428061999082601e-14,
+      "frequency_vs_full_ad": 1.2158361186633915e-14,
+      "projection_l7_vs_l8": 2.522909531712621e-14,
+      "c": 3.866522144881648,
+      "U": 3.611864120902409,
+      "level": 8
+    },
+    "Rayleigh_10": {
+      "quadrature_16_vs_32_max": 4.517775370020055e-15,
+      "quadrature_vs_analytic_max": 2.745409473825582e-13,
+      "projected_vs_frequency_ad": 3.802843491873009e-14,
+      "frequency_vs_full_ad": 1.1420086077259494e-11,
+      "projection_l7_vs_l8": 3.531024222944171e-14,
+      "c": 3.4662209324399984,
+      "U": 2.8552479725637694,
+      "level": 8
+    },
+    "Love_05": {
+      "quadrature_16_vs_32_max": 1.3816652820361854e-15,
+      "quadrature_vs_analytic_max": 2.057694366461031e-14,
+      "projected_vs_frequency_ad": 1.4861696167838646e-14,
+      "frequency_vs_full_ad": 1.7180344254174367e-14,
+      "projection_l7_vs_l8": 2.178970490773303e-14,
+      "c": 4.15515179974086,
+      "U": 3.5768266940327402,
+      "level": 8
+    },
+    "Love_10": {
+      "quadrature_16_vs_32_max": 4.926529316799343e-15,
+      "quadrature_vs_analytic_max": 1.970529189517735e-14,
+      "projected_vs_frequency_ad": 2.4745767843183215e-14,
+      "frequency_vs_full_ad": 8.831072599961425e-14,
+      "projection_l7_vs_l8": 1.5058562042961155e-13,
+      "c": 3.693397720823038,
+      "U": 3.229514672881675,
+      "level": 8
+    }
+  },
+  "data_sha256": "3f50a5919675f85d903ae0bb6fc6f0ff1fda39759fcc228baff9912ca49f2b04"
+}

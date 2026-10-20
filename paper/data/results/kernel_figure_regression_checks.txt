@@ -1,0 +1,45 @@
+Disper26 main 2780fba8f4339299a5b6d15ff358672a81976110
+Python: selected main extension in a dedicated environment.
+
+Test: tests/python/test_u_kernel_frequency_variational_grid.py
+OK 4 Rayleigh Isotropic max scaled dU error=2.601e-12
+OK 4 Rayleigh VTI max scaled dU error=6.435e-13
+OK 4 Love Isotropic max scaled dU error=1.149e-14
+OK 4 Love VTI max scaled dU error=2.074e-14
+OK 20 Rayleigh Isotropic max scaled dU error=2.459e-13
+OK 20 Rayleigh VTI max scaled dU error=4.670e-13
+OK 20 Love Isotropic max scaled dU error=5.499e-14
+OK 20 Love VTI max scaled dU error=7.486e-14
+OK 4 Rayleigh Isotropic max scaled dU error=8.440e-09
+OK 4 Rayleigh VTI max scaled dU error=1.447e-09
+OK 4 Love Isotropic max scaled dU error=8.020e-07
+OK 4 Love VTI max scaled dU error=1.029e-06
+All frequency-variational GRID U-kernel tests passed.
+
+
+Test: tests/python/test_u_kernel_variational_grid.py
+OK 4node/Rayleigh/Isotropic: n_kernels=12 d_U max rel err 1.23e-12
+OK 4node/Rayleigh/VTI: n_kernels=24 d_U max rel err 8.84e-13
+OK 4node/Love/Isotropic: n_kernels=12 d_U max rel err 8.64e-11
+OK 4node/Love/VTI: n_kernels=24 d_U max rel err 1.99e-11
+OK disc/Rayleigh/Isotropic: n_kernels=13 d_U max rel err 3.51e-15
+OK disc/Rayleigh/VTI: n_kernels=25 d_U max rel err 3.88e-15
+OK disc/Love/Isotropic: n_kernels=13 d_U max rel err 4.56e-15
+OK disc/Love/VTI: n_kernels=25 d_U max rel err 5.15e-15
+OK 20node/Rayleigh/Isotropic: n_kernels=60 d_U max rel err 8.17e-12
+OK 20node/Rayleigh/VTI: n_kernels=120 d_U max rel err 4.67e-12
+OK 20node/Love/Isotropic: n_kernels=60 d_U max rel err 5.15e-13
+OK 20node/Love/VTI: n_kernels=120 d_U max rel err 2.91e-13
+OK prem_like/Rayleigh/Isotropic: n_kernels=29 d_U max rel err 3.43e-13
+OK prem_like/Rayleigh/VTI: n_kernels=56 d_U max rel err 8.41e-14
+OK prem_like/Love/Isotropic: n_kernels=29 d_U max rel err 3.33e-14
+OK prem_like/Love/VTI: n_kernels=56 d_U max rel err 1.63e-13
+OK ocean/Rayleigh (fallback): n_kernels=17 d_U max rel err bit-identical
+OK velocity_iso/Rayleigh: d_U max rel err 2.46e-13
+OK velocity_iso/Love: d_U max rel err 4.95e-12
+OK velocity_vti/Rayleigh: d_U max rel err 7.84e-13
+dU/dVs1 err: single-level=2.00e-04  extrapolated=5.99e-10
+dc/dVs1 err: single-level=5.92e-04  extrapolated=4.32e-11
+single-level vs extrapolated d_c max diff = 5.28e-05 (both finite)
+OK invalid u_kernel_mode raises
+All GRID variational U-kernel tests passed.

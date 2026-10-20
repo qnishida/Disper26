@@ -1,0 +1,3 @@
+[submodule "third_party/autodiff"]
+	path = third_party/autodiff
+	url = https://github.com/autodiff/autodiff.git

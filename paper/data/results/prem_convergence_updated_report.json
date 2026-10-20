@@ -1,0 +1,26 @@
+{
+  "code_commit": "2780fba8f4339299a5b6d15ff358672a81976110",
+  "extension_path": "disper26py.cpython-38-x86_64-linux-gnu.so",
+  "extension_sha256": "73063ead843f549e45b32c1c2754be3b64f2cd1c8cd7a333678579f2abe5d3ed",
+  "diagnostic_sha256": "598bcec5d7dc697c0a40321d2da0e2397710a8594af19d339c052bb6d4d5231e",
+  "model_sha256": "caf39a2a3d6692511c71e392479a113bd0654338eb43929a963c1fb4ed1d98c4",
+  "generator_sha256": "a44c2716c1e00930f5d1b470ae47fecc6a4fab68bb64baa0c60862d264d56183",
+  "helper_source_sha256": "80615bdd766b614f861c063bad0dfb1b5ba3f30cde75e47a7475a28192809949",
+  "root_tolerance": 1e-12,
+  "kernel_normalized_tolerance": 1e-05,
+  "cases": {
+    "Rayleigh": {
+      "reference_7_vs_8_relative": 1.3782789033370175e-15,
+      "adaptive_relative_error": 5.788771394015473e-15,
+      "adaptive_reported_error": 3.448453816149198e-13,
+      "adaptive_level": 7
+    },
+    "Love": {
+      "reference_7_vs_8_relative": 1.2612934078536905e-16,
+      "adaptive_relative_error": 0.0,
+      "adaptive_reported_error": 2.6588065037555797e-13,
+      "adaptive_level": 7
+    }
+  },
+  "data_sha256": "37f22736bbd113e4f87e95e8c086d95e4034fe97933a14d98b5346f46c504fed"
+}

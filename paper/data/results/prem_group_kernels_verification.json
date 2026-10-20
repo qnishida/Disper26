@@ -1,0 +1,112 @@
+{
+  "cases": {
+    "Rayleigh_05": {
+      "node": 0,
+      "parameter": "Vsv",
+      "relative_steps": [
+        0.0001,
+        5e-05
+      ],
+      "fd_values": [
+        0.08534714794013473,
+        0.08534714860713516
+      ],
+      "full_ad": 0.08534714878860755,
+      "fd_normalized_errors": [
+        2.039766089733788e-09,
+        4.3626763775842007e-10
+      ],
+      "profile_l7_l8_component_normalized_errors": [
+        0.0005023659179228105,
+        0.00014596476927627005,
+        0.000407841426194619,
+        0.0,
+        0.00037491117848902116,
+        0.0004054209262192315
+      ],
+      "profile_note": "Fixed-depth comparison of fine piecewise-constant reconstructions; not an extrapolation of pointwise values."
+    },
+    "Rayleigh_10": {
+      "node": 0,
+      "parameter": "Vsv",
+      "relative_steps": [
+        0.0001,
+        5e-05
+      ],
+      "fd_values": [
+        0.40458560999045745,
+        0.4045856115511967
+      ],
+      "full_ad": 0.4045856120479264,
+      "fd_normalized_errors": [
+        3.143421276479211e-09,
+        7.589085273008722e-10
+      ],
+      "profile_l7_l8_component_normalized_errors": [
+        0.000539057119085436,
+        0.00021733369818962612,
+        0.0003551103810759153,
+        0.0,
+        0.00039404196288769436,
+        0.00040742763316799126
+      ],
+      "profile_note": "Fixed-depth comparison of fine piecewise-constant reconstructions; not an extrapolation of pointwise values."
+    },
+    "Love_05": {
+      "node": 0,
+      "parameter": "Vsh",
+      "relative_steps": [
+        0.0001,
+        5e-05
+      ],
+      "fd_values": [
+        0.5345643101851447,
+        0.534564311642252
+      ],
+      "full_ad": 0.5345643121220921,
+      "fd_normalized_errors": [
+        3.6234131915321684e-09,
+        8.976283034546014e-10
+      ],
+      "profile_l7_l8_component_normalized_errors": [
+        0.0008083351604059684,
+        0.0,
+        0.0,
+        0.00019390637357641805,
+        0.0005103194469511944,
+        0.0
+      ],
+      "profile_note": "Fixed-depth comparison of fine piecewise-constant reconstructions; not an extrapolation of pointwise values."
+    },
+    "Love_10": {
+      "node": 0,
+      "parameter": "Vsh",
+      "relative_steps": [
+        0.0001,
+        5e-05
+      ],
+      "fd_values": [
+        0.6819213661186516,
+        0.68192136843194
+      ],
+      "full_ad": 0.6819213692080989,
+      "fd_normalized_errors": [
+        4.530503652007403e-09,
+        1.1381941525285071e-09
+      ],
+      "profile_l7_l8_component_normalized_errors": [
+        0.002884023326711121,
+        0.0,
+        0.0,
+        0.0001989358708341965,
+        0.0005506739736817126,
+        0.0
+      ],
+      "profile_note": "Fixed-depth comparison of fine piecewise-constant reconstructions; not an extrapolation of pointwise values."
+    }
+  },
+  "kernel_data_sha256": "3f50a5919675f85d903ae0bb6fc6f0ff1fda39759fcc228baff9912ca49f2b04",
+  "script_sha256": "c41504d74d1902727f691f3ebdbd0b12ad614c6cc65fef424714143d0ca3201b",
+  "profile_display_tolerance": 0.005,
+  "profile_display_tolerance_rationale": "0.5% of each component peak resolves the plotted shape; this is separate from the 1e-5 nodal-derivative criterion."
+}

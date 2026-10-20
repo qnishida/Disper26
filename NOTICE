@@ -1,0 +1,167 @@
+Disper26: licensing and attribution
+=================================
+
+Original Disper26 software
+-------------------------
+
+Copyright (C) 2026 Kiwamu Nishida
+
+Except for third-party components identified below or in their own notices,
+the original Disper26 software, including its examples and tests, is free
+software: you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation,
+either version 2 of the License, or (at your option) any later version.
+
+Disper26 is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See LICENSE for the full terms.
+
+SPDX-License-Identifier: GPL-2.0-or-later
+
+Third-party software
+--------------------
+
+Third-party components retain their own copyright notices and licenses;
+the Disper26 license does not replace them.
+
+* autodiff (MIT): https://github.com/autodiff/autodiff
+  Copyright 2018-2024 Allan Leal. The complete license is preserved in
+  third_party/autodiff/LICENSE and in each bundled copy under
+  paper/reference_sources/*/third_party/autodiff/LICENSE. It is also reproduced
+  here so binary distributions retain it.
+
+  MIT License
+
+  Copyright © 2018–2024 Allan Leal
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+* Eigen 3.4.x (MPL-2.0): https://libeigen.gitlab.io/
+  Eigen is an external header dependency. Preserve its applicable per-file
+  notices and license terms. The Eigen 3.4.0 source, including its license
+  files, is available at https://gitlab.com/libeigen/eigen/-/tree/3.4.0 .
+  For binary distributions, identify and make available the corresponding
+  Eigen source under its applicable terms.
+
+* pybind11 (BSD-3-Clause): https://github.com/pybind/pybind11
+  The Python bindings use pybind11. Its copyright notice and license follow.
+  Preserve the notices applicable to the version used for a binary release.
+
+  Copyright (c) 2016 Wenzel Jakob <wenzel.jakob@epfl.ch>, All rights reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are met:
+
+  1. Redistributions of source code must retain the above copyright notice,
+     this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright notice,
+     this list of conditions and the following disclaimer in the documentation
+     and/or other materials provided with the distribution.
+
+  3. Neither the name of the copyright holder nor the names of its contributors
+     may be used to endorse or promote products derived from this software
+     without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  POSSIBILITY OF SUCH DAMAGE.
+
+Model inputs, numerical results, and manuscript
+----------------------------------------------
+
+Third-party model inputs retain their own terms. The software GPL notice does
+not replace those terms or license the separately distributed manuscript.
+PREM model tables and adapted model inputs are redistributed under CC BY 4.0
+on the policy basis recorded below. They are distinguished from the recorded
+Disper26 phase velocities, kernels, Hessians, tables, and reports.
+
+* PREM source: the bundled model is the IRIS EMC anisotropic PREM table,
+  now distributed by EarthScope as PREM_ANISOTROPIC_IDV.csv. The model page
+  identifies this variant as the anisotropic PREM used by SAW24B16:
+  https://data.earthscope.org/app/products/portal/emc_model_viewer.html?id=EMC-PREM
+  Model-page DOI: https://doi.org/10.17611/DP/9991844 .
+  Current source file:
+  https://data.earthscope.org/archive/seismology/products/emc/data/PREM/PREM_ANISOTROPIC_IDV.csv
+
+  Source verification on 2026-10-20 found that the bundled file differs only
+  by its name and one additional final LF newline. All 97 data rows and nine
+  columns, including their units and numerical values, are unchanged.
+  The upstream file is 6556 bytes; SHA-256:
+  dd70ea9074b586b7182cc0c04b3e21ef762dd27dddd610a9843d896b10d31fb3.
+  The bundled file is 6557 bytes; SHA-256:
+  fd602a8b6a985b2569df64113891c2ae5ee3ab57cf827ae0ab0927ff886a90b7.
+  disper26/data/model_PREM_aniso.csv, tests/model_PREM_aniso.csv, and the
+  copies listed in the frozen source manifests are byte-identical.
+
+  Model credit: Dziewonski, A. M., and Anderson, D. L. (1981),
+  Preliminary reference Earth model, Physics of the Earth and Planetary
+  Interiors, 25, 297-356, https://doi.org/10.1016/0031-9201(81)90046-7 .
+  EarthScope/IRIS data-products credit: Trabant, C., Hutko, A. R., Bahavar, M.,
+  Karstens, R., Ahern, T., and Aster, R. (2012), Data Products at the IRIS DMC:
+  Stepping Stones for Research and Other Applications, Seismological Research
+  Letters, 83(5), 846-854, https://doi.org/10.1785/0220120032 .
+
+* PREM terms: Creative Commons Attribution 4.0 International (CC BY 4.0):
+  https://creativecommons.org/licenses/by/4.0/ .
+  The basis is EarthScope's facility data policy, effective 2025-06-12:
+  https://resess.unavco.org/data/policies_forms/data-policy/data-license.html .
+  That policy assigns CC BY 4.0 by default where a contributing provider has
+  not specified a more restrictive license; existing more restrictive terms
+  take precedence. No separate restrictive term was found in the model record
+  or CSV reviewed on 2026-10-20. On that basis, the PREM tables and adapted
+  model inputs here are redistributed under CC BY 4.0. Preserve source and
+  model credits, links to the data and license, and descriptions of changes.
+
+* Adapted PREM inputs: tests/fixtures/prem_tracking_model.json contains solid
+  model nodes after unit conversion and earth flattening, for Disper26-only
+  tracking regressions. It contains no external-program reference output.
+  The PREM source credit and CC BY 4.0 terms above also cover these adapted
+  model inputs. The CSV itself remains in its original SI units; unit
+  conversion, ocean handling, depth selection, interpolation, and optional
+  earth flattening are performed by the model loaders, as documented in
+  disper26/_prem.py and inversion/disper26_inv/prem.py.
+
+* Recorded Disper26 results: paper/data/ contains fixed numerical arrays and
+  reports from Disper26 calculations. Their historical calculation sources
+  and content fingerprints are recorded in paper/reference_manifest.json and
+  paper/data/results/provenance.json. These calculations are distinct from
+  external-program reference output. Preserve the PREM attribution above for
+  PREM-derived model inputs stored with those results.
+
+The paper/README.md, paper/reference_manifest.json, and
+paper/data/results/provenance.json describe the historical source snapshots
+and numerical evidence. Historical snapshots preserve their original
+third-party license files. External-program comparison tests, output, and
+benchmark reports are outside this distribution.
+
+Citation
+--------
+
+CITATION.cff describes the software authorship. Please cite the software
+version used and, when available, the accompanying paper. This is a scholarly
+citation request, not an additional condition of the GNU GPL.

@@ -1,0 +1,158 @@
+{
+  "role": "post-holdout small-amplitude convergence diagnostic",
+  "base_settings": {
+    "max_steps": 6,
+    "tolerance": 1e-09,
+    "hessian_max_levels": 5,
+    "hessian_tolerance": 1e-06
+  },
+  "tight_settings": {
+    "max_steps": 8,
+    "tolerance": 1e-12,
+    "hessian_max_levels": 5,
+    "hessian_tolerance": 1e-06,
+    "root_tolerance": 1e-13
+  },
+  "minimum_trace_level": 5,
+  "code_commit": "b9dd472f7454b0b61912535718b00f0edc1f6762",
+  "extension_sha256": "73063ead843f549e45b32c1c2754be3b64f2cd1c8cd7a333678579f2abe5d3ed",
+  "artifact_sha256": "4e92574a29a6a1398052b4a7744fc3c4131de4ae779906e348c05719fe555bb5",
+  "sources": {
+    "rayleigh": {
+      "path": "split_rayleigh.npz",
+      "sha256": "5478b7b21778691e46a52536283f465aa1bc79050f6055513c3c5fb534a77b15"
+    },
+    "love": {
+      "path": "split_love.npz",
+      "sha256": "28557e0c6f2ff76f714d021a2b39a4262ffeb74c154b4a5fc1d460a092fbcaeb"
+    }
+  },
+  "curves": {
+    "rayleigh0": {
+      "order2_p90_percent": [
+        1.3142134940742233e-08,
+        1.053049053858013e-07,
+        1.6355104305743396e-06
+      ],
+      "tight_difference_max_percent": 1.8410376249547489e-13,
+      "tight_difference_p90_percent": 8.18305352490283e-14,
+      "order2_tight_p90_percent": [
+        1.3142174140023e-08,
+        1.0530484167711542e-07
+      ],
+      "baseline_0p5pct_max_abs_difference_km_s": 8.881784197001252e-16,
+      "order1_p90_percent": [
+        1.1569825028103261e-05,
+        4.636179464974691e-05,
+        0.00029132183706623174
+      ],
+      "order1_p90_slope_0p1_to_0p5pct": 2.0045181761699284,
+      "order2_p90_slope_0p1_to_0p5pct": 2.9970495386724387
+    },
+    "rayleigh1": {
+      "order2_p90_percent": [
+        1.139395560934096e-08,
+        9.139310825408941e-08,
+        1.4255737141331802e-06
+      ],
+      "tight_difference_max_percent": 5.610761482586997e-13,
+      "tight_difference_p90_percent": 3.14745202782731e-13,
+      "order2_tight_p90_percent": [
+        1.1394035404657557e-08,
+        9.139322980031847e-08
+      ],
+      "baseline_0p5pct_max_abs_difference_km_s": 8.881784197001252e-16,
+      "order1_p90_percent": [
+        5.910242875694159e-06,
+        2.3609325713150177e-05,
+        0.00014654467749396943
+      ],
+      "order1_p90_slope_0p1_to_0p5pct": 1.9947590341474173,
+      "order2_p90_slope_0p1_to_0p5pct": 3.0004515878915776
+    },
+    "love0": {
+      "order2_p90_percent": [
+        5.014138419765239e-08,
+        4.0083901746057085e-07,
+        6.2494942780266195e-06
+      ],
+      "tight_difference_max_percent": 1.289534703832226e-11,
+      "tight_difference_p90_percent": 5.201870047261689e-13,
+      "order2_tight_p90_percent": [
+        5.0141368016922173e-08,
+        4.0083899925264177e-07
+      ],
+      "baseline_0p5pct_max_abs_difference_km_s": 2.6645352591003757e-15,
+      "order1_p90_percent": [
+        5.475064910769058e-05,
+        0.00021899545361068714,
+        0.001368603036842025
+      ],
+      "order1_p90_slope_0p1_to_0p5pct": 1.9999248479707012,
+      "order2_p90_slope_0p1_to_0p5pct": 2.998165440536913
+    },
+    "love1": {
+      "order2_p90_percent": [
+        4.443309917127581e-08,
+        3.559767628281598e-07,
+        5.588759143636061e-06
+      ],
+      "tight_difference_max_percent": 1.1301327643567809e-13,
+      "tight_difference_p90_percent": 3.36488085847517e-14,
+      "order2_tight_p90_percent": [
+        4.443306729789044e-08,
+        3.559767628281598e-07
+      ],
+      "baseline_0p5pct_max_abs_difference_km_s": 3.552713678800501e-15,
+      "order1_p90_percent": [
+        1.6691871636340846e-05,
+        6.698971424463305e-05,
+        0.0004225690745491598
+      ],
+      "order1_p90_slope_0p1_to_0p5pct": 2.007919946305915,
+      "order2_p90_slope_0p1_to_0p5pct": 3.0039316655232313
+    }
+  },
+  "data_sha256": "2f19718a8ce4db8b8d0e0406df392290ec77bf3981c5ca19d43b0d2e6de3466d",
+  "source_files_sha256": {
+    "inversion/disper26_inv/__init__.py": "0a0e5fc6b25befbe8e68783e1f9b6b01d6fde165992765d6823204b8ed9dff94",
+    "inversion/disper26_inv/atlas.py": "a25dd7851ca95250dd37008b3b36830d22de4bbbb3e4e8342d7a52aaa16c10fd",
+    "inversion/disper26_inv/certified_atlas.py": "6c6ca6e46379f20dad7f26762105b2e321242f2fa204c00968dd7540a0d3ba97",
+    "inversion/disper26_inv/certified_atlas_calibration.py": "667278f3c2698885d154fe70abc410a124038904966c657dd1cbea9c98a4292d",
+    "inversion/disper26_inv/data.py": "479271feffe5e4b9b23e44865ab27c2077f7d83e2cf3955078a2daa8ecc1bdd2",
+    "inversion/disper26_inv/depth_hessian.py": "5f1e2ae79bfdf0347b25e865d7e94944757e110e82f5d9f61114939ac38d9260",
+    "inversion/disper26_inv/derivatives.py": "b59d2241c31fdae73aa2cd45f4952c3c09e779db44780518b1354bd787ad5acb",
+    "inversion/disper26_inv/diagnostics.py": "9d35a5df61d4e304ceef70b27fc3e4ae12f704979571e886083fb41ef9c670fc",
+    "inversion/disper26_inv/engine.py": "62bee8c87f25f678196a767c3642800b3833faa1d69a80ad2326d04c2062b906",
+    "inversion/disper26_inv/gravity.py": "4c9b46f17f769e893548902c791f812881cc61aa879149abb628cc994f4c39d8",
+    "inversion/disper26_inv/landing.py": "32a30eabdab0c9a7fb27d1c4754d24fa20f5ec97973abd1620134e1cee1e5129",
+    "inversion/disper26_inv/laplace.py": "731c836f66bc2e842a4170da2305560eb01772a75d3efa70f73369d12a85a877",
+    "inversion/disper26_inv/linearized.py": "ea54e3a0f209c20d64079847dc682044a397a913de7143203fcdd4366d16ee81",
+    "inversion/disper26_inv/long_period_taylor.py": "6334bb08bcb412d6ffb1d81ce2b53e6f6e2e85f9c23b563af09520610abc9aaf",
+    "inversion/disper26_inv/long_period_taylor_exact.py": "3b4b64e15299233d04076df589573b5ed0acfe25e9a1d45ef821f38f9f4f90af",
+    "inversion/disper26_inv/long_period_taylor_io.py": "88f23e5154a64c5d7a34ed5e6367e4f383ce58dee35e74892ad6e85b719dd12c",
+    "inversion/disper26_inv/long_period_taylor_manifest.py": "468bb9d1cb413424c239e5bcefbdaa94157cb0dec40016fa75c4684d2a691efb",
+    "inversion/disper26_inv/long_period_taylor_mode.py": "0ea59bef1d9b44d6546aa40646e768aea058ec5598aa0f23e4ccca54ae3e1274",
+    "inversion/disper26_inv/long_period_taylor_reference.py": "f570756aec444a76a2452bc2c70168b5bd029c04e3e0202650e1e43187e162ef",
+    "inversion/disper26_inv/long_period_taylor_validation.py": "18ca895004886abee21804199f98a6142a848a26f9a5c94d54e274c58d55412b",
+    "inversion/disper26_inv/model.py": "14e01b002e27bce5a7df1d4e218aa91810d7261efb6b858fab37526c12751176",
+    "inversion/disper26_inv/parallel.py": "5da086c8daf6836af7c7e0399e672932f134151d982a1571f8dad0778608623d",
+    "inversion/disper26_inv/physics.py": "ead75ecf53276b3d3016b626e81df6e8f113d9487cb5a68056b18aaaca97b8fb",
+    "inversion/disper26_inv/pipeline.py": "7719979440df2144889b5b2838fa1959e7ad5836679302ccac43cbc788aa4c05",
+    "inversion/disper26_inv/prem.py": "949f76ff61cd3003e53b5c7d854c96135a7d90ab52fd35b614ecc8deccf33946",
+    "inversion/disper26_inv/priors.py": "7f56cea21beb459160109dd9e8b396beb2644b61a9b425ce12eba93bf4a025cc",
+    "inversion/disper26_inv/response_support.py": "15aebd31d86f91512e93acddd2853c2137965377dd449eb837abd86e0731838d",
+    "inversion/disper26_inv/search.py": "f95ff89223c4405b7f861850cf9b3d87c6301ca91090ffe57c65f0b441c46f97",
+    "inversion/disper26_inv/shallow.py": "d562795af766c1fa34f8280dbccb7a6ff6ae9cf2c9bc28ebb36956b511f1bf2c",
+    "inversion/disper26_inv/surrogate.py": "ae6d2d27ed83802d6a3fdcee9e4eac0cdbd81a8fd493b8c9083ada8565be382c",
+    "inversion/disper26_inv/surrogate_hmc.py": "7658767a83e067efff824fdcc5d99b1a3fca6804f0063c49b7410c6f092d65eb",
+    "inversion/disper26_inv/two_stage_is.py": "e1d9ca3f2ec64df6d0e5db0f635ae1575fbdedfd7eab73393a6f3445020333af",
+    "inversion/disper26_inv/units.py": "24eba02a83d5b653656b38d74ebfce796f7914cc6e06618c8241b09dc436762b"
+  },
+  "amplitudes": [
+    0.001,
+    0.002,
+    0.005
+  ],
+  "diagnostic_script_sha256": "ab82d98b4677831f52a2164d84c5a6729a67493e6a57724f89d5b2166c9cec5b"
+}

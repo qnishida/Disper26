@@ -1,0 +1,44 @@
+{
+  "artifact": "build/plan_l_v2_c72cf1d/long_period_mixed_response_v2.npz",
+  "artifact_sha256": "4e92574a29a6a1398052b4a7744fc3c4131de4ae779906e348c05719fe555bb5",
+  "code_commit": "c72cf1d961f2bc50118fd69869b88dbc5c015629",
+  "frequency_hz": [
+    0.0075,
+    0.01,
+    0.0125,
+    0.015,
+    0.0175,
+    0.02,
+    0.0225,
+    0.025,
+    0.0275,
+    0.03
+  ],
+  "maximum_physical_anomaly": 0.08,
+  "quick": false,
+  "response_kind_by_wave": {
+    "love": "normalized_squared_slowness",
+    "rayleigh": "phase_velocity"
+  },
+  "schema_name": "rayleigh-love-long-period-mixed-response-taylor-v2",
+  "schema_version": 2,
+  "target_keys": [
+    [
+      "rayleigh",
+      0
+    ],
+    [
+      "rayleigh",
+      1
+    ],
+    [
+      "love",
+      0
+    ],
+    [
+      "love",
+      1
+    ]
+  ],
+  "workflow_profile": "mixed-response-v2"
+}
