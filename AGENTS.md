@@ -1,6 +1,6 @@
 # Public release candidate
 
-Prepare a reviewed initial history before the first private GitHub sync.
+The reviewed initial history has been prepared and synchronized to GitHub.
 Import only reviewed files or patches; never fetch, merge, cherry-pick, or
 share Git objects from the separate private research project. From the first
 GitHub sync onward, preserve commits as the eventual public history; do not
@@ -8,13 +8,13 @@ restart or squash that history when changing visibility for publication.
 Review staged files and source/wheel archives for credentials, local paths,
 unpublished research, reports, and unapproved binaries before every commit.
 
-The software is intended to accompany the manuscript. After the initial history
-review, development will be synchronized to a private GitHub repository. At
-manuscript submission, make that repository public, retain its history, and
+The software is intended to accompany the manuscript. Development continues
+in the private GitHub repository. At manuscript submission, make that
+repository public, retain its history, and
 archive a versioned GitHub release with Zenodo. Public builds, documentation
 and selected practice examples must work from this
 repository alone. Reproducing all manuscript figures is not required. See
-docs/publication.md and examples/README.md for scope and preparation.
+docs/release_preparation.md and examples/README.md for scope and preparation.
 External-program comparison tests, reference output, and comparison benchmarks
 belong in the separate research test repository, outside this public tree.
 Keep Disper26-only regression fixtures independent of those comparisons.

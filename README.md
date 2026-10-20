@@ -11,14 +11,13 @@ The current software version is **0.1.104**, a local publication candidate.
 The original Disper26 software is licensed under GPL-2.0-or-later. Verified
 PREM provenance, its CC BY 4.0 terms, and dependency notices are recorded in
 [NOTICE](NOTICE); see [License and attribution](#license-and-attribution).
-No public release has been issued. One known Python regression failure remains
-documented in the [validation record](docs/publication.md#validation-record-2026-10-20).
+No public release has been issued.
 
-After the initial history review, development will be synchronized to a
-private GitHub repository. At manuscript submission, that repository will
-become public with its subsequent commit history preserved, followed by a
+The reviewed initial history has been synchronized to GitHub. At manuscript
+submission, the private repository will become public with its subsequent
+commit history preserved, followed by a
 versioned GitHub release archived by Zenodo. See the
-[publication preparation](docs/publication.md).
+[release preparation checklist](docs/release_preparation.md).
 
 ## Build and use
 
