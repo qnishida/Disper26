@@ -93,7 +93,7 @@ program test_api_fortran
     recovery%method='continuation_recover'
     call compute_dispersion_curve(input_model,[8.0_c_double,8.2_c_double],tracked,status,options=recovery)
     call success()
-    call tracked%get_solution(1,initial,status)
+    call tracked%get_solution(2,initial,status)
     call success()
     call initial%info(diagnostics,status)
     call success()
@@ -102,6 +102,62 @@ program test_api_fortran
     if(verified/=1) error stop 'Fortran recovery initial root unverified'
   end block
   copied_model=input_model
+  block
+    type(computation_options) :: controls
+    type(dispersion_context) :: workspace
+    type(mode_solution) :: seed,initial,missing
+    type(result_data) :: tracked,metadata,fresh
+    real(c_double) :: reference,counted,value
+    real(c_double), allocatable :: reused_values(:),fresh_values(:)
+    character(:), allocatable :: reason
+    call compute_dispersion(input_model,8.2_c_double,seed,status)
+    call success()
+    call seed%phase_velocity(reference,status)
+    call success()
+    controls%verify='endpoints'
+    controls%c_range=[reference*0.999_c_double,reference*1.001_c_double]
+    controls%c_guess=1.0_c_double
+    call create_dispersion_context(workspace,status)
+    call success()
+    call compute_dispersion_curve(input_model,[8.0_c_double,8.2_c_double],tracked,status, &
+        options=controls,context=workspace)
+    call success()
+    call compute_dispersion_curve(input_model,[8.0_c_double,8.2_c_double],fresh,status,options=controls)
+    call success()
+    call tracked%vector('phase_velocity',reused_values,status)
+    call success()
+    call fresh%vector('phase_velocity',fresh_values,status)
+    call success()
+    if(any(reused_values/=fresh_values)) error stop 'extended Fortran context differs'
+    call tracked%get_solution(2,initial,status)
+    call success()
+    call initial%info(metadata,status)
+    call success()
+    call metadata%scalar('diagnostics.mode_count_evaluations',counted,status)
+    call success()
+    if(counted/=2) error stop 'Fortran initial range did not use direct certification'
+    call metadata%text('options.start',reason,status)
+    call success()
+    if(reason/='long') error stop 'Fortran default direction differs'
+    call compute_dispersion(input_model,8.0_c_double,missing,status,mode=100,options=controls)
+    call success()
+    call missing%phase_velocity(value,status)
+    call success()
+    if(.not.ieee_is_nan(value)) error stop 'Fortran absent mode did not return missing'
+    call missing%info(metadata,status)
+    call success()
+    call metadata%text('diagnostics.missing_reason',reason,status)
+    call success()
+    if(reason/='mode_not_found') error stop 'Fortran missing reason lost'
+    call compute_mode_count(missing,mode_count,status)
+    if(status%code/=API_CALCULATION_FAILED) error stop 'Fortran missing mode count accepted'
+    controls%strict=.true.
+    call compute_dispersion(input_model,8.0_c_double,missing,status,mode=100,options=controls)
+    if(status%code/=API_CALCULATION_FAILED) error stop 'Fortran strict missing mode accepted'
+    controls%c_range=[reference]
+    call compute_dispersion(input_model,8.0_c_double,missing,status,options=controls)
+    if(status%code/=API_INVALID_ARGUMENT) error stop 'Fortran malformed range accepted'
+  end block
   copied_model=copied_model
   call copied_model%info(info,status)
   call success()

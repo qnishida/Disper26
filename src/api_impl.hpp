@@ -67,6 +67,17 @@ inline void check_options(const Options& o) {
     positive(o.tolerance, "tolerance"); positive(o.root_tolerance, "root_tolerance");
     positive(o.derivative_tolerance, "derivative_tolerance");
     if (o.c_guess) positive(*o.c_guess, "c_guess");
+    require(o.start == "long" || o.start == "short", "start must be long or short");
+    if(o.c_range) {
+        positive(o.c_range->first,"c_range lower bound");
+        positive(o.c_range->second,"c_range upper bound");
+        require(o.c_range->first < o.c_range->second,"c_range lower bound must be smaller than upper bound");
+    }
+    if(o.verify) require(*o.verify=="none" || *o.verify=="endpoints" || *o.verify=="every",
+        "verify must be none, endpoints or every");
+    require(!(o.verify && o.verify_mode),"Specify verify or verify_mode, not both");
+    if(o.on_violation) require(*o.on_violation=="fallback" || *o.on_violation=="error" || *o.on_violation=="missing",
+        "on_violation must be fallback, error or missing");
     require(o.backend == "dual" || o.backend == "vector" || o.backend == "vector_dyn", "Unknown backend");
     require(o.integration == "auto" || o.integration == "analytical" || o.integration == "trapezoidal", "Unknown integration method");
 }
@@ -154,6 +165,7 @@ inline std::set<std::string> outputs(const std::vector<std::string>& out) {
 }
 inline void ensure_mode_verified(const ModeSolution& s) {
     const auto& a=Access::solution(s);
+    if(!std::isfinite(a.c)) throw Error("missing_solution","Cannot compute from a missing dispersion solution");
     if(a.diagnostics.mode_verified) return;
     auto& cache=*a.trace_cache;
     std::lock_guard<std::mutex> lock(cache.mutex);
@@ -483,6 +495,26 @@ Model create_model(const std::vector<double>& depths,const std::string& kind,
 }
 
 namespace detail {
+inline ModeSolution missing_solution(SolutionData d, const std::string& reason,
+        const std::string& message) {
+    if(d.options.strict) throw Error(reason,message);
+    d.c=missing_value;d.roots.clear();d.trace_cache=std::make_shared<RootTraceCache>();
+    for(auto& entry:d.diagnostics.availability) if(entry.second=="computed") {
+        entry.second="missing";
+        if(entry.first=="group_velocity") d.u=missing_value;
+        if(entry.first=="hv_ratio") d.hv=missing_value;
+    }
+    d.diagnostics.status="missing";d.diagnostics.convergence="not_evaluated";
+    d.diagnostics.missing_reason=reason;d.diagnostics.messages.push_back(message);
+    d.diagnostics.mode_verified=false;
+    std::fill(d.diagnostics.level_mode_verified.begin(),d.diagnostics.level_mode_verified.end(),false);
+    d.diagnostics.accepted_level=-1;d.diagnostics.generated_level=-1;
+    d.diagnostics.relative_error=missing_value;
+    for(const auto& entry:d.diagnostics.availability)
+        d.diagnostics.convergence_by_quantity[entry.first]=entry.second;
+    return Access::solution(std::move(d));
+}
+
 template<class Refiner>
 ModeSolution compute_dispersion_in_context(const Model& model,double period,const std::string& wave,int mode,const std::vector<std::string>& requested,const Options& o,Refiner& refiner,DispersionTracking& tracking,RombergWorkspace* workspace=nullptr) {
     detail::positive(period,"period");detail::require(mode>=0,"mode must be nonnegative");detail::check_options(o);
@@ -490,7 +522,7 @@ ModeSolution compute_dispersion_in_context(const Model& model,double period,cons
         "Q-corrected models can only be evaluated at their correction period");
     detail::require(o.method=="standard" || o.method=="mode_order" || o.method=="continuation" || o.method=="continuation_recover","Dispersion method must be standard, mode_order, continuation or continuation_recover");
     detail::require(o.predictor=="auto" || o.predictor=="history" || o.predictor=="group_velocity","Unknown dispersion predictor");
-    detail::require(o.method=="continuation" || o.method=="continuation_recover" || o.verify_mode.value_or(true),"mode_order requires mode verification");
+    detail::require(o.verify || o.method=="continuation" || o.method=="continuation_recover" || o.verify_mode.value_or(true),"mode_order requires mode verification");
     const auto out=detail::outputs(requested); const auto w=detail::wave_name(wave); const auto type=parseWaveType(w);
     if(detail::fluid(model.data().halfspace)) detail::unsupported("Mode counting requires a solid halfspace");
     if(w=="Love"&&detail::has_fluid(model)) detail::unsupported("Love mode counting with fluids is not supported");
@@ -515,9 +547,11 @@ ModeSolution compute_dispersion_in_context(const Model& model,double period,cons
         // compute unused tangents for scalar calls, duplicate-only curves,
         // large frequency jumps, or when the requested U will supply it.
         const bool startup = o.predictor=="auto" &&
-            (o.method=="continuation" || o.method=="continuation_recover") &&
-            !o.verify_mode.value_or(false) && !out.count("group_velocity") &&
+            !out.count("group_velocity") &&
             current_level < kPhaseVelocityCurvePredictedGridLevels &&
+            // Checked auto uses the current coarse root at finer levels;
+            // only level 0 can consume a cross-period tangent there.
+            (verification_policy(o)!="every" || current_level==0) &&
             tracking.histories[current_level].roots.size()==1 &&
             std::isfinite(tracking.next_period) &&
             std::abs(period/tracking.next_period-1.0)<=0.25;
@@ -539,6 +573,7 @@ ModeSolution compute_dispersion_in_context(const Model& model,double period,cons
         if(!out.count("hv_ratio") || type==WaveType::Love) return missing_value;
         return py_calculateHVRatio(stack.layers,stack.thicknesses,stack.halfspace,omega,c,w);
     };
+    try {
     if(model.data().kind=="grid") {
         auto r=compute_with_romberg_core(refiner,period,guess,find_root,group,hv,o.max_steps,o.tolerance,
             !out.count("group_velocity")&&!out.count("hv_ratio"),0,0,workspace);
@@ -554,8 +589,16 @@ ModeSolution compute_dispersion_in_context(const Model& model,double period,cons
         if(out.count("hv_ratio")&&w=="Rayleigh") d.hv=hv(base,2*M_PI/period,d.c);
         d.roots={d.c};d.diagnostics.convergence="converged";
     }
+    } catch(const ModeOrderRootNotFound& e) {
+        return missing_solution(std::move(d),"mode_not_found",e.what());
+    } catch(const Error& e) {
+        if(e.code=="tracking_violation" && o.on_violation.value_or("fallback")=="missing")
+            return missing_solution(std::move(d),e.code,e.what());
+        throw;
+    }
     d.diagnostics.mode_verified=std::all_of(d.diagnostics.level_mode_verified.begin(),d.diagnostics.level_mode_verified.end(),[](bool x){return x;});
     if(!std::isfinite(d.c)||(d.u&&!std::isfinite(*d.u))||(d.hv&&!std::isfinite(*d.hv))) throw Error("numerical_failure","Nonfinite dispersion value");
+    if(d.c>=tracking_speed_cap(base,type)) throw Error("root_not_found","Dispersion value is outside the trapped-wave speed cap");
     d.diagnostics.convergence_by_quantity["phase_velocity"]=d.diagnostics.convergence;
     for(const auto& name:{"group_velocity","hv_ratio"})
         d.diagnostics.convergence_by_quantity[name]=d.diagnostics.availability[name]=="computed"?
@@ -566,10 +609,117 @@ ModeSolution compute_dispersion_in_context(const Model& model,double period,cons
     }
     detail::finish(d.diagnostics,o.strict); return Access::solution(std::move(d));
 }
+
+template<class Refiner>
+void finish_tracking_segment(const Model& model,const std::string& wave,int mode,
+        const std::vector<std::string>& outputs,const Options& options,Refiner& refiner,
+        RombergWorkspace* workspace,std::map<double,ModeSolution>& cache,
+        const std::vector<double>& segment) {
+    const auto type=parseWaveType(wave_name(wave));
+    if(verification_policy(options)!="endpoints" || segment.empty()) return;
+    auto end=Access::solution(cache.at(segment.back()));
+    if(end.diagnostics.mode_verified) return;
+    bool verified=true;
+    for(size_t level=0;level<end.roots.size();++level) {
+        if(end.diagnostics.level_mode_verified.at(level)) continue;
+        bool checked=false;
+        try {
+            checked=certify_tracking_root(refiner(static_cast<int>(level)),
+                2*M_PI/end.period,type,mode,end.roots[level],options.root_tolerance,
+                end.diagnostics.mode_count_evaluations);
+        } catch(const std::runtime_error&) {
+            // The selected violation policy handles a failed certificate.
+        }
+        end.diagnostics.level_mode_verified[level]=checked;
+        if(!checked) {verified=false;break;}
+    }
+    end.diagnostics.mode_verified=verified;
+    cache.at(segment.back())=Access::solution(std::move(end));
+    if(verified) return;
+    const auto response=options.on_violation.value_or("fallback");
+    if(response=="error" || (options.strict && response=="missing"))
+        throw Error("tracking_violation","Endpoint mode certificate failed");
+    size_t begin=0;
+    for(size_t i=0;i+1<segment.size();++i)
+        if(cache.at(segment[i]).diagnostics().mode_verified) begin=i+1;
+    DispersionTracking repair_tracking;
+    repair_tracking.initial_period=false;
+    Options repair=options;
+    repair.verify="every";repair.verify_mode.reset();repair.c_range.reset();
+    repair.on_violation="fallback";
+    if(begin>0) repair.c_guess=cache.at(segment[begin-1]).phase_velocity();
+    for(size_t i=begin;i<segment.size();++i) {
+        const double period=segment[i];
+        const auto original=Access::solution(cache.at(period));
+        if(response=="missing") {
+            cache.at(period)=missing_solution(original,"tracking_violation",
+                "Endpoint mode certificate failed; unchecked segment discarded");
+            continue;
+        }
+        repair_tracking.next_period=i+1<segment.size()?segment[i+1]:missing_value;
+        auto corrected=compute_dispersion_in_context(model,period,wave,mode,outputs,
+            repair,refiner,repair_tracking,workspace);
+        auto data=Access::solution(corrected);
+        data.options=original.options;
+        data.diagnostics.mode_count_evaluations+=original.diagnostics.mode_count_evaluations;
+        data.diagnostics.predictor_ad_evaluations+=original.diagnostics.predictor_ad_evaluations;
+        data.diagnostics.fallback_count+=original.diagnostics.fallback_count+1;
+        data.diagnostics.fallback_reasons.insert(data.diagnostics.fallback_reasons.begin(),
+            original.diagnostics.fallback_reasons.begin(),original.diagnostics.fallback_reasons.end());
+        data.diagnostics.fallback_reasons.push_back("endpoint_mode_certificate");
+        cache.at(period)=Access::solution(std::move(data));
+        if(std::isfinite(corrected.phase_velocity())) repair.c_guess=corrected.phase_velocity();
+        else repair_tracking=DispersionTracking{};
+    }
+}
+
+template<class Refiner>
+DispersionCurve compute_curve_in_context(const Model& model,
+        const std::vector<double>& periods,const std::string& wave,int mode,
+        const std::vector<std::string>& outputs,const Options& options,
+        Refiner& refiner,RombergWorkspace* workspace=nullptr) {
+    require(!periods.empty(),"periods must not be empty");
+    check_options(options);
+    std::map<double,ModeSolution> cache;
+    for(double p:periods) {positive(p,"period");cache.emplace(p,ModeSolution());}
+    std::vector<double> order;
+    order.reserve(cache.size());
+    for(const auto& entry:cache) order.push_back(entry.first);
+    if(options.start=="long") std::reverse(order.begin(),order.end());
+    Options current=options;
+    DispersionTracking tracking;
+    bool range_used=false;
+    std::vector<double> segment;
+    // A missing period ends a segment. Certify the last valid root as well
+    // when the final requested period is missing rather than silently skipping it.
+
+    for(size_t i=0;i<order.size();++i) {
+        const double period=order[i];
+        tracking.next_period=i+1<order.size()?order[i+1]:missing_value;
+        tracking.initial_period=!range_used;
+        tracking.check_endpoint=segment.empty();
+        auto solution=compute_dispersion_in_context(model,period,wave,mode,outputs,
+            current,refiner,tracking,workspace);
+        cache.at(period)=solution;
+        if(!std::isfinite(solution.phase_velocity())) {
+            finish_tracking_segment(model,wave,mode,outputs,options,refiner,workspace,cache,segment);
+            segment.clear();tracking=DispersionTracking{};current.c_guess=options.c_guess;
+            continue;
+        }
+        segment.push_back(period);
+        range_used=true;
+        current.c_guess=solution.phase_velocity();
+    }
+    finish_tracking_segment(model,wave,mode,outputs,options,refiner,workspace,cache,segment);
+    DispersionCurve result;result.periods=periods;result.solutions.reserve(periods.size());
+    for(double p:periods) result.solutions.push_back(cache.at(p));
+    return result;
+}
 } // namespace detail
 
 int compute_mode_count(const ModeSolution& solution, int level) {
     const auto& d=Access::solution(solution);
+    if(!std::isfinite(d.c)) throw Error("missing_solution","Cannot count a missing dispersion solution");
     detail::require(level >= -1,"level must be -1 or a saved refinement level");
     if (level == -1) level=static_cast<int>(d.roots.size())-1;
     detail::require(level >= 0 && level < static_cast<int>(d.roots.size()),
@@ -594,38 +744,16 @@ ModeSolution compute_dispersion(const Model& model,double period,const std::stri
     return detail::compute_dispersion_in_context(model,period,wave,mode,requested,o,refiner,tracking,&scratch.romberg);
 }
 DispersionCurve compute_dispersion_curve(const Model& m,const std::vector<double>& periods,const std::string& wave,int mode,const std::vector<std::string>& out,const Options& options) {
-    detail::require(!periods.empty(),"periods must not be empty");
-    std::map<double,ModeSolution> cache;
-    for(double p:periods) {detail::positive(p,"period");cache.emplace(p,ModeSolution());}
-    Options o=options;
     auto refiner=disper26::detail::make_dispersion_mesh_cache<VelocityGridRefinement>(
         12,[&](int level){return detail::mesh(m,level);});
-    detail::DispersionTracking tracking;
-    for(auto it=cache.begin();it!=cache.end();++it) {
-        const auto next=std::next(it);
-        tracking.next_period=next==cache.end()?missing_value:next->first;
-        it->second=detail::compute_dispersion_in_context(m,it->first,wave,mode,out,o,refiner,tracking);
-        o.c_guess=it->second.phase_velocity();
-    }
-    DispersionCurve r;r.periods=periods;r.solutions.reserve(periods.size());for(double p:periods)r.solutions.push_back(cache.at(p));return r;
+    return detail::compute_curve_in_context(m,periods,wave,mode,out,options,refiner);
 }
 DispersionCurve compute_dispersion_curve(const Model& m,const std::vector<double>& periods,const std::string& wave,int mode,const std::vector<std::string>& out,const Options& options,DispersionContext& context) {
     auto& scratch=Access::context(context);
     std::lock_guard<std::mutex> lock(scratch.mutex);
     scratch.begin_call();
-    detail::require(!periods.empty(),"periods must not be empty");
-    std::map<double,ModeSolution> cache;
-    for(double p:periods) {detail::positive(p,"period");cache.emplace(p,ModeSolution());}
-    Options o=options;
     auto refiner=[&](int level)->const VelocityGridRefinement& {return scratch.mesh(m,level);};
-    detail::DispersionTracking tracking;
-    for(auto it=cache.begin();it!=cache.end();++it) {
-        const auto next=std::next(it);
-        tracking.next_period=next==cache.end()?missing_value:next->first;
-        it->second=detail::compute_dispersion_in_context(m,it->first,wave,mode,out,o,refiner,tracking,&scratch.romberg);
-        o.c_guess=it->second.phase_velocity();
-    }
-    DispersionCurve r;r.periods=periods;r.solutions.reserve(periods.size());for(double p:periods)r.solutions.push_back(cache.at(p));return r;
+    return detail::compute_curve_in_context(m,periods,wave,mode,out,options,refiner,&scratch.romberg);
 }
 
 DerivativeResult compute_kernels(const ModeSolution& s,const std::string& basis,const std::vector<std::string>& requested,const Options& o) {

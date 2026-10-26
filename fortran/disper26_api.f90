@@ -43,6 +43,9 @@ module disper26_api
     real(c_double), allocatable :: c_guess
     character(63) :: method='standard', backend='dual', integration='auto'
     logical :: strict=.false.
+    character(63) :: start='long', predictor='auto', verify='', on_violation=''
+    real(c_double), allocatable :: c_range(:)
+    logical, allocatable :: verify_mode
   end type
   type, bind(C) :: c_options
     integer(c_int) :: max_steps, max_levels, num_sub_layers
@@ -51,6 +54,13 @@ module disper26_api
     real(c_double) :: c_guess
     character(kind=c_char) :: method(64), backend(64), integration(64)
     integer(c_int) :: strict
+  end type
+  type, bind(C) :: c_tracking_options
+    integer(c_size_t) :: struct_size
+    character(kind=c_char) :: start(64), predictor(64), verify(64), on_violation(64)
+    integer(c_int) :: has_c_range
+    real(c_double) :: c_min, c_max
+    integer(c_int) :: verify_mode
   end type
   type :: api_status
     integer :: code=API_OK
@@ -260,6 +270,42 @@ module disper26_api
 
       integer(c_size_t), value :: cap
 
+    end function
+
+    subroutine c_default_tracking_options(opts) bind(C,name="d26_api_default_tracking_options")
+      import
+      type(c_tracking_options), intent(out) :: opts
+    end subroutine
+
+    function c_dispersion_ex(handle,period,wave,mode,outputs,opts,tracking,context,out,msg,cap) &
+        bind(C,name="d26_api_compute_dispersion_ex") result(code)
+      import
+      integer(c_int) :: code
+      type(c_ptr), value :: handle, context
+      real(c_double), value :: period
+      integer(c_int), value :: mode
+      character(kind=c_char), intent(in) :: wave(*), outputs(*)
+      type(c_options), intent(in) :: opts
+      type(c_tracking_options), intent(in) :: tracking
+      type(c_ptr), intent(out) :: out
+      character(kind=c_char), intent(out) :: msg(*)
+      integer(c_size_t), value :: cap
+    end function
+
+    function c_curve_ex(handle,n,periods,wave,mode,outputs,opts,tracking,context,out,msg,cap) &
+        bind(C,name="d26_api_compute_dispersion_curve_ex") result(code)
+      import
+      integer(c_int) :: code
+      type(c_ptr), value :: handle, context
+      integer(c_size_t), value :: n
+      real(c_double), intent(in) :: periods(*)
+      integer(c_int), value :: mode
+      character(kind=c_char), intent(in) :: wave(*), outputs(*)
+      type(c_options), intent(in) :: opts
+      type(c_tracking_options), intent(in) :: tracking
+      type(c_ptr), intent(out) :: out
+      character(kind=c_char), intent(out) :: msg(*)
+      integer(c_size_t), value :: cap
     end function
 
     function c_dispersion(handle,period,wave,mode,outputs,opts,out,msg,cap) &
@@ -803,6 +849,27 @@ contains
     call pack_string(input%integration,out%integration)
     out%strict=merge(1,0,input%strict)
   end function
+  function pack_tracking_options(input,status) result(out)
+    type(computation_options), optional, intent(in) :: input
+    type(api_status), intent(out) :: status
+    type(c_tracking_options) :: out
+    call c_default_tracking_options(out)
+    if(.not.present(input)) return
+    call pack_string(input%start,out%start)
+    call pack_string(input%predictor,out%predictor)
+    call pack_string(input%verify,out%verify)
+    call pack_string(input%on_violation,out%on_violation)
+    if(allocated(input%c_range)) then
+      if(size(input%c_range)/=2) then
+        call invalid(status,'c_range must contain two velocities')
+        return
+      end if
+      out%has_c_range=1
+      out%c_min=input%c_range(1)
+      out%c_max=input%c_range(2)
+    end if
+    if(allocated(input%verify_mode)) out%verify_mode=merge(1,0,input%verify_mode)
+  end function
   subroutine pack_geometry(input,out,status)
     type(model_geometry), optional, intent(in) :: input
     type(c_geometry), intent(out) :: out
@@ -1117,7 +1184,8 @@ contains
     character(:), allocatable :: actual_wave,actual_outputs
     integer(c_int) :: actual_mode,code
     type(c_options) :: opts
-    type(c_ptr) :: handle
+    type(c_tracking_options) :: tracking
+    type(c_ptr) :: handle,context_handle
     character(kind=c_char) :: msg(message_capacity)
     actual_wave='Rayleigh'
     actual_outputs='phase_velocity'
@@ -1126,17 +1194,18 @@ contains
     if(present(outputs)) actual_outputs=trim(outputs)
     if(present(mode)) actual_mode=mode
     opts=pack_options(options)
+    tracking=pack_tracking_options(options,status)
+    if(.not.status%ok()) return
+    context_handle=c_null_ptr
     if(present(context)) then
       if(.not.context%valid()) then
         call invalid(status,'Empty dispersion context')
         return
       end if
-      code=c_dispersion_context(input_model%handle,period,actual_wave//c_null_char,actual_mode, &
-          actual_outputs//c_null_char,opts,context%handle,handle,msg,message_capacity)
-    else
-      code=c_dispersion(input_model%handle,period,actual_wave//c_null_char,actual_mode, &
-          actual_outputs//c_null_char,opts,handle,msg,message_capacity)
+      context_handle=context%handle
     end if
+    code=c_dispersion_ex(input_model%handle,period,actual_wave//c_null_char,actual_mode, &
+        actual_outputs//c_null_char,opts,tracking,context_handle,handle,msg,message_capacity)
     call finish_status(status,code,msg)
     call adopt_solution(out,handle,status)
   end subroutine
@@ -1153,7 +1222,8 @@ contains
     character(:), allocatable :: actual_wave,actual_outputs
     integer(c_int) :: actual_mode,code
     type(c_options) :: opts
-    type(c_ptr) :: handle
+    type(c_tracking_options) :: tracking
+    type(c_ptr) :: handle,context_handle
     character(kind=c_char) :: msg(message_capacity)
     actual_wave='Rayleigh'
     actual_outputs='phase_velocity'
@@ -1162,17 +1232,18 @@ contains
     if(present(outputs)) actual_outputs=trim(outputs)
     if(present(mode)) actual_mode=mode
     opts=pack_options(options)
+    tracking=pack_tracking_options(options,status)
+    if(.not.status%ok()) return
+    context_handle=c_null_ptr
     if(present(context)) then
       if(.not.context%valid()) then
         call invalid(status,'Empty dispersion context')
         return
       end if
-      code=c_curve_context(input_model%handle,size(periods,kind=c_size_t),periods,actual_wave//c_null_char,actual_mode, &
-          actual_outputs//c_null_char,opts,context%handle,handle,msg,message_capacity)
-    else
-      code=c_curve(input_model%handle,size(periods,kind=c_size_t),periods,actual_wave//c_null_char,actual_mode, &
-          actual_outputs//c_null_char,opts,handle,msg,message_capacity)
+      context_handle=context%handle
     end if
+    code=c_curve_ex(input_model%handle,size(periods,kind=c_size_t),periods,actual_wave//c_null_char,actual_mode, &
+        actual_outputs//c_null_char,opts,tracking,context_handle,handle,msg,message_capacity)
     call finish_status(status,code,msg)
     call adopt_result(out,handle,status)
   end subroutine

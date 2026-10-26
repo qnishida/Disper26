@@ -54,7 +54,8 @@ def test_errors_do_not_poison_reuse():
         with pytest.raises(Exception):
             d26.compute_dispersion_curve(model, periods=periods, context=context)
     with pytest.raises(RuntimeError, match='mode-order branch 100'):
-        d26.compute_dispersion(model, period=8., mode=100, context=context)
+        d26.compute_dispersion(model, period=8., mode=100, context=context,
+                               options=d26.Options(strict=True))
     assert snapshot(solve(model, context)) == before
     # A smaller and then a larger level limit must rebuild valid contents.
     for steps in (0, 4, 2, 4):

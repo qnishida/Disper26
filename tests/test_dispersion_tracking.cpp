@@ -127,4 +127,48 @@ int main() {
             mesh.layers,mesh.thicknesses,mesh.halfspace,2*M_PI/8.,fallback,WaveType::Rayleigh))
         throw std::runtime_error("No-root fallback lost its residual check");
     std::cout << "Unchecked initial root retained; explicit single count returns actual label\n";
+    // Inject a jump after a genuinely certified first point. Endpoint recovery
+    // must repair the intervening wrong value, not merely the last root.
+    const std::vector<double> segment={7.98,7.99,8.};
+    std::map<double,api::ModeSolution> corrupted;
+    for(size_t i=0;i<segment.size();++i) {
+        auto entry=api::Access::solution(api::compute_dispersion(model,segment[i],"Rayleigh",i?1:0));
+        entry.mode=0;
+        if(i) {
+            entry.diagnostics.mode_verified=false;
+            entry.diagnostics.level_mode_verified={false};
+            entry.trace_cache=std::make_shared<api::RootTraceCache>();
+        }
+        corrupted.emplace(segment[i],api::Access::solution(std::move(entry)));
+    }
+    auto refiner=[&](int)->const VelocityGridRefinement& {return mesh;};
+    for(const std::string response:{"fallback","error","missing"}) {
+        auto repaired=corrupted;
+        api::Options endpoint_options;
+        endpoint_options.verify="endpoints";endpoint_options.on_violation=response;
+        bool failed=false;
+        try {
+            api::detail::finish_tracking_segment(model,"Rayleigh",0,{"phase_velocity"},
+                endpoint_options,refiner,nullptr,repaired,segment);
+        } catch(const api::Error& e) {
+            failed=e.code=="tracking_violation";
+        }
+        if(failed!=(response=="error")) throw std::runtime_error("Endpoint error policy differs");
+        if(response=="error") continue;
+        if(repaired.at(segment[0]).phase_velocity()!=corrupted.at(segment[0]).phase_velocity())
+            throw std::runtime_error("Endpoint repair changed its certified anchor");
+        for(size_t i=1;i<segment.size();++i) {
+            const auto& solution=repaired.at(segment[i]);
+            if(response=="missing") {
+                if(!std::isnan(solution.phase_velocity()) || solution.diagnostics().mode_verified)
+                    throw std::runtime_error("Endpoint missing policy retained a suspect value");
+            } else {
+                const double expected=api::compute_dispersion(model,segment[i]).phase_velocity();
+                if(std::abs(solution.phase_velocity()-expected)>1e-9 || !solution.diagnostics().mode_verified)
+                    throw std::runtime_error("Endpoint repair did not restore the whole segment");
+            }
+        }
+        if(corrupted.at(segment[1]).phase_velocity()==repaired.at(segment[1]).phase_velocity())
+            throw std::runtime_error("Injected wrong intermediate root was not replaced");
+    }
 }

@@ -14,6 +14,7 @@ def model(kind='pancake', interpolation=None):
 
 
 def curve(m, periods, wave='Rayleigh', mode=0, outputs=('phase_velocity',), **options):
+    options.setdefault('start', 'short')  # Preserve historical predictor-path assertions.
     # Unchecked tracking needs a branch-local seed. Establish it outside the
     # operation under test on level 0, without certifying the later trace.
     if options.get('method') == 'continuation' and not options.get('verify_mode') and 'c_guess' not in options:
@@ -55,7 +56,7 @@ def test_forced_verification_and_predictor_cost():
     auto = curve(m, periods)
     tangent = curve(m, periods, predictor='group_velocity')
     assert auto.group_velocity is None and tangent.group_velocity is None
-    assert all(s.diagnostics.predictor_ad_evaluations == 0 for s in auto.solutions)
+    assert [s.diagnostics.predictor_ad_evaluations for s in auto.solutions] == [1,0,0]
     assert all(s.diagnostics.predictor_ad_evaluations > 0 for s in tangent.solutions)
     assert any('group_velocity' in s.diagnostics.predictors for s in tangent.solutions[1:])
     reused = curve(m, periods, outputs=('phase_velocity','group_velocity'))
@@ -80,7 +81,7 @@ def test_fallback_and_invalid_settings():
         with pytest.raises(Exception):
             curve(m, [8.], **options)
     with pytest.raises(Exception):
-        curve(m, [8.], mode=100, method='mode_order')
+        curve(m, [8.], mode=100, method='mode_order', strict=True)
 
 
 @pytest.mark.parametrize('kind,interpolation', [('pancake',None),('grid','stiffness')])
@@ -164,7 +165,7 @@ def test_prem_second_period_uses_coarse_roots_before_history_is_ready():
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', d26.ConvergenceWarning)
         fast = d26.compute_dispersion_curve(m, periods=[5.,6.,7.],
-            options=d26.Options(max_steps=3,tolerance=1e-12,method='continuation',c_guess=3.))
+            options=d26.Options(max_steps=3,tolerance=1e-12,method='continuation',c_guess=3.,start='short'))
         checked = d26.compute_dispersion_curve(m, periods=[5.,6.,7.],
             options=d26.Options(max_steps=3,tolerance=1e-12))
     np.testing.assert_allclose(fast.phase_velocity,checked.phase_velocity,
@@ -235,9 +236,11 @@ def test_recovery_after_large_period_jump():
                                rtol=1e-9, atol=1e-11)
 
 
-@pytest.mark.parametrize('method', ['continuation','continuation_recover'])
+@pytest.mark.parametrize('method', ['standard','mode_order','continuation','continuation_recover'])
 @pytest.mark.parametrize('kind,interpolation,n_ad', [('pancake',None,1),('grid','velocity',2)])
 def test_startup_tangent_cost_and_context(method, kind, interpolation, n_ad):
+    if method in ('standard', 'mode_order'):
+        n_ad = 1  # Checked GRID auto predicts across periods only on level 0.
     m = model(kind, interpolation)
     result = curve(m, [8.,8.2,8.4], method=method, c_guess=3.)
     assert [s.diagnostics.predictor_ad_evaluations for s in result.solutions] == [n_ad,0,0]
@@ -250,7 +253,7 @@ def test_startup_tangent_cost_and_context(method, kind, interpolation, n_ad):
         assert all(s.diagnostics.predictor_ad_evaluations == 0 for s in result.solutions)
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', d26.ConvergenceWarning)
-        opts = d26.Options(method=method, max_steps=3, c_guess=3.)
+        opts = d26.Options(method=method, max_steps=3, c_guess=3., start='short')
         scalar = d26.compute_dispersion(m, period=8., options=opts)
         assert scalar.diagnostics.predictor_ad_evaluations == 0
         context = d26.create_dispersion_context()

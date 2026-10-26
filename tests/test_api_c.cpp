@@ -8,6 +8,16 @@
 #include <vector>
 
 static_assert(sizeof(d26_api_material)==9*sizeof(double), "Material C ABI size wrong");
+struct LegacyOptions {
+    int max_steps,max_levels,num_sub_layers;
+    double tolerance,root_tolerance,derivative_tolerance;
+    int has_c_guess;
+    double c_guess;
+    char method[64],backend[64],integration[64];
+    int strict;
+};
+static_assert(sizeof(d26_api_options)==sizeof(LegacyOptions),"Original options ABI changed");
+static_assert(offsetof(d26_api_options,strict)==offsetof(LegacyOptions,strict),"Original options fields moved");
 
 namespace {
 char message[2048];
@@ -121,13 +131,45 @@ int main() {
         std::strcpy(tracking_options.method,"continuation_recover");
         success(d26_api_compute_dispersion_curve(homogeneous,2,periods,"Rayleigh",0,nullptr,
             &tracking_options,&tracked,message,sizeof message));
-        success(d26_api_curve_solution(tracked,0,&fundamental,message,sizeof message));
+        success(d26_api_curve_solution(tracked,1,&fundamental,message,sizeof message));
         success(d26_api_solution_info(fundamental,&info,message,sizeof message));
         check(numeric(info,"diagnostics.mode_verified")[0]==1,"C recovery initial root unverified");
         check(numeric(info,"diagnostics.mode_count_evaluations")[0]>0,"C recovery initial root not counted");
         d26_api_result_release(info);
         d26_api_solution_release(fundamental);
         d26_api_result_release(tracked);
+        d26_api_tracking_options controls;
+        d26_api_default_tracking_options(&controls);
+        std::strcpy(controls.verify,"endpoints");
+        controls.has_c_range=1;controls.c_min=4.;controls.c_max=4.3;
+        tracking_options.has_c_guess=1;tracking_options.c_guess=1.;
+        d26_api_dispersion_context* workspace=nullptr;
+        success(d26_api_create_dispersion_context(&workspace,message,sizeof message));
+        for(auto* ctx:{workspace,static_cast<d26_api_dispersion_context*>(nullptr)}) {
+            success(d26_api_compute_dispersion_curve_ex(homogeneous,2,periods,"Rayleigh",0,nullptr,
+                &tracking_options,&controls,ctx,&tracked,message,sizeof message));
+            success(d26_api_curve_solution(tracked,1,&fundamental,message,sizeof message));
+            success(d26_api_solution_info(fundamental,&info,message,sizeof message));
+            check(text(info,"options.start")=="long","C extended default direction differs");
+            check(text(info,"options.verify")=="endpoints","C extended verification missing");
+            check(numeric(info,"diagnostics.mode_count_evaluations")[0]==2,"C initial range not certified directly");
+            check(std::abs(phase_velocity(fundamental)-4.150909460643234)<1e-8,"C extended range root differs");
+            d26_api_result_release(info);d26_api_solution_release(fundamental);d26_api_result_release(tracked);
+        }
+        success(d26_api_compute_dispersion_ex(homogeneous,10.,"Rayleigh",1,"phase_velocity,group_velocity",
+            &tracking_options,&controls,workspace,&fundamental,message,sizeof message));
+        check(std::isnan(phase_velocity(fundamental)),"C absent mode did not return missing");
+        success(d26_api_solution_info(fundamental,&info,message,sizeof message));
+        check(text(info,"diagnostics.missing_reason")=="mode_not_found","C missing reason lost");
+        check(numeric(info,"diagnostics.mode_verified")[0]==0,"C missing mode falsely verified");
+        check(d26_api_compute_mode_count(fundamental,-1,&explicit_count,message,sizeof message)==D26_API_CALCULATION_FAILED,
+            "C missing mode count accepted");
+        d26_api_solution_release(fundamental);d26_api_result_release(info);
+        controls.struct_size=0;
+        check(d26_api_compute_dispersion_ex(homogeneous,10.,"Rayleigh",0,nullptr,nullptr,
+            &controls,nullptr,&fundamental,message,sizeof message)==D26_API_INVALID_ARGUMENT && !fundamental,
+            "C invalid tracking ABI accepted");
+        d26_api_dispersion_context_release(workspace);
         d26_api_model_release(homogeneous);
     }
     {

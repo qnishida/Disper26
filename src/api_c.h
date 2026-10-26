@@ -45,8 +45,20 @@ typedef struct {
     int strict;
 } d26_api_options;
 
+/* Additive curve controls; initialize with d26_api_default_tracking_options.
+ * Empty verify/on_violation means unspecified. verify_mode is -1 (unset),
+ * 0 or 1. Existing d26_api_options retains its binary layout. */
+typedef struct {
+    size_t struct_size;
+    char start[64], predictor[64], verify[64], on_violation[64];
+    int has_c_range;
+    double c_min, c_max;
+    int verify_mode;
+} d26_api_tracking_options;
+
 void d26_api_default_geometry(d26_api_geometry* geometry);
 void d26_api_default_options(d26_api_options* options);
+void d26_api_default_tracking_options(d26_api_tracking_options* options);
 /* Column-major values[components,count]: isotropic = Vs,Vp,Rho;
  * velocity_vti = rho,vph,vpv,vsh,vsv,eta; stiffness = A,C,F,L,N,Rho.
  * interpolation must be NULL for Pancake and explicit for GRID. */
@@ -96,6 +108,17 @@ int d26_api_compute_dispersion_curve_with_context(const d26_api_model* model,siz
     const double* periods,const char* wave,int mode,const char* outputs,
     const d26_api_options* options,d26_api_dispersion_context* context,
     d26_api_result** out,char* message,size_t message_capacity);
+/* Extended entrypoints accept optional controls and an optional context.
+ * NULL controls uses the same defaults as the original entrypoints. */
+int d26_api_compute_dispersion_ex(const d26_api_model* model,double period,
+    const char* wave,int mode,const char* outputs,const d26_api_options* options,
+    const d26_api_tracking_options* tracking,d26_api_dispersion_context* context,
+    d26_api_solution** out,char* message,size_t message_capacity);
+int d26_api_compute_dispersion_curve_ex(const d26_api_model* model,size_t count,
+    const double* periods,const char* wave,int mode,const char* outputs,
+    const d26_api_options* options,const d26_api_tracking_options* tracking,
+    d26_api_dispersion_context* context,d26_api_result** out,
+    char* message,size_t message_capacity);
 int d26_api_curve_solution(const d26_api_result* curve,size_t index,
     d26_api_solution** out,char* message,size_t message_capacity);
 int d26_api_model_info(const d26_api_model* model,d26_api_result** out,char* message,size_t message_capacity);

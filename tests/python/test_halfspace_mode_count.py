@@ -111,7 +111,7 @@ def test_public_mode_order_solver_on_homogeneous_medium(kind, interpolation, dep
         # allowing for the independent reference and refinement paths.
         assert abs(result.phase_velocity - expected) < 1e-8
     with pytest.raises(RuntimeError, match="outside"):
-        api.compute_dispersion(model, period=10., mode=1)
+        api.compute_dispersion(model, period=10., mode=1, options=api.Options(strict=True))
 
 
 def test_debug_separates_initial_contribution_from_depth_crossings():

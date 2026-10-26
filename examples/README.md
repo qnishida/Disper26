@@ -23,6 +23,11 @@ python -m pip install '.[test]'
 python -m examples.basic_dispersion
 ```
 
+計算開始周期、初期速度範囲、モード番号の確認頻度の指定例は
+`python -m examples.tracking_options` で実行できる。
+既定は最長周期から計算し、返却順は入力順を保つ。
+各設定の保証範囲は [共通API](../docs/public_api.md) を参照。
+
 [basic_dispersion.py](basic_dispersion.py) は、一つの層と半無限層からなる等方モデルで
 Rayleigh波・Love波の基本モードの位相速度を計算します。
 深さはkm、速度はkm/s、密度はg/cm³、周期はsです。基本モードは `mode=0` です。

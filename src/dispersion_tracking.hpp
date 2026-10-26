@@ -3,11 +3,51 @@
 // Included after api_backend.hpp: reuses its predictor, bracket and count solver.
 namespace disper26 { namespace api { namespace detail {
 
+inline bool modern_tracking(const Options& o) {
+    return o.verify.has_value() || o.c_range.has_value() || o.on_violation.has_value();
+}
+inline std::string verification_policy(const Options& o) {
+    if (o.verify) return *o.verify;
+    if (o.verify_mode.value_or(false) ||
+        (o.method != "continuation" && o.method != "continuation_recover")) return "every";
+    return o.method == "continuation_recover" ? "initial" : "none";
+}
+inline double tracking_speed_cap(const VelocityGridRefinement& mesh, WaveType wave) {
+    return 0.9995 * std::sqrt((wave == WaveType::Love ? mesh.halfspace.c66 :
+        mesh.halfspace.c44) / mesh.halfspace.rho);
+}
+
+// Certify an unextrapolated root on its own refinement mesh.
+inline bool certify_tracking_root(const VelocityGridRefinement& mesh, double omega,
+        WaveType wave, int mode, double root, double tolerance, int& evaluations) {
+    const double upper = tracking_speed_cap(mesh, wave);
+    const double relative = std::max(std::min(tolerance,1.0e-8),
+        64.0*std::numeric_limits<double>::epsilon());
+    const double half_width = 0.5*upper*std::max(1.0e-5,std::sqrt(relative));
+    const double lo = std::max(0.05,root-half_width);
+    const double hi = std::min(upper,root+half_width);
+    auto secular = [&](double c) {return calculateDispersionPhaseValueDouble(
+        mesh.layers,mesh.thicknesses,mesh.halfspace,omega,c,wave);};
+    if (!(lo < root && root < hi)) return false;
+    const double f_lo = secular(lo), f_hi = secular(hi);
+    if (!std::isfinite(f_lo) || !std::isfinite(f_hi) ||
+        !(f_lo == 0.0 || f_hi == 0.0 || std::signbit(f_lo) != std::signbit(f_hi))) return false;
+    ++evaluations;
+    const int count_lo = calculateAdModeCount(mesh.layers,mesh.thicknesses,
+        mesh.halfspace,omega,lo,wave);
+    ++evaluations;
+    const int count_hi = calculateAdModeCount(mesh.layers,mesh.thicknesses,
+        mesh.halfspace,omega,hi,wave);
+    return count_lo == mode && count_hi == mode+1;
+}
+
 struct DispersionTracking {
     std::array<PhaseVelocityRootHistory, 13> histories;
     std::array<double, 13> slopes;
     std::array<double, 13> coarse_offsets;
     double next_period = missing_value; // Set only by curve calls, after deduplication.
+    bool initial_period = true;
+    bool check_endpoint = true;
 
     DispersionTracking() {
         slopes.fill(missing_value);
@@ -21,8 +61,11 @@ struct DispersionTracking {
         auto& history = histories.at(level);
         const bool has_history = !history.roots.empty();
         const double omega = 2*M_PI/period;
-        const bool recover = options.method == "continuation_recover";
-        const bool verify = (options.method != "continuation" && !recover) || options.verify_mode.value_or(false);
+        const auto policy = verification_policy(options);
+        const bool recover = policy == "initial";
+        const bool verify = policy == "every" || (policy == "endpoints" && check_endpoint);
+        const bool modern = modern_tracking(options);
+        const double cap = tracking_speed_cap(mesh,wave);
         double predicted = guess;
         std::string predictor = "coarse_level";
         // Checked auto solves always use the current coarse root at fine levels.
@@ -58,6 +101,65 @@ struct DispersionTracking {
         bool checked = verify || (recover && !has_history);
         double result = missing_value;
         std::string failure;
+        auto mode_order = [&]() {
+            checked = true;
+            const double root = find_dispersion_root_by_mode_order(mesh,omega,wave,mode,
+                options.root_tolerance,predicted,within,&diagnostics.mode_count_evaluations);
+            if (!(root > 0.0 && root < cap))
+                throw Error("root_not_found","No secular root below the trapped-wave speed cap");
+            return root;
+        };
+        auto violation = [&](const std::string& reason) {
+            ++diagnostics.fallback_count;
+            diagnostics.fallback_reasons.push_back(reason);
+            if (options.on_violation.value_or("fallback") != "fallback")
+                throw Error("tracking_violation",reason);
+            return mode_order();
+        };
+        const bool supplied_range = initial_period && options.c_range.has_value();
+        if (supplied_range) {
+            const double lo = options.c_range->first;
+            const double hi = std::min(cap,options.c_range->second);
+            if (!(lo < hi)) throw Error("invalid_argument","c_range is empty below the trapped-wave speed cap");
+            predicted = lo+0.5*(hi-lo);
+            predictor = "initial_range";
+            auto secular = [&](double c) {return calculateDispersionPhaseValueDouble(
+                mesh.layers,mesh.thicknesses,mesh.halfspace,omega,c,wave);};
+            if (checked) {
+                ++diagnostics.mode_count_evaluations;
+                const int count_lo = calculateAdModeCount(mesh.layers,mesh.thicknesses,
+                    mesh.halfspace,omega,lo,wave);
+                ++diagnostics.mode_count_evaluations;
+                const int count_hi = calculateAdModeCount(mesh.layers,mesh.thicknesses,
+                    mesh.halfspace,omega,hi,wave);
+                if (count_lo == mode && count_hi == mode+1) {
+                    double residual = std::numeric_limits<double>::infinity();
+                    const auto direct = polish_count_bracket_root(secular,lo,hi,
+                        secular(lo),secular(hi),options.root_tolerance,residual);
+                    if (direct) result = *direct;
+                    else {
+                        result = mode_order();
+                        ++diagnostics.fallback_count;
+                        diagnostics.fallback_reasons.push_back("initial_range_secular");
+                    }
+                } else {
+                    int count_cap = count_hi;
+                    if (hi != cap) {
+                        ++diagnostics.mode_count_evaluations;
+                        count_cap = calculateAdModeCount(mesh.layers,mesh.thicknesses,
+                            mesh.halfspace,omega,cap,wave);
+                    }
+                    if (count_cap <= mode) throw ModeOrderRootNotFound("Requested mode is absent below the trapped-wave speed cap");
+                    result = violation("initial_range_mode_count");
+                }
+            } else {
+                const auto roots = searchRoots(secular,lo,hi,(hi-lo)/kLegacyScanPoints,
+                    std::min(options.root_tolerance,1.0e-8));
+                if (roots.size() == 1 && std::isfinite(roots.front()) &&
+                    std::abs(secular(roots.front())) <= kAdaptiveResidualLimit) result = roots.front();
+                else result = violation("initial_range_root_count");
+            }
+        }
         // Prefer within-period refinement once it can use direct Brent.
         // Otherwise retain the width-based choice: broad within-period
         // scans can be expensive on coarse grids with excellent history.
@@ -67,7 +169,7 @@ struct DispersionTracking {
             prediction_width = std::max(prediction_width,
                 8.0*history.previous_prediction_error);
         prediction_width = std::min(prediction_width,std::min(0.04,0.01*predicted));
-        const bool refine_within = !checked && options.predictor == "auto" &&
+        const bool refine_within = !supplied_range && !checked && options.predictor == "auto" &&
             level >= kPhaseVelocityCurvePredictedGridLevels &&
             (history.roots.size() < 2 ||
              std::abs(within[level-1]-within[level-2]) <= kAdaptiveDirectBracketFrac*guess ||
@@ -94,7 +196,7 @@ struct DispersionTracking {
         }
         // Checked Love keeps its cheap count bracket. Unchecked Love, like
         // unchecked Rayleigh, must use secular-only initial and local searches.
-        if (!refine_within && (!checked || (verify && wave == WaveType::Rayleigh)) && (!verify || predictor != "initial")) {
+        if (!supplied_range && !refine_within && (!checked || (verify && wave == WaveType::Rayleigh)) && (!verify || predictor != "initial")) {
             auto shear = [wave](const PhysicalParameters<double>& p) {
                 return std::sqrt((wave==WaveType::Love?p.c66:p.c44)/p.rho);
             };
@@ -160,26 +262,34 @@ struct DispersionTracking {
         } else if (!checked && !refine_within) failure = "prediction_unavailable";
         if (!std::isfinite(result)) {
             if (verify || recover) {
-                checked = true;
-                result = find_dispersion_root_by_mode_order(mesh,omega,wave,mode,
-                    options.root_tolerance,predicted,within,&diagnostics.mode_count_evaluations);
+                if (modern && has_history && !(verify && wave==WaveType::Love)) {
+                    result = violation(failure.empty() ? "local_bracket_or_residual" : failure);
+                    failure.clear();
+                } else result = mode_order();
+            } else if (modern && has_history) {
+                result = violation(failure.empty() ? "local_bracket_or_residual" : failure);
+                failure.clear();
             } else {
                 // Explicitly unchecked: initial selection and recovery use only
                 // secular roots near the prediction, never an integer counter.
                 const double lower = std::max(0.1,0.8*predicted);
-                const double upper = 1.2*predicted;
-                if (!(lower < upper) || !std::isfinite(upper))
+                const double upper = std::min(cap,1.2*predicted);
+                if ((!(lower < upper) || !std::isfinite(upper)) && !modern)
                     throw Error("root_not_found","No finite search interval near the unchecked prediction");
                 auto secular = [&](double c) {
                     return calculateDispersionPhaseValueDouble(mesh.layers,
                         mesh.thicknesses,mesh.halfspace,omega,c,wave);
                 };
-                const auto roots = searchRoots(secular,lower,upper,
-                    (upper-lower)/kLegacyScanPoints,
-                    std::min(options.root_tolerance,1.e-8));
-                if (roots.empty())
+                std::vector<double> roots;
+                if (lower < upper && std::isfinite(upper))
+                    roots = searchRoots(secular,lower,upper,(upper-lower)/kLegacyScanPoints,
+                        std::min(options.root_tolerance,1.e-8));
+                if (modern && roots.size() != 1) {
+                    result = violation("initial_root_count");
+                    failure.clear();
+                } else if (roots.empty())
                     throw Error("root_not_found","No secular root near the unchecked prediction; supply c_guess or use mode_order");
-                result = *std::min_element(roots.begin(),roots.end(),
+                else result = *std::min_element(roots.begin(),roots.end(),
                     [predicted](double a,double b) {
                         return std::abs(a-predicted)<std::abs(b-predicted);
                     });
@@ -188,6 +298,10 @@ struct DispersionTracking {
                 ++diagnostics.fallback_count;
                 diagnostics.fallback_reasons.push_back(failure);
             }
+        }
+        if (!(result > 0.0 && result < cap)) {
+            if (modern) result = violation("trapped_wave_speed_cap");
+            else throw Error("root_not_found","No secular root below the trapped-wave speed cap");
         }
         diagnostics.level_mode_verified.push_back(checked);
         diagnostics.predictors.push_back(predictor);

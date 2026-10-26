@@ -33,6 +33,40 @@ inline int calculateAdModeCount(
     return info.n_integer;
 }
 
+// Distinguish a proven absence below the trapped-wave cap from numerical
+// failures. Existing low-level callers still receive a runtime_error.
+struct ModeOrderRootNotFound : std::runtime_error {
+    using std::runtime_error::runtime_error;
+};
+
+template<class Function>
+inline std::optional<double> polish_count_bracket_root(
+    Function&& dispersion, double lo, double hi, double f_lo, double f_hi,
+    double tolerance, double& best_residual
+) {
+    if (!std::isfinite(f_lo) || !std::isfinite(f_hi) ||
+        !(f_lo == 0.0 || f_hi == 0.0 || std::signbit(f_lo) != std::signbit(f_hi)))
+        return std::nullopt;
+    double brent_tolerance = std::min(tolerance, 1.0e-8);
+    const double tolerance_floor = 64.0 * std::numeric_limits<double>::epsilon()
+        * std::max({1.0, std::abs(lo), std::abs(hi)});
+    for (int attempt = 0; attempt < 8; ++attempt) {
+        const auto refined = brents_method_with_values(
+            dispersion, lo, hi, f_lo, f_hi, brent_tolerance, 100);
+        const double residual = std::abs(refined.function_value);
+        if (std::isfinite(refined.root) && refined.root >= lo && refined.root <= hi &&
+            std::isfinite(residual)) {
+            best_residual = std::min(best_residual, residual);
+            if (residual <= kAdaptiveResidualLimit) return refined.root;
+        }
+        if (brent_tolerance <= tolerance_floor) break;
+        const double next = std::max(tolerance_floor, 0.1 * brent_tolerance);
+        if (!(next < brent_tolerance)) break;
+        brent_tolerance = next;
+    }
+    return std::nullopt;
+}
+
 // --- GRID Mode Romberg Acceleration Wrapper ---
 // Thin adapter: builds the shared root/U/HV callbacks for a refiner producing
 // VelocityGridRefinement meshes and runs the single Romberg core loop.
@@ -113,6 +147,8 @@ inline double find_dispersion_root_by_mode_order(
         message << "mode-order branch " << branch
                 << " is outside the Romberg refinement velocity window "
                 << "(local bracket counts " << count_lo << "--" << count_hi << ")";
+        if (hi >= c_max && count_hi <= branch)
+            throw ModeOrderRootNotFound(message.str());
         throw std::runtime_error(message.str());
     }
 
@@ -161,30 +197,8 @@ inline double find_dispersion_root_by_mode_order(
         // Preserve the ordinary result when it already satisfies the shared
         // contract; otherwise polish inside the same one-branch count bracket
         // by one decimal decade at a time.  Never move to another branch.
-        double brent_tolerance = std::min(tolerance, 1.0e-8);
-        const double tolerance_floor =
-            64.0 * std::numeric_limits<double>::epsilon()
-            * std::max({1.0, std::abs(lo), std::abs(hi)});
-        for (int polish_attempt = 0; polish_attempt < 8; ++polish_attempt) {
-            const auto refined = brents_method_with_values(
-                dispersion, lo, hi, f_lo, f_hi, brent_tolerance, 100);
-            if (std::isfinite(refined.root) &&
-                refined.root >= lo && refined.root <= hi) {
-                const double residual = std::abs(refined.function_value);
-                if (std::isfinite(residual)) {
-                    best_brent_residual = std::min(
-                        best_brent_residual, residual);
-                    if (residual <= kAdaptiveResidualLimit) {
-                        return refined.root;
-                    }
-                }
-            }
-            if (brent_tolerance <= tolerance_floor) break;
-            const double next_tolerance = std::max(
-                tolerance_floor, 0.1 * brent_tolerance);
-            if (!(next_tolerance < brent_tolerance)) break;
-            brent_tolerance = next_tolerance;
-        }
+        if (const auto root = polish_count_bracket_root(dispersion,lo,hi,
+                f_lo,f_hi,tolerance,best_brent_residual)) return *root;
     }
     // Near a tangential Love root the secular function can touch zero without
     // changing sign.  The AD-z count still supplies the one-branch bracket;

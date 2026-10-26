@@ -4,6 +4,7 @@
 #include <atomic>
 #include <climits>
 #include <cstring>
+#include <cmath>
 #include <cstdio>
 #include <string_view>
 #include <sstream>
@@ -90,6 +91,20 @@ api::Options options(const d26_api_options* p) {
     result.method=fixed_string(p->method); result.backend=fixed_string(p->backend); result.integration=fixed_string(p->integration);
     result.strict=p->strict!=0; return result;
 }
+api::Options options(const d26_api_options* p,const d26_api_tracking_options* t) {
+    auto result=options(p);
+    if(!t) return result;
+    require(t->struct_size==sizeof(d26_api_tracking_options),"Invalid tracking options size");
+    require(t->has_c_range==0 || t->has_c_range==1,"Invalid has_c_range flag");
+    require(t->verify_mode>=-1 && t->verify_mode<=1,"Invalid verify_mode flag");
+    result.start=fixed_string(t->start);result.predictor=fixed_string(t->predictor);
+    const auto verify=fixed_string(t->verify), violation=fixed_string(t->on_violation);
+    if(!verify.empty()) result.verify=verify;
+    if(!violation.empty()) result.on_violation=violation;
+    if(t->has_c_range) result.c_range=std::make_pair(t->c_min,t->c_max);
+    if(t->verify_mode!=-1) result.verify_mode=t->verify_mode!=0;
+    return result;
+}
 std::vector<std::string> outputs(const char* p) {
     if(!p) return {"phase_velocity"};
     std::vector<std::string> result; std::stringstream input(p); std::string item;
@@ -112,6 +127,7 @@ void diagnostics(d26_api_result& r,const api::Diagnostics& d) {
     r.strings["diagnostics.method"]=d.method; r.strings["diagnostics.backend"]=d.backend;
     std::string messages; for(const auto& message:d.messages) { if(!messages.empty()) messages+='\n'; messages+=message; }
     r.strings["diagnostics.messages"]=std::move(messages);
+    r.strings["diagnostics.missing_reason"]=d.missing_reason;
     for(const auto& entry:d.availability) r.strings["availability."+entry.first]=entry.second;
     for(const auto& entry:d.convergence_by_quantity) r.strings["convergence."+entry.first]=entry.second;
     scalar(r,"diagnostics.accepted_level",d.accepted_level); scalar(r,"diagnostics.generated_level",d.generated_level);
@@ -139,6 +155,22 @@ std::unique_ptr<d26_api_result> derivative(api::DerivativeResult d) {
     if(d.rows || d.cols) r->numeric["hessian"]={std::move(d.hessian),static_cast<size_t>(d.rows),static_cast<size_t>(d.cols)};
     diagnostics(*r,d.diagnostics); return r;
 }
+std::unique_ptr<d26_api_result> curve_result(api::DispersionCurve curve) {
+    auto r=std::make_unique<d26_api_result>();r->is_curve=true;
+    vector(*r,"periods",std::move(curve.periods));
+    std::vector<double> c,u,hv,u_present,hv_present;
+    for(const auto& s:curve.solutions) {
+        c.push_back(s.phase_velocity());
+        u.push_back(s.group_velocity().value_or(api::missing_value));
+        hv.push_back(s.hv_ratio().value_or(api::missing_value));
+        u_present.push_back(s.group_velocity().has_value() && std::isfinite(*s.group_velocity()));
+        hv_present.push_back(s.hv_ratio().has_value() && std::isfinite(*s.hv_ratio()));
+    }
+    vector(*r,"phase_velocity",std::move(c));vector(*r,"group_velocity",std::move(u));
+    vector(*r,"hv_ratio",std::move(hv));vector(*r,"group_velocity.available",std::move(u_present));
+    vector(*r,"hv_ratio.available",std::move(hv_present));
+    r->solutions=std::move(curve.solutions);return r;
+}
 void string_output(const std::string& value,char* buffer,size_t capacity,size_t* required) {
     require(required,"NULL required string length"); *required=value.size()+1;
     require(buffer || capacity==0,"NULL string buffer with nonzero capacity");
@@ -156,6 +188,11 @@ void d26_api_default_options(d26_api_options* p) {
     *p={}; p->max_steps=5; p->max_levels=5; p->num_sub_layers=10;
     p->tolerance=1e-10; p->root_tolerance=1e-12; p->derivative_tolerance=1e-6;
     message_copy(p->method,64,"standard"); message_copy(p->backend,64,"dual"); message_copy(p->integration,64,"auto");
+}
+void d26_api_default_tracking_options(d26_api_tracking_options* p) {
+    if(!p) return;
+    *p={};p->struct_size=sizeof(*p);p->verify_mode=-1;
+    message_copy(p->start,64,"long");message_copy(p->predictor,64,"auto");
 }
 int d26_api_create_isotropic_parameters(double vs,double vp,double rho,d26_api_material* out,char* msg,size_t cap) {
     return guard(msg,cap,[&]{require(out,"NULL material output"); *out=material(api::create_isotropic_parameters(vs,vp,rho));});
@@ -218,13 +255,7 @@ int d26_api_compute_dispersion_curve(const d26_api_model* p,size_t n,const doubl
     const char* quantities,const d26_api_options* opts,d26_api_result** out,char* msg,size_t cap) {
     if(out) *out=nullptr;
     return guard(msg,cap,[&]{prepare(out); auto curve=api::compute_dispersion_curve(model(p),copy_array(periods,n),text(wave,"Rayleigh"),mode,outputs(quantities),options(opts));
-        auto r=std::make_unique<d26_api_result>(); r->is_curve=true; vector(*r,"periods",std::move(curve.periods));
-        std::vector<double> c,u,hv,u_present,hv_present;
-        for(const auto& s:curve.solutions) { c.push_back(s.phase_velocity()); u.push_back(s.group_velocity().value_or(api::missing_value));
-            hv.push_back(s.hv_ratio().value_or(api::missing_value)); u_present.push_back(s.group_velocity().has_value()); hv_present.push_back(s.hv_ratio().has_value()); }
-        vector(*r,"phase_velocity",std::move(c)); vector(*r,"group_velocity",std::move(u)); vector(*r,"hv_ratio",std::move(hv));
-        vector(*r,"group_velocity.available",std::move(u_present)); vector(*r,"hv_ratio.available",std::move(hv_present));
-        r->solutions=std::move(curve.solutions); *out=r.release();});
+        *out=curve_result(std::move(curve)).release();});
 }
 int d26_api_create_dispersion_context(d26_api_dispersion_context** out,char* msg,size_t cap) {
     if(out) *out=nullptr;
@@ -242,13 +273,30 @@ int d26_api_compute_dispersion_curve_with_context(const d26_api_model* p,size_t 
     const char* quantities,const d26_api_options* opts,d26_api_dispersion_context* ctx,d26_api_result** out,char* msg,size_t cap) {
     if(out) *out=nullptr;
     return guard(msg,cap,[&]{prepare(out); require(ctx,"NULL dispersion context"); auto curve=api::compute_dispersion_curve(model(p),copy_array(periods,n),text(wave,"Rayleigh"),mode,outputs(quantities),options(opts),ctx->value);
-        auto r=std::make_unique<d26_api_result>(); r->is_curve=true; vector(*r,"periods",std::move(curve.periods));
-        std::vector<double> c,u,hv,u_present,hv_present;
-        for(const auto& s:curve.solutions) { c.push_back(s.phase_velocity()); u.push_back(s.group_velocity().value_or(api::missing_value));
-            hv.push_back(s.hv_ratio().value_or(api::missing_value)); u_present.push_back(s.group_velocity().has_value()); hv_present.push_back(s.hv_ratio().has_value()); }
-        vector(*r,"phase_velocity",std::move(c)); vector(*r,"group_velocity",std::move(u)); vector(*r,"hv_ratio",std::move(hv));
-        vector(*r,"group_velocity.available",std::move(u_present)); vector(*r,"hv_ratio.available",std::move(hv_present));
-        r->solutions=std::move(curve.solutions); *out=r.release();});
+        *out=curve_result(std::move(curve)).release();});
+}
+int d26_api_compute_dispersion_ex(const d26_api_model* p,double period,const char* wave,int mode,
+    const char* quantities,const d26_api_options* opts,const d26_api_tracking_options* tracking,
+    d26_api_dispersion_context* context,d26_api_solution** out,char* msg,size_t cap) {
+    if(out) *out=nullptr;
+    return guard(msg,cap,[&]{prepare(out);auto r=std::make_unique<d26_api_solution>();
+        const auto settings=options(opts,tracking);
+        r->value=context ? api::compute_dispersion(model(p),period,text(wave,"Rayleigh"),mode,
+            outputs(quantities),settings,context->value) : api::compute_dispersion(model(p),period,
+            text(wave,"Rayleigh"),mode,outputs(quantities),settings);
+        *out=r.release();});
+}
+int d26_api_compute_dispersion_curve_ex(const d26_api_model* p,size_t n,const double* periods,
+    const char* wave,int mode,const char* quantities,const d26_api_options* opts,
+    const d26_api_tracking_options* tracking,d26_api_dispersion_context* context,
+    d26_api_result** out,char* msg,size_t cap) {
+    if(out) *out=nullptr;
+    return guard(msg,cap,[&]{prepare(out);const auto settings=options(opts,tracking);
+        auto curve=context ? api::compute_dispersion_curve(model(p),copy_array(periods,n),
+            text(wave,"Rayleigh"),mode,outputs(quantities),settings,context->value) :
+            api::compute_dispersion_curve(model(p),copy_array(periods,n),text(wave,"Rayleigh"),
+                mode,outputs(quantities),settings);
+        *out=curve_result(std::move(curve)).release();});
 }
 int d26_api_curve_solution(const d26_api_result* p,size_t index,d26_api_solution** out,char* msg,size_t cap) {
     if(out) *out=nullptr;
@@ -284,6 +332,10 @@ int d26_api_solution_info(const d26_api_solution* p,d26_api_result** out,char* m
         scalar(*r,"options.num_sub_layers",o.num_sub_layers); scalar(*r,"options.tolerance",o.tolerance); scalar(*r,"options.root_tolerance",o.root_tolerance);
         scalar(*r,"options.derivative_tolerance",o.derivative_tolerance); scalar(*r,"options.strict",o.strict);
         if(o.c_guess) scalar(*r,"options.c_guess",*o.c_guess);
+        if(o.c_range) vector(*r,"options.c_range",{o.c_range->first,o.c_range->second});
+        r->strings["options.start"]=o.start;r->strings["options.predictor"]=o.predictor;
+        if(o.verify) r->strings["options.verify"]=*o.verify;
+        if(o.on_violation) r->strings["options.on_violation"]=*o.on_violation;
         r->strings["options.method"]=o.method; r->strings["options.backend"]=o.backend; r->strings["options.integration"]=o.integration;
         diagnostics(*r,s.diagnostics()); *out=r.release();});
 }

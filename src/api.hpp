@@ -82,6 +82,11 @@ struct Options {
     bool strict = false;
     std::string predictor = "auto";
     std::optional<bool> verify_mode;
+    std::string start = "long";
+    std::optional<std::pair<double, double>> c_range;
+    std::optional<std::string> verify;
+    // Unset preserves legacy recovery unless c_range or verify is supplied.
+    std::optional<std::string> on_violation;
 };
 struct DispersionContextData;
 // Mutable scratch capacity, never a cache of roots or model-dependent values.
@@ -111,6 +116,7 @@ struct Diagnostics {
     std::vector<bool> level_mode_verified;
     std::vector<std::string> predictors, fallback_reasons;
     int mode_count_evaluations = 0, predictor_ad_evaluations = 0;
+    std::string missing_reason;
 };
 struct SolutionData;
 class ModeSolution {

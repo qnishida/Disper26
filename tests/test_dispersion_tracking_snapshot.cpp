@@ -27,7 +27,7 @@ int main() {
     for (int method=0; method<3; ++method)
     for (bool full : {false,true}) {
         Options o;
-        o.max_steps=4; o.tolerance=1e-8; o.predictor=predictor;
+        o.max_steps=4; o.tolerance=1e-8; o.predictor=predictor;o.start="short";
         o.method=method==0?"mode_order":"continuation";
         if(method==2) o.verify_mode=true;
         const std::vector<std::string> outputs=full

@@ -1,7 +1,7 @@
 """The public practice examples must run and demonstrate their stated result."""
 import numpy as np
 
-from examples import basic_dispersion, gradient_convergence, kernels_hessian
+from examples import basic_dispersion, gradient_convergence, kernels_hessian, tracking_options
 
 
 def test_layered_dispersion_has_physical_fundamental_velocities():
@@ -13,6 +13,15 @@ def test_layered_dispersion_has_physical_fundamental_velocities():
         assert all(s.diagnostics.mode_verified for s in curve.solutions)
         if wave == "Love":
             assert np.all(curve.phase_velocity > 3.0)  # Layer shear velocity.
+
+
+def test_tracking_example_checks_endpoints_and_keeps_input_order():
+    curve = tracking_options.run()
+    np.testing.assert_array_equal(curve.periods, [8., 8.2, 8.4, 8.6])
+    assert np.isfinite(curve.phase_velocity).all()
+    assert curve.solutions[0].diagnostics.mode_verified
+    assert curve.solutions[-1].diagnostics.mode_verified
+    assert not any(s.diagnostics.mode_verified for s in curve.solutions[1:-1])
 
 
 def test_gradient_example_reaches_its_requested_phase_tolerance():

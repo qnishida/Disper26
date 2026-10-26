@@ -154,8 +154,9 @@ def compute_dispersion_curve(model: Model, *, periods: Sequence[float], wave: st
     at selected solutions and GRID levels. Method="continuation_recover" counts
     during initialization at each level and recovery after failed local tracking;
     intermediate roots remain unverified. verify_mode=True verifies every root
-    in either method. Auto uses one startup group-velocity predictor on pancake,
-    or at GRID levels 0 and 1; history disables this extra computation.
+    in either method. Auto uses one startup group-velocity predictor on pancake.
+    GRID uses level 0 for all-point verification, or levels 0 and 1 otherwise;
+    history disables this extra computation.
     """
     if context is None:
         result = _api.compute_dispersion_curve(model, periods, wave, mode, outputs, _options(options))

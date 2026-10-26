@@ -42,6 +42,8 @@ inline Options options_from_kwargs(const py::kwargs& values) {
         DISPER26_OPTION(root_tolerance) DISPER26_OPTION(derivative_tolerance)
         DISPER26_OPTION(c_guess) DISPER26_OPTION(method)
         DISPER26_OPTION(predictor) DISPER26_OPTION(verify_mode)
+        DISPER26_OPTION(start) DISPER26_OPTION(c_range)
+        DISPER26_OPTION(verify) DISPER26_OPTION(on_violation)
         DISPER26_OPTION(backend) DISPER26_OPTION(integration) DISPER26_OPTION(strict)
 #undef DISPER26_OPTION
         throw py::type_error("Unknown Options keyword: " + key);
@@ -91,6 +93,8 @@ inline void register_api(py::module_& parent) {
         DISPER26_OPTION(root_tolerance) DISPER26_OPTION(derivative_tolerance)
         DISPER26_OPTION(c_guess) DISPER26_OPTION(method)
         DISPER26_OPTION(predictor) DISPER26_OPTION(verify_mode)
+        DISPER26_OPTION(start) DISPER26_OPTION(c_range)
+        DISPER26_OPTION(verify) DISPER26_OPTION(on_violation)
         DISPER26_OPTION(backend) DISPER26_OPTION(integration) DISPER26_OPTION(strict)
 #undef DISPER26_OPTION
         ;
@@ -111,6 +115,7 @@ inline void register_api(py::module_& parent) {
     py::class_<Diagnostics>(m, "Diagnostics")
 #define DISPER26_FIELD(field) .def_readonly(#field, &Diagnostics::field)
         DISPER26_FIELD(status) DISPER26_FIELD(convergence)
+        DISPER26_FIELD(missing_reason)
         DISPER26_FIELD(method) DISPER26_FIELD(backend) DISPER26_FIELD(messages)
         DISPER26_FIELD(availability) DISPER26_FIELD(convergence_by_quantity) DISPER26_FIELD(accepted_level)
         DISPER26_FIELD(generated_level) DISPER26_FIELD(fallback_count)

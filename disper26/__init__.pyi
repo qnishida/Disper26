@@ -50,6 +50,10 @@ class Options:
     method: str
     predictor: str
     verify_mode: Optional[bool]
+    start: str
+    c_range: Optional[Tuple[float, float]]
+    verify: Optional[str]
+    on_violation: Optional[str]
     backend: str
     integration: str
     strict: bool
@@ -57,7 +61,9 @@ class Options:
                  tolerance: float = ..., root_tolerance: float = ..., derivative_tolerance: float = ...,
                  c_guess: Optional[float] = ..., method: str = ..., backend: str = ...,
                  integration: str = ..., strict: bool = ..., predictor: str = ...,
-                 verify_mode: Optional[bool] = ...) -> None: ...
+                 verify_mode: Optional[bool] = ..., start: str = ...,
+                 c_range: Optional[Tuple[float, float]] = ..., verify: Optional[str] = ...,
+                 on_violation: Optional[str] = ...) -> None: ...
 
 class Model:
     @property
@@ -88,6 +94,7 @@ class Model:
     def q_reference_period(self) -> Optional[float]: ...
 
 class Diagnostics:
+    missing_reason: str
     status: str
     convergence: str
     method: str
