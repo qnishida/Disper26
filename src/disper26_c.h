@@ -24,6 +24,8 @@ int disper26_search_roots(int n, const double *layers, const double *thicknesses
 int disper26_compute_group_velocity_ad(int n, const double *layers,
     const double *thicknesses, const double *halfspace, double omega,
     double c_phase, int wave, double *value, char *message, int message_capacity);
+/* Signed y3/y1 at the solid surface/seabed; negative retrograde for k>0,
+ * z upward, ux=i*y3*exp(i(kx-omega*t)). */
 int disper26_compute_hv_ratio(int n, const double *layers,
     const double *thicknesses, const double *halfspace, double omega,
     double c_phase, int wave, double *value, char *message, int message_capacity);

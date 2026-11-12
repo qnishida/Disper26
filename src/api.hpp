@@ -127,6 +127,7 @@ public:
     ModeSolution() = default;
     double phase_velocity() const;
     std::optional<double> group_velocity() const;
+    // Signed y3/y1 at the solid surface/seabed; negative retrograde (k>0).
     std::optional<double> hv_ratio() const;
     double period() const;
     const std::string& wave() const;

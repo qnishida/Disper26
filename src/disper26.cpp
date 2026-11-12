@@ -1273,14 +1273,13 @@ std::vector<RayleighEigenfunctionPoint<T>> computeRayleighEigenfunctions(
     // --- Step 2: Surface Initial Condition ---
     Vector5 Y_surf = interfaceMinors[0];
     
-    // Ikeda-Derived Initial Condition Logic
-    // Derived from Plucker Determinant Relations for Ikeda Variables (uz, szz, ur, szr).
-    // Condition szz=0 implies: uz*Y(I23) + ur*Y(I12) = 0.
-    // Solution: ur = Y(I23), uz = -Y(I12).
-    
-    CT ur_surf = Y_surf(I23);
-    CT uz_surf = -Y_surf(I12);
-    
+    // Two equivalent traction-free states: [Y14,0,-Y12,0] and
+    // [-Y12,0,Y23,0]. Choose the larger pivot so neither a horizontal nor
+    // a vertical displacement zero collapses the initial state to 0/0.
+    const bool vertical_pivot = std::abs(Y_surf(I14)) >= std::abs(Y_surf(I23));
+    CT ur_surf = vertical_pivot ? -Y_surf(I12) : Y_surf(I23);
+    CT uz_surf = vertical_pivot ? Y_surf(I14) : -Y_surf(I12);
+
     // Initial State (uz, szz, ur, szr)
     Eigen::Matrix<CT, 4, 1> state;
     state << uz_surf, CT(0.0), ur_surf, CT(0.0);

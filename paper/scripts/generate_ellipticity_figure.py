@@ -46,7 +46,7 @@ def main():
     g.dp = dp
     assert Path(dp.__file__).resolve().parent == source
     out = validate_output(args.output_dir)
-    if args.model.resolve() == out/'prem_ellipticity_nodes.npz':
+    if args.model.resolve() == out/'prem_ellipticity_signed_nodes.npz':
         parser.error('Output would overwrite the model')
     out.mkdir(parents=True, exist_ok=True)
     model = json.loads(args.model.read_text())
@@ -54,7 +54,7 @@ def main():
     arrays = {'depth_km': np.array(model['depth_km']), 'physical_parameters': params,
               'frequency_hz': np.array([.05, .1])}
     names = ['rho', 'alpha_H', 'alpha_V', 'beta_H', 'beta_V', 'eta']
-    report = {'definition': 'E = abs(ux/uz) at the solid free surface',
+    report = {'definition': 'epsilon = y3/y1 at the solid free surface; z upward, ux=i*y3*exp(i(kx-omega*t)); negative retrograde, positive prograde',
               'mode': 0, 'interpolation': 'density and stiffness, linear between nodes',
               'parameter_order': names, 'levels': list(range(9)),
               'relative_fd_steps': [1e-4, 5e-5], 'root_tolerance': 1e-12,
@@ -111,7 +111,7 @@ def main():
             mode_checks += 1
             roots.append(root)
             hv.append(dp.compute_hv_ratio(layers, h, halfspace, omega, root, 'Rayleigh'))
-        assert np.all(np.isfinite(hv)) and np.all(np.array(hv) > 0)
+        assert np.all(np.isfinite(hv))
         return np.array(roots), np.array(hv)
 
     for f, key in ((.05, 'Rayleigh_05'), (.1, 'Rayleigh_10')):
@@ -137,9 +137,9 @@ def main():
             assert np.all(np.isfinite(gradient))
             assert np.all(gradient[:, 3] == 0), 'Rayleigh depends on beta_H'
             e = float(g.extrap(raw_e[:level+1]))
-            assert abs(e-r[2])/e < 1e-12, 'H/V value mismatch between paths'
+            assert abs(e-r[2])/abs(e) < 1e-12, 'H/V value mismatch between paths'
             arrays[key+f'_gradient_l{level}'] = gradient
-            arrays[key+f'_E_l{level}'] = np.array(e)
+            arrays[key+f'_epsilon_l{level}'] = np.array(e)
             gradients.append(gradient)
             ellipticities.append(e)
         grad = gradients[-1]
@@ -147,11 +147,11 @@ def main():
         active = scales > 0
         conv = np.zeros(6)
         conv[active] = np.max(abs(grad-gradients[0]), axis=0)[active]/scales[active]
-        case = {'E': ellipticities[-1], 'phase_velocity': float(g.extrap(roots)),
-                'E_l7_l8_relative': abs(ellipticities[1]-ellipticities[0])/ellipticities[1],
+        case = {'epsilon': ellipticities[-1], 'phase_velocity': float(g.extrap(roots)),
+                'epsilon_l7_l8_relative': abs(ellipticities[1]-ellipticities[0])/abs(ellipticities[1]),
                 'gradient_l7_l8_normalized': conv.tolist(), 'finite_differences': []}
         arrays[key+'_roots'] = roots
-        arrays[key+'_E_raw'] = raw_e
+        arrays[key+'_epsilon_raw'] = raw_e
         arrays[key+'_normalized_gradient'] = params*grad/ellipticities[-1]
         print(key, 'AD and convergence', case, flush=True)
         # All surface parameters, and beta_V at both sides of every interface
@@ -169,7 +169,7 @@ def main():
                     rp, ep = values(m, f, roots)
                     tag = f'{key}_fd_n{node}_p{column}_h{eps}_s{sign}'
                     arrays[tag+'_roots'] = rp
-                    arrays[tag+'_E_raw'] = ep
+                    arrays[tag+'_epsilon_raw'] = ep
                     pair.append(float(g.extrap(ep)))
                 derivative = (pair[1]-pair[0])/(2*eps*params[node, column])
                 fd.append(derivative)
@@ -189,14 +189,14 @@ def main():
     report['confirmed_mode_evaluations'] = mode_checks
     report['root_polishing']['maximum_phase_velocity_correction'] = maximum_root_correction
     report['passed'] = all(
-        c['E_l7_l8_relative'] < 1e-5 and max(c['gradient_l7_l8_normalized']) < 1e-5
+        c['epsilon_l7_l8_relative'] < 1e-5 and max(c['gradient_l7_l8_normalized']) < 1e-5
         and c['maximum_fd_normalized_error'] < 1e-5
         and all(v['signs_match'] for v in c['finite_differences'])
         for c in report['cases'].values())
-    data = out/'prem_ellipticity_nodes.npz'
+    data = out/'prem_ellipticity_signed_nodes.npz'
     np.savez_compressed(data, **arrays)
     report['data_sha256'] = sha(data)
-    (out/'prem_ellipticity_nodes_report.json').write_text(json.dumps(report, indent=2)+'\n')
+    (out/'prem_ellipticity_signed_nodes_report.json').write_text(json.dumps(report, indent=2)+'\n')
     assert report['passed'], 'Validation failed; outputs retained for diagnosis'
     print('PASS', mode_checks, 'confirmed mode evaluations', flush=True)
 

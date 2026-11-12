@@ -260,7 +260,7 @@ inline double py_calculateGroupVelocity(
 }
 
 // Standalone H/V Ratio Calculator
-// Returns U/V (Horizontal/Vertical Displacement Ratio) at surface
+// Returns signed y3/y1 at the solid surface or solid side of the seabed
 // For Rayleigh waves only. Returns NaN for Love.
 inline double py_calculateHVRatio(
     const std::vector<PhysicalParameters<double>>& layers,
@@ -282,9 +282,9 @@ inline double py_calculateHVRatio(
     if (!layers.empty() && isLiquidLayer(layers[0])) topIsLiquid = true;
 
     if (topIsLiquid) {
-        return std::abs(calculateHVRatio(seabedState));
+        return calculateHVRatio(seabedState);
     } else {
-        return std::abs(calculateHVRatio(res));
+        return calculateHVRatio(res);
     }
 }
 
@@ -654,9 +654,9 @@ inline RombergResult evaluate_dispersion_at_romberg_roots(
                 &seabed_state);
             const bool top_is_liquid =
                 !grid.layers.empty() && isLiquidLayer(grid.layers.front());
-            hv_table.push_back(std::abs(
+            hv_table.push_back(
                 top_is_liquid ? calculateHVRatio(seabed_state)
-                              : calculateHVRatio(surface_state)));
+                              : calculateHVRatio(surface_state));
         }
     }
 

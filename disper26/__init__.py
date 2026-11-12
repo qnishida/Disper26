@@ -129,7 +129,8 @@ def compute_dispersion(model: Model, *, period: float, wave: str = "Rayleigh",
     """Solve one mode at a period in seconds; optional values are otherwise None.
 
     A context reuses scratch capacity; it does not reuse model values or roots.
-    Select phase_velocity, group_velocity and/or hv_ratio. All computation is
+    Select phase_velocity, group_velocity and/or hv_ratio (signed y3/y1;
+    negative retrograde for k>0, z upward, ux=i*y3*exp(i(kx-omega*t))). All computation is
     explicit; accessing a result property performs no further calculation.
     Use Options(strict=True) to turn convergence warnings into errors.
     Unchecked continuation uses c_guess to select a nearby root without mode

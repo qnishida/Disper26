@@ -15,6 +15,12 @@ Once the phase velocity $c$ is known, we perform an upward integration of the **
 *   We **store the Minor Vector** at each layer interface during this upward pass. These stored minors are crucial for the stabilization in the next step.
 
 ### 3. Eigenfunction Pass 2: Downward Integration (Reconstruction)
+
+At a solid free surface, the implementation selects the larger pivot from
+`[Y14, 0, -Y12, 0]` and `[-Y12, 0, Y23, 0]` before normalization. These
+represent the same traction-free state at a root; selecting the pivot avoids
+a vanishing initial vector at either horizontal or vertical displacement zeros.
+
 With the Minors stored, we perform a **Downward Integration** of the 4x4 State Vector from the surface to the bottom half-space.
 *   **Initial Condition**: The surface state $(u_r, u_z)$ is derived from the Surface Minor Vector to strictly satisfy the Stress-Free Boundary Condition $(\sigma_{zz}=0, \sigma_{zr}=0)$.
 *   **Interface Stabilization**: At each layer interface, instead of simply propagating the state, we **reconstruct** the stress components $(\sigma_{zz}, \sigma_{zr})$ using the stored Minor Vector and the current displacements $(u_r, u_z)$.
@@ -25,7 +31,7 @@ With the Minors stored, we perform a **Downward Integration** of the 4x4 State V
 > [!NOTE]
 > **Variable Definitions & Consistency**:
 > *   **Disper80C (Saito)** uses variables $y_1=u_r, y_3=u_z$. Thus, the ellipticity `ELIP` in legacy code corresponds to $V/H = u_z/u_r$.
-> *   **Disper26 (Ikeda)** uses variables $y_1=u_z, y_3=u_r$.
+> *   **Disper26 (Ikeda)** returns the reduced amplitudes `uz=y1`, `ur=y3`. For $e^{i(kx-\omega t)}$ and upward $z$, the physical horizontal displacement is $u_x=i y_3 e^{i(kx-\omega t)}$. Thus signed ellipticity is $y_3/y_1$, with negative retrograde and positive prograde motion for $k>0$.
 > *   The Disper26 implementation internally handles this mapping, ensuring that the stabilized reconstruction formulas are physically consistent with the Ikeda basis.
 
 ## Verification Results

@@ -1713,7 +1713,8 @@ PYBIND11_MODULE(disper26py, m) {
     m.def("compute_group_velocity_ad", &py_calculateGroupVelocityFullAD);
     m.def("calculate_group_velocity", &py_calculateGroupVelocity,
           "Deprecated alias. Use compute_group_velocity_ad.");
-    m.def("compute_hv_ratio", &py_calculateHVRatio);
+    m.def("compute_hv_ratio", &py_calculateHVRatio,
+          "Signed y3/y1 at the solid surface/seabed; negative retrograde for k>0, z upward, ux=i*y3*exp(i(kx-omega*t)).");
     m.def("calculate_hv_ratio", &py_calculateHVRatio,
           "Deprecated alias. Use compute_hv_ratio.");
     m.def("mineos_physical_dispersion_factor", &py_mineosPhysicalDispersionFactor,

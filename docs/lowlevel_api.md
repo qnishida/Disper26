@@ -152,7 +152,7 @@ U = dp.compute_group_velocity_ad(
     layers, thicknesses, half_space, omega, c_rayleigh, "Rayleigh"
 )
 
-# 2. H/V比 (楕円率 |ur/uz|)
+# 2. H/V比 (符号付き楕円率 y3/y1)
 # ※流体層が存在する場合は、自動的に海底面 (固体表面) で評価されます
 hv = dp.compute_hv_ratio(
     layers, thicknesses, half_space, omega, c_rayleigh, "Rayleigh"
@@ -334,3 +334,33 @@ GRIDのノードを先に平坦化して `grid_policy="flat"` で補間するモ
 Q補正も渡したリストのみが対象です。半無限媒質には `apply_mineos_physical_dispersion` を別途適用します。Qのリスト長は物性リストに合わせ、各対象周期の補正は元の参照周期モデルから行います。この補正は実弾性定数の物理分散で、複素減衰波動場の計算ではありません。補正後の分散を求める場合は、その対象周期で根を計算し直します。
 
 ---
+
+
+### Signed Rayleigh ellipticity
+
+`hv_ratio` is the signed ratio epsilon = y3/y1, and `d_HV` and the
+`hv_ratio` gradient contain derivatives of that signed quantity. This is a
+semantic change from the former amplitude-only value; API names and shapes
+are unchanged, including deprecated aliases and the C/Fortran interfaces.
+With z upward, exp(i(k*x-omega*t)), u_z=y1*exp(...) and
+u_x=i*y3*exp(...), epsilon < 0 is retrograde and epsilon > 0 is prograde
+for propagation in positive x. The eigenfunction arrays `ur` and `uz`
+store y3 and y1, respectively; the horizontal phase factor i is implicit.
+
+Both layer-cake (`pancake`) and GRID models evaluate the solid free surface,
+or the solid side of the seabed when surface fluid layers are present.
+The common expression is -Y12/Y14, obtained from zero shear traction.
+This also corrects the former seabed amplitude, which used a free-surface
+normal-traction relation under fluid loading. GRID values and gradients are
+extrapolated while signed. A uniform layer perturbation corresponds to
+varying both endpoints of its constant GRID segment; sum their node
+sensitivities to compare with the layer sensitivity.
+
+For an amplitude observable use E = abs(epsilon). Away from epsilon=0,
+dE/dp = sign(epsilon)*d(epsilon)/dp, not abs(d(epsilon)/dp).
+Across a smooth zero crossing predict abs(epsilon + gradient @ delta_p).
+The signed ratio is differentiable at a horizontal-displacement zero;
+the amplitude and normalized sensitivity (p/epsilon)*d(epsilon)/dp are not
+regular there. A vertical-displacement zero is a pole of the ratio: values
+and sensitivities are undefined (NaN), not clipped or replaced by zero.
+The existing Love-wave and unrequested-output availability rules still apply.

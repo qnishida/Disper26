@@ -211,6 +211,12 @@ target_compile_definitions(benchmark_dispersion_allocations PRIVATE DISPER26_CON
 target_compile_options(benchmark_dispersion_allocations PRIVATE ${DISPER26_MATH_FLAGS})
 target_link_libraries(benchmark_dispersion_allocations PRIVATE Eigen3::Eigen autodiff::autodiff Threads::Threads)
 
+
+add_executable(test_signed_ellipticity test_signed_ellipticity.cpp)
+target_compile_options(test_signed_ellipticity PRIVATE ${DISPER26_MATH_FLAGS})
+target_link_libraries(test_signed_ellipticity PRIVATE Eigen3::Eigen autodiff::autodiff)
+add_test(NAME signed_ellipticity COMMAND test_signed_ellipticity)
+
 # Runtime assertions are part of the test contract, including Release builds.
 # Keep production library/executable flags unchanged.
 get_property(disper26_test_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)

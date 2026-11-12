@@ -70,7 +70,8 @@ def test_basic_romberg():
     # Basic sanity checks
     assert 2.0 < c < 5.0, f"Phase velocity {c} out of reasonable range"
     assert 2.0 < U < 6.0, f"Group velocity {U} out of reasonable range"
-    assert 0 < HV < 10, f"H/V ratio {HV} out of reasonable range"
+    # This fundamental branch is retrograde in the upward-z convention.
+    assert -10 < HV < 0, f"Signed H/V ratio {HV} out of reasonable range"
     
     print("✓ All basic sanity checks passed!")
     return True

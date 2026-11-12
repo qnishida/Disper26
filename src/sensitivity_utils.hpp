@@ -12,17 +12,22 @@ struct SensitivityKernel {
     double d_HVRatio;
 };
 
-// --- H/V Ratio Calculation ---
-// H/V = |u_r / u_z| at surface.
-// In reduced variables: u_r ~ Y1, u_z ~ Y3 ??
-// User formula: H/V = -Y23 / Y12.
-// Note: Y23 is index 3, Y12 is index 0.
+// --- Signed Rayleigh ellipticity ---
+// z is upward, exp(i(kx-omega*t)), u_z=y1 and u_x=i*y3 (phase omitted).
+// epsilon=y3/y1: negative is retrograde, positive is prograde for k>0.
+// At zero shear traction the solid state is proportional to
+// [Y14, Y24, -Y12, 0]. This applies at a solid free surface and on the
+// solid side of a fluid/solid interface, where Y24 need not vanish.
+// Unlike -Y23/Y12, this ratio remains regular when y3 crosses zero.
 template <typename T>
 T calculateHVRatio(const Eigen::Matrix<T, 5, 1>& Y_surface) {
-    if (get_magnitude(Y_surface(0)) < 1e-20) {
-        return T(std::numeric_limits<double>::quiet_NaN());
+    if (get_magnitude(Y_surface(I14)) < 1e-20) {
+        // Preserve AD derivative dimensions and mark derivatives undefined too.
+        T undefined = Y_surface(I12) + Y_surface(I14);
+        undefined *= std::numeric_limits<double>::quiet_NaN();
+        return undefined;
     }
-    return -Y_surface(3) / Y_surface(0);
+    return -Y_surface(I12) / Y_surface(I14);
 }
 
 // Enum for Sensitivity Parameterization
@@ -151,6 +156,9 @@ std::vector<SensitivityKernel> computeSensitivityKernelsFD(
             pa.c44 = ADS(p.c44); pa.c44.derivatives().setZero(2);
             pa.c66 = ADS(p.c66); pa.c66.derivatives().setZero(2);
             pa.c13 = ADS(p.c13); pa.c13.derivatives().setZero(2);
+            pa.gravity = ADS(p.gravity); pa.gravity.derivatives().setZero(2);
+            pa.gravity_internal_scale = ADS(p.gravity_internal_scale); pa.gravity_internal_scale.derivatives().setZero(2);
+            pa.gravity_surface_scale = ADS(p.gravity_surface_scale); pa.gravity_surface_scale.derivatives().setZero(2);
             return pa;
         };
         
@@ -176,7 +184,7 @@ std::vector<SensitivityKernel> computeSensitivityKernelsFD(
         double hv_val = 0.0;
         if (type == WaveType::Rayleigh) {
              bool topIsLiquid = false;
-             if (!l_use.empty() && get_magnitude(l_use[0].c44) < 1e-10) topIsLiquid = true;
+             if (!l_use.empty() && isLiquidLayer(l_use[0])) topIsLiquid = true;
 
              ADS hv_ads;
              if (topIsLiquid) hv_ads = calculateHVRatio(seabedState);
@@ -621,6 +629,9 @@ std::vector<SensitivityKernel> computeSensitivityKernelsFullAD(
                  dest.c44 = OuterAD(source.c44, total_params, current_idx++);
                  dest.c66 = OuterAD(source.c66, total_params, current_idx++);
              }
+             dest.gravity = seed_const<OuterAD>(source.gravity, total_params);
+             dest.gravity_internal_scale = seed_const<OuterAD>(source.gravity_internal_scale, total_params);
+             dest.gravity_surface_scale = seed_const<OuterAD>(source.gravity_surface_scale, total_params);
              return dest;
         };
         
@@ -679,6 +690,9 @@ std::vector<SensitivityKernel> computeSensitivityKernelsFullAD(
             auto wrap = [](double v) { AD1 a; a.value() = v; a.derivatives()(0) = 0.0; return a; };
             pa.rho=wrap(p.rho); pa.c11=wrap(p.c11); pa.c33=wrap(p.c33);
             pa.c44=wrap(p.c44); pa.c66=wrap(p.c66); pa.c13=wrap(p.c13);
+            pa.gravity=wrap(p.gravity);
+            pa.gravity_internal_scale=wrap(p.gravity_internal_scale);
+            pa.gravity_surface_scale=wrap(p.gravity_surface_scale);
             return pa;
         };
         std::vector<PhysicalParameters<AD1>> l_d1;
@@ -702,7 +716,7 @@ std::vector<SensitivityKernel> computeSensitivityKernelsFullAD(
     c_ad.value() = root_c_double;
     c_ad.derivatives() = Eigen::VectorXd::Zero(total_params);
 
-    bool topIsLiquid = !layers.empty() && get_magnitude(layers[0].c44) < 1e-10;
+    bool topIsLiquid = !layers.empty() && isLiquidLayer(layers[0]);
 
     size_t sIdx_ift = 0;
     Eigen::Matrix<OuterAD, 5, 1>* no_seabed = nullptr;
@@ -4231,10 +4245,11 @@ std::vector<RayleighStatePoint<T>> propagateRayleighEigenstates(
 
     // --- Step 2: Surface Initial Condition ---
     Vector5 Y_surf = interfaceMinors[0];
-    // Plucker relations: szz=0 → uz*Y(I23) + ur*Y(I12) = 0
-    // So ur = Y(I23), uz = -Y(I12)
-    T ur_surf_r = Y_surf(I23);
-    T uz_surf_r = -Y_surf(I12);
+    // Match the stable traction-free pivot in computeRayleighEigenfunctions.
+    // The pivot only selects a common normalization, with no physical jump.
+    const bool vertical_pivot = get_magnitude(Y_surf(I14)) >= get_magnitude(Y_surf(I23));
+    T ur_surf_r = vertical_pivot ? T(-Y_surf(I12)) : Y_surf(I23);
+    T uz_surf_r = vertical_pivot ? Y_surf(I14) : T(-Y_surf(I12));
 
     CT ur_s = toComplex(ur_surf_r);
     CT uz_s = toComplex(uz_surf_r);
@@ -5654,6 +5669,13 @@ inline std::vector<SensitivityKernel> computeSensitivityKernelsWeakFormRayleigh(
     std::vector<double> sFactors;
     calculateDispersionFunction<double>(layers, thicknesses, halfSpace, omega, c_root, WaveType::Rayleigh, NormalizationMode::VectorNorm, nullptr, &sFactors);
 
+    // Fluid ellipticity needs the complete boundary/root derivative, including
+    // fixed Cowling settings. The solid energy weak form omits those terms.
+    const auto fluid_hv = computeHV && hasLiquidLayer(layers)
+        ? computeSensitivityKernelsFullAD(layers, thicknesses, halfSpace, freq,
+            c_root, WaveType::Rayleigh, mode, computeThickness)
+        : std::vector<SensitivityKernel>{};
+
     std::vector<SensitivityKernel> kernels;
     std::vector<PhysicalParameters<adual>> d_layers_base(num_layers);
     for (int i = 0; i < num_layers; ++i) d_layers_base[i] = to_dual(layers[i]);
@@ -5710,8 +5732,8 @@ inline std::vector<SensitivityKernel> computeSensitivityKernelsWeakFormRayleigh(
             }
         }
 
-        double dhv_value = 0.0;
-        if (computeHV) {
+        double dhv_value = fluid_hv.empty() ? 0.0 : fluid_hv[j].d_HVRatio;
+        if (computeHV && fluid_hv.empty()) {
             Eigen::Matrix<adual, 5, 1> seabedState;
             seabedState.setZero();
             size_t sIdx = 0;
@@ -5720,11 +5742,10 @@ inline std::vector<SensitivityKernel> computeSensitivityKernelsWeakFormRayleigh(
                 WaveType::Rayleigh, NormalizationMode::Provided,
                 &seabedState, &sFactors, &sIdx);
             const bool topIsLiquid = !layers.empty() &&
-                get_magnitude(layers[0].c44) < 1e-10;
+                isLiquidLayer(layers[0]);
             adual d_HV = topIsLiquid
                 ? calculateHVRatio(seabedState)
                 : calculateHVRatio(Y_surf);
-            if (get_val(d_HV) < 0) d_HV = -d_HV;
             dhv_value = d_HV.grad;
         }
         kernels.push_back({
@@ -6256,9 +6277,8 @@ void compute_grid_level_kernels(
         dc_out = -dF_dp / dF_dc;
 
         if (type == WaveType::Rayleigh && compute_hv) {
-            bool topIsLiquid = (!layers_ad.empty() && layers_ad[0].c44.value() < 1e-6);
+            bool topIsLiquid = (!layers_ad.empty() && isLiquidLayer(layers_ad[0]));
             ADS HV_ad = topIsLiquid ? calculateHVRatio(seabedState_ad) : calculateHVRatio(Y_all_ad);
-            if (HV_ad.value() < 0) HV_ad = -HV_ad;
             Eigen::VectorXd dHV_direct = HV_ad.derivatives();
             // Third instance of the same shape: the dc/dp coupling term was a
             // one-sided difference sharing the old epsc. Width-1 AD on the
@@ -6278,7 +6298,6 @@ void compute_grid_level_kernels(
                 NormalizationMode::Provided, &seabed_hv, &gauge, &sIdx_hv);
             ScalarADc HV_c = topIsLiquid ? calculateHVRatio(seabed_hv)
                                          : calculateHVRatio(Y_hv_c);
-            if (HV_c.value() < 0) HV_c = -HV_c;
             double dHV_dc = HV_c.derivatives()(0);
             dHV_out = dHV_direct + dHV_dc * dc_out;
         }

@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
             if (wave==WaveType::Rayleigh) {
                 Eigen::Matrix<double,5,1> seabed=Eigen::Matrix<double,5,1>::Zero();
                 const auto state=calculateDispersionFunction(layers,h,hs,omega,c,wave,NormalizationMode::Vertical,&seabed);
-                hv=scenario==5 ? std::abs(calculateHVRatio(seabed)) : std::abs(calculateHVRatio(state));
+                hv=scenario==5 ? calculateHVRatio(seabed) : calculateHVRatio(state);
             }
             out << c << ' ' << u << ' ' << hv << '\n';
         }

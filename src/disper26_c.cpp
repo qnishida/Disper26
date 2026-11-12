@@ -77,7 +77,7 @@ int scalar_value(bool hv, int n, const double* fields, const double* h, const do
             const auto state = calculateDispersionFunction(model.layers, model.thicknesses,
                 model.halfspace, omega, cp, type, NormalizationMode::Vertical, &seabed);
             result = !model.layers.empty() && isLiquidLayer(model.layers[0])
-                ? std::abs(calculateHVRatio(seabed)) : std::abs(calculateHVRatio(state));
+                ? calculateHVRatio(seabed) : calculateHVRatio(state);
         }
         if (!std::isfinite(result)) throw std::runtime_error("Nonfinite calculation result");
         *value = result;

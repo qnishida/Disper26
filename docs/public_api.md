@@ -391,3 +391,37 @@ second = d26.compute_dispersion_curve(model, periods=[12., 14.], context=context
 大きなモデルを計算した後も容量を保持するため、不要になればcontextを破棄する。
 C/C++でも実行中のcontextの破棄やmoveは行わない。Fortranの代入によるコピーは
 同じcontextを共有し、独立した作業領域には別々の生成呼び出しを使う。
+
+
+### Signed Rayleigh ellipticity
+
+`hv_ratio` is the signed ratio epsilon = y3/y1, and `d_HV` and the
+`hv_ratio` gradient contain derivatives of that signed quantity. This is a
+semantic change from the former amplitude-only value; API names and shapes
+are unchanged, including deprecated aliases and the C/Fortran interfaces.
+With z upward, exp(i(k*x-omega*t)), u_z=y1*exp(...) and
+u_x=i*y3*exp(...), epsilon < 0 is retrograde and epsilon > 0 is prograde
+for propagation in positive x. The eigenfunction arrays `ur` and `uz`
+store y3 and y1, respectively; the horizontal phase factor i is implicit.
+
+Both layer-cake (`pancake`) and GRID models evaluate the solid free surface,
+or the solid side of the seabed when surface fluid layers are present.
+The common expression is -Y12/Y14, obtained from zero shear traction.
+This also corrects the former seabed amplitude, which used a free-surface
+normal-traction relation under fluid loading. GRID values and gradients are
+extrapolated while signed. A uniform layer perturbation corresponds to
+varying both endpoints of its constant GRID segment; sum their node
+sensitivities to compare with the layer sensitivity.
+
+For an amplitude observable use E = abs(epsilon). Away from epsilon=0,
+dE/dp = sign(epsilon)*d(epsilon)/dp, not abs(d(epsilon)/dp).
+Across a smooth zero crossing predict abs(epsilon + gradient @ delta_p).
+The signed ratio is differentiable at a horizontal-displacement zero;
+the amplitude and normalized sensitivity (p/epsilon)*d(epsilon)/dp are not
+regular there. A vertical-displacement zero is a pole of the ratio: values
+and sensitivities are undefined (NaN), not clipped or replaced by zero.
+The existing Love-wave and unrequested-output availability rules still apply.
+
+The existing high-level restriction on material/interface derivatives with
+Cowling gravity remains in force. Low-level signed-ellipticity checks do not
+validate every derivative offered by that high-level interface.

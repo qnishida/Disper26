@@ -319,7 +319,7 @@ RombergResult compute_dispersion_romberg_result_from_refiner(
             NormalizationMode::Vertical, &seabedState
         );
         bool topIsLiquid = (!grid.layers.empty() && isLiquidLayer(grid.layers[0]));
-        return topIsLiquid ? std::abs(calculateHVRatio(seabedState)) : std::abs(calculateHVRatio(res));
+        return topIsLiquid ? calculateHVRatio(seabedState) : calculateHVRatio(res);
     };
 
     RombergResult result = compute_with_romberg_core(
