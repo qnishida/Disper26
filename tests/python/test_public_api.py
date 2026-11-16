@@ -21,7 +21,7 @@ class PublicAPI(unittest.TestCase):
     def setUpClass(cls):
         cls.layer = dp.create_isotropic_parameters(3.0, 5.2, 2.5)
         cls.halfspace = dp.create_isotropic_parameters(4.5, 8.0, 3.3)
-        cls.model = dp.create_pancake_model([cls.layer], [10.0], cls.halfspace)
+        cls.model = dp.create_layer_cake_model([cls.layer], [10.0], cls.halfspace)
         cls.raw_layers = [raw.create_isotropic_parameters(3.0, 5.2, 2.5)]
         cls.raw_halfspace = raw.create_isotropic_parameters(4.5, 8.0, 3.3)
         cls.solution = dp.compute_dispersion(cls.model, period=5.0)
@@ -48,7 +48,7 @@ class PublicAPI(unittest.TestCase):
             raw.create_fluid_parameters(1.5, 1.03, gravity, 1.0, 0.0, 0.0)
         with self.assertRaises(TypeError):
             dp.Material(*material_args, gravity, 1.0, 0.0, 0.0)
-        model = dp.create_pancake_model([material], [3.0], self.halfspace)
+        model = dp.create_layer_cake_model([material], [3.0], self.halfspace)
         self.assertEqual(model.materials[0].gravity, gravity)
         self.assertEqual(model.materials[0].gravity_internal_scale, 0.5)
         self.assertEqual(model.materials[0].gravity_surface_scale, 0.25)
@@ -96,7 +96,7 @@ class PublicAPI(unittest.TestCase):
 
     def test_convergence_is_reported_per_requested_quantity(self):
         # A root error estimate establishes phase convergence only. Neither
-        # optional value may borrow that accuracy claim, even on a Pancake.
+        # optional value may borrow that accuracy claim, even on a Layer-cake.
         phase = dp.compute_dispersion(self.model, period=5., options=dp.Options(strict=True))
         self.assertEqual(phase.diagnostics.convergence_by_quantity["phase_velocity"], "converged")
         models = [self.model, dp.create_grid_model(
@@ -131,7 +131,7 @@ class PublicAPI(unittest.TestCase):
 
     def test_gradient_matches_legacy_with_named_axes(self):
         kernels = dp.compute_kernels(self.solution, basis="stiffness")
-        legacy = raw.compute_kernels_variational_pancake(
+        legacy = raw.compute_kernels_variational_layer_cake(
             self.raw_layers, [10.0], self.raw_halfspace, 2 * math.pi / 5.0,
             self.solution.phase_velocity, sensitivity_mode="VTI", use_analytical=True,
             want_kernel_u=False, want_kernel_hv=False)
@@ -150,7 +150,7 @@ class PublicAPI(unittest.TestCase):
 
     def test_hessian_layout_matches_legacy(self):
         result = dp.compute_hessian(self.solution, basis="stiffness")
-        legacy = raw.compute_hessian_variational_ad_rayleigh_pancake(
+        legacy = raw.compute_hessian_variational_ad_rayleigh_layer_cake(
             self.raw_layers, [10.0], self.raw_halfspace, 2 * math.pi / 5.0,
             self.solution.phase_velocity, sensitivity_mode="VTI", use_analytical=True)
         indices = {(int(i), n): k for k, (i, n) in
@@ -263,7 +263,7 @@ class PublicAPI(unittest.TestCase):
                 materials = [dp.create_isotropic_parameters(*row) for row in coordinates.reshape(-1, 3)]
             else:
                 materials = [dp.create_velocity_vti_parameters(*row) for row in np.exp(coordinates).reshape(-1, 6)]
-            return dp.create_pancake_model(materials[:-1], [10.], materials[-1])
+            return dp.create_layer_cake_model(materials[:-1], [10.], materials[-1])
 
         coordinates_by_basis = {
             "isotropic": (np.array([3., 5.2, 2.5, 4.5, 8., 3.3]), (0, 2)),

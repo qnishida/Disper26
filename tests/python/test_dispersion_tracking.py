@@ -6,7 +6,7 @@ import pytest
 import disper26 as d26
 
 
-def model(kind='pancake', interpolation=None):
+def model(kind='layer_cake', interpolation=None):
     kwargs = dict(kind=kind, vs=[3.,3.5,4.5], vp=[5.2,6.,8.], rho=[2.5,2.8,3.3])
     if interpolation:
         kwargs['interpolation'] = interpolation
@@ -28,7 +28,7 @@ def curve(m, periods, wave='Rayleigh', mode=0, outputs=('phase_velocity',), **op
             outputs=outputs, options=d26.Options(max_steps=4, tolerance=1e-8, **options))
 
 
-@pytest.mark.parametrize('kind,interpolation', [('pancake',None),('grid','stiffness'),('grid','velocity')])
+@pytest.mark.parametrize('kind,interpolation', [('layer_cake',None),('grid','stiffness'),('grid','velocity')])
 @pytest.mark.parametrize('wave', ['Rayleigh','Love'])
 @pytest.mark.parametrize('mode', [0,1])
 def test_tracking_matches_checked(kind, interpolation, wave, mode):
@@ -84,7 +84,7 @@ def test_fallback_and_invalid_settings():
         curve(m, [8.], mode=100, method='mode_order', strict=True)
 
 
-@pytest.mark.parametrize('kind,interpolation', [('pancake',None),('grid','stiffness')])
+@pytest.mark.parametrize('kind,interpolation', [('layer_cake',None),('grid','stiffness')])
 def test_derivatives_verify_saved_trace_without_mutation(kind, interpolation):
     m = model(kind, interpolation)
     fast = curve(m, [8.,8.2], method='continuation').solutions[-1]
@@ -113,9 +113,9 @@ def test_vti_discontinuity_and_spherical_grid(interpolation):
 
 
 def test_ocean_and_homogeneous_halfspace():
-    ocean = d26.create_model([0.,3.,20.,60.], kind='pancake',
+    ocean = d26.create_model([0.,3.,20.,60.], kind='layer_cake',
         vs=[0.,3.,3.5,4.5],vp=[1.5,5.2,6.,8.],rho=[1.,2.5,2.8,3.3])
-    halfspace = d26.create_model([0.],kind='pancake',vs=[4.5],vp=[8.],rho=[3.3])
+    halfspace = d26.create_model([0.],kind='layer_cake',vs=[4.5],vp=[8.],rho=[3.3])
     for m in (ocean, halfspace):
         checked = curve(m,[8.,8.2,8.4],outputs=('phase_velocity','group_velocity','hv_ratio'))
         fast = curve(m,[8.,8.2,8.4],method='continuation',outputs=('phase_velocity','group_velocity','hv_ratio'))
@@ -123,7 +123,7 @@ def test_ocean_and_homogeneous_halfspace():
         np.testing.assert_allclose(fast.group_velocity,checked.group_velocity,rtol=1e-9,atol=1e-11)
 
 
-def test_hessian_checks_tracked_pancake():
+def test_hessian_checks_tracked_layer_cake():
     m = model()
     tracked = curve(m,[8.,8.2],method='continuation').solutions[-1]
     checked = curve(m,[8.,8.2]).solutions[-1]
@@ -174,7 +174,7 @@ def test_prem_second_period_uses_coarse_roots_before_history_is_ready():
     assert list(fast.solutions[1].diagnostics.level_mode_verified)[2:] == [False,False]
 
 
-@pytest.mark.parametrize('kind,interpolation', [('pancake',None),('grid','stiffness'),('grid','velocity')])
+@pytest.mark.parametrize('kind,interpolation', [('layer_cake',None),('grid','stiffness'),('grid','velocity')])
 @pytest.mark.parametrize('wave', ['Rayleigh','Love'])
 def test_explicit_counts_saved_levels(kind, interpolation, wave):
     m = model(kind, interpolation)
@@ -204,7 +204,7 @@ def test_unchecked_label_does_not_select_or_repair_branch():
         curve(m, [8.], method='continuation', c_guess=.1)
 
 
-@pytest.mark.parametrize('kind,interpolation', [('pancake',None),('grid','stiffness'),('grid','velocity')])
+@pytest.mark.parametrize('kind,interpolation', [('layer_cake',None),('grid','stiffness'),('grid','velocity')])
 @pytest.mark.parametrize('wave', ['Rayleigh','Love'])
 @pytest.mark.parametrize('mode', [0,1])
 def test_recovery_tracking_selects_initial_mode(kind, interpolation, wave, mode):
@@ -237,7 +237,7 @@ def test_recovery_after_large_period_jump():
 
 
 @pytest.mark.parametrize('method', ['standard','mode_order','continuation','continuation_recover'])
-@pytest.mark.parametrize('kind,interpolation,n_ad', [('pancake',None,1),('grid','velocity',2)])
+@pytest.mark.parametrize('kind,interpolation,n_ad', [('layer_cake',None,1),('grid','velocity',2)])
 def test_startup_tangent_cost_and_context(method, kind, interpolation, n_ad):
     if method in ('standard', 'mode_order'):
         n_ad = 1  # Checked GRID auto predicts across periods only on level 0.

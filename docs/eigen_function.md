@@ -68,7 +68,7 @@ specific tolerances used in these checks.
 
 ## Unified State Evaluator
 
-Disper26 now provides a unified interface to evaluate the eigenfunction state vector $\mathbf{y}(z)$ at any depth, utilizing either the high-precision Romberg Grid method or the standard Pancake approximation.
+Disper26 now provides a unified interface to evaluate the eigenfunction state vector $\mathbf{y}(z)$ at any depth, utilizing either the high-precision Romberg Grid method or the standard Layer-cake approximation.
 
 ### Function: `eval_global_state`
 
@@ -84,12 +84,12 @@ y_z = disper26py.eval_global_state(
     omega,             # Angular Frequency
     phase_velocity,    # Phase Velocity
     wave_type,         # "Rayleigh" or "Love"
-    mode="GRID"        # "GRID" (High Precision) or "PANCAKE" (Standard)
+    mode="GRID"        # "GRID" (High Precision) or "LAYER_CAKE" (Standard)
 )
 ```
 
 *   **mode="GRID"**: Uses Romberg acceleration to trace the propagator through gradient layers, achieving asymptotic accuracy (typically $O(h^{10})$ or better depending on subdivisions).
-*   **mode="PANCAKE"**: Treats each layer (and the sub-layer segment) as a homogeneous block with parameters evaluated at the midpoint. This corresponds to the standard "Pancake" approximation.
+*   **mode="LAYER_CAKE"**: Treats each layer (and the sub-layer segment) as a homogeneous block with parameters evaluated at the midpoint. This corresponds to the standard "Layer-cake" approximation.
 
 This function automatically handles multi-layer traversal and penetration into the Halfspace.
 

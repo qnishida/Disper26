@@ -223,8 +223,10 @@ inline void register_api(py::module_& parent) {
     m.def("create_fluid_parameters", &create_fluid_parameters, py::arg("vp"), py::arg("rho"));
     m.def("create_velocity_vti_parameters", &create_velocity_vti_parameters,
         py::arg("rho"), py::arg("vph"), py::arg("vpv"), py::arg("vsh"), py::arg("vsv"), py::arg("eta"));
-    m.def("create_pancake_model", &create_pancake_model, py::arg("layers"), py::arg("thicknesses"),
+    m.def("create_layer_cake_model", &create_layer_cake_model, py::arg("layers"), py::arg("thicknesses"),
         py::arg("halfspace"), py::arg("geometry") = Geometry{}, py::arg("name") = "");
+    m.def("create_pancake_model", &create_pancake_model, py::arg("layers"), py::arg("thicknesses"),
+        py::arg("halfspace"), py::arg("geometry") = Geometry{}, py::arg("name") = "", "Deprecated alias. Use create_layer_cake_model; preserves kind=pancake.");
     m.def("create_grid_model", &create_grid_model, py::arg("depths"), py::arg("materials"),
         py::arg("interpolation"), py::arg("geometry") = Geometry{}, py::arg("name") = "");
     py::class_<DispersionContext>(m,"DispersionContext");

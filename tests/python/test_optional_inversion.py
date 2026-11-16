@@ -33,7 +33,7 @@ def run_without_scipy(tmp_path, body, missing="scipy"):
 def test_forward_api_runs_without_scipy(tmp_path):
     result = run_without_scipy(tmp_path, """\
         import disper26 as d26
-        model = d26.create_model([0.0, 10.0], kind="pancake",
+        model = d26.create_model([0.0, 10.0], kind="layer_cake",
                                  vs=[3.0, 4.5], vp=[5.2, 8.0], rho=[2.5, 3.3])
         solution = d26.compute_dispersion(model, period=5.0)
         assert 0.0 < solution.phase_velocity < 4.5

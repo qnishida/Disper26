@@ -32,7 +32,7 @@ program test_api_fortran
     water%gravity=0.00980665_c_double
     water%gravity_internal_scale=0.5_c_double
     water%gravity_surface_scale=0.25_c_double
-    call create_pancake_model([water],[3.0_c_double],halfspace,ocean,status)
+    call create_layer_cake_model([water],[3.0_c_double],halfspace,ocean,status)
     call success()
     call ocean%info(metadata,status)
     call success()
@@ -42,8 +42,43 @@ program test_api_fortran
     if(any(fields(7:9,1)/=[water%gravity,water%gravity_internal_scale,water%gravity_surface_scale])) &
       error stop 'fluid gravity fields changed across C ABI'
   end block
+  block
+    type(model) :: modern,legacy
+    type(mode_solution) :: modern_solution,legacy_solution
+    call create_layer_cake_model([layer],[10.0_c_double],halfspace,modern,status)
+    call success()
+    call create_pancake_model([layer],[10.0_c_double],halfspace,legacy,status)
+    call success()
+    call modern%info(info,status)
+    call success()
+    call info%text('kind',text,status)
+    call success()
+    if(text/='layer_cake') error stop 'new model kind lost'
+    call legacy%info(info,status)
+    call success()
+    call info%text('kind',text,status)
+    call success()
+    if(text/='pancake') error stop 'legacy model kind lost'
+    call compute_dispersion(modern,10.0_c_double,modern_solution,status)
+    call success()
+    call compute_dispersion(legacy,10.0_c_double,legacy_solution,status)
+    call success()
+    call modern_solution%phase_velocity(c,status)
+    call success()
+    call legacy_solution%phase_velocity(c_repeat,status)
+    call success()
+    if(c/=c_repeat) error stop 'legacy numerical result changed'
+    call create_model([0.0_c_double,10.0_c_double],'pancake',legacy,status, &
+      vs=[3.0_c_double,4.5_c_double],vp=[5.2_c_double,8.0_c_double],rho=[2.5_c_double,3.3_c_double])
+    call success()
+    call legacy%info(info,status)
+    call success()
+    call info%text('kind',text,status)
+    call success()
+    if(text/='pancake') error stop 'legacy array model kind lost'
+  end block
   thicknesses=[10.0_c_double,-99.0_c_double]
-  call create_pancake_model([layer],thicknesses(1:2:2),halfspace,input_model,status,name='Fortran test')
+  call create_layer_cake_model([layer],thicknesses(1:2:2),halfspace,input_model,status,name='Fortran test')
   call success()
   block
     type(dispersion_context) :: workspace,copy,empty
@@ -189,7 +224,7 @@ program test_api_fortran
     z(2,:)=-999
     vs=[3.0_c_double,4.5_c_double];vp=[5.2_c_double,8.0_c_double];rho=[2.5_c_double,3.3_c_double]
     z(2,:)=vs
-    call create_model(z(1,:),'pancake',array_model,status,vs=z(2,:),vp=vp,rho=rho)
+    call create_model(z(1,:),'layer_cake',array_model,status,vs=z(2,:),vp=vp,rho=rho)
     call success()
     call compute_dispersion(array_model,20.0_c_double,array_solution,status)
     call success()
@@ -201,13 +236,13 @@ program test_api_fortran
           vs(j)*1.03_c_double,vs(j),0.9_c_double,vti_nodes(j),status)
       call success()
     end do
-    call create_pancake_model(vti_nodes(:1),[10.0_c_double],vti_nodes(2),reference_model,status)
+    call create_layer_cake_model(vti_nodes(:1),[10.0_c_double],vti_nodes(2),reference_model,status)
     call success()
     call compute_dispersion(reference_model,20.0_c_double,array_solution,status)
     call success()
     call array_solution%phase_velocity(reference_c,status)
     call success()
-    call create_model(z(1,:),'pancake',array_model,status,rho=rho, &
+    call create_model(z(1,:),'layer_cake',array_model,status,rho=rho, &
         vph=vp*1.02_c_double,vpv=vp,vsh=vs*1.03_c_double,vsv=vs,eta=[0.9_c_double,0.9_c_double])
     call success()
     call compute_dispersion(array_model,20.0_c_double,array_solution,status)
@@ -215,7 +250,7 @@ program test_api_fortran
     call array_solution%phase_velocity(c_repeat,status)
     call success()
     if(c_repeat/=reference_c) error stop 'VTI array component order wrong'
-    call create_model(z(1,:),'pancake',array_model,status,rho=rho, &
+    call create_model(z(1,:),'layer_cake',array_model,status,rho=rho, &
         A=vti_nodes%A,C=vti_nodes%C,F=vti_nodes%F,L=vti_nodes%L,N=vti_nodes%N)
     call success()
     call compute_dispersion(array_model,20.0_c_double,array_solution,status)
@@ -227,12 +262,12 @@ program test_api_fortran
     call success()
     call create_model(z(1,:),'grid',array_model,status,vs=vs,vp=vp,rho=rho)
     if(status%ok()) error stop 'missing GRID interpolation accepted'
-    call create_model(z(1,:),'pancake',array_model,status,vs=vs,rho=rho)
+    call create_model(z(1,:),'layer_cake',array_model,status,vs=vs,rho=rho)
     if(status%ok()) error stop 'incomplete material arrays accepted'
-    call create_model(z(1,:),'pancake',array_model,status,vs=vs,vp=vp,rho=rho,A=vp)
+    call create_model(z(1,:),'layer_cake',array_model,status,vs=vs,vp=vp,rho=rho,A=vp)
     if(status%ok()) error stop 'mixed material arrays accepted'
-    call create_model([0.0_c_double,0.0_c_double],'pancake',array_model,status,vs=vs,vp=vp,rho=rho)
-    if(status%ok()) error stop 'duplicate Pancake depths accepted'
+    call create_model([0.0_c_double,0.0_c_double],'layer_cake',array_model,status,vs=vs,vp=vp,rho=rho)
+    if(status%ok()) error stop 'duplicate Layer-cake depths accepted'
     if(.not.array_model%valid()) error stop 'failed construction destroyed existing model'
   end block
   copied_solution=solution
@@ -348,7 +383,7 @@ program test_api_fortran
   call success()
   call info%vector('gradient.phase_velocity',values,status)
   call success()
-  if(size(values)/=1) error stop 'Pancake interface count incorrect'
+  if(size(values)/=1) error stop 'Layer-cake interface count incorrect'
   call apply_mineos_physical_dispersion(input_model,[1000.0_c_double,1000.0_c_double], &
       [600.0_c_double,600.0_c_double],1.0_c_double,20.0_c_double,corrected,status)
   call success()

@@ -380,7 +380,7 @@ cubic, invariance under adding identical finite layers, and 3,337 off-root
 counts against secular sign-change scans at two resolutions. The scan models
 include an isolated halfspace, identical-layer splits, ordinary solid and
 ocean stacks, a fast surface layer, VTI media, and a low-velocity zone at
-0.02, 0.1 and 0.5 Hz. The public mode-order path is checked for Pancake and
+0.02, 0.1 and 0.5 Hz. The public mode-order path is checked for Layer-cake and
 both GRID interpolations. Existing tests retain root labels and Love behavior;
 the pinned off-root values at c=2.95 (solid) and c=2.9 (ocean) increase by one
 to agree with the scanned root counts.

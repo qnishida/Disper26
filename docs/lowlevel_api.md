@@ -1,5 +1,9 @@
 # 低水準APIによる検算・詳細診断（disper26py）
 
+モデル名は `layer_cake` を正式名とする。対応する `*_pancake` は legacy alias として
+同じ引数・既定値・計算結果を維持する。新規コードでは `*_layer_cake` を使う。
+
+
 mode countを直接調べる、手法別の出力を比較する、レベル別の根を明示的に渡す場合に使います。通常の計算手順は [練習例](../examples/README.md) にあります。ここでは `d26.Model` や `ModeSolution` の代わりに、`disper26py.PhysicalParameters`、厚さ・深度配列、角周波数・位相速度などを各関数へ渡します。
 
 §1–8のPythonブロックは、練習例とは独立したPythonセッションで上から順に実行できます。入力の準備も本書で完結します。
@@ -8,8 +12,8 @@ mode countを直接調べる、手法別の出力を比較する、レベル別�
 
 | 操作 | 周期・周波数の指定 |
 |---|---|
-| Pancakeの根探索・単一周期の値・感度・ヘシアン | `omega` [rad/s] |
-| Pancake / GRIDの `compute_dispersion_curve_*` | `periods` [s] |
+| LayerCakeの根探索・単一周期の値・感度・ヘシアン | `omega` [rad/s] |
+| Layer-cake / GRIDの `compute_dispersion_curve_*` | `periods` [s] |
 | `compute_dispersion_romberg*`、`compute_kernels_ad_grid`、GRID界面微分 | `period` [s] |
 | `compute_hessian_variational_ad_*_grid` | `freq` [Hz] |
 
@@ -48,7 +52,7 @@ vti_layer, thick = dp.create_vti_layer_from_depth(
     20.0, 20.0, 8.0, 4.0, 4.0, 2.5, 0.0, 10.0
 )
 
-# Pancakeの入力一式（half_spaceは有限層に含めない）
+# LayerCakeの入力一式（half_spaceは有限層に含めない）
 layers = [layer_solid]
 thicknesses = [15.0]
 
@@ -73,8 +77,8 @@ eta = [1.0] * len(depth)
 ## 2. 根探索とモードカウント
 
 ```python
-period_pancake = 5.0  # s
-omega = 2.0 * math.pi / period_pancake
+period_layer_cake = 5.0  # s
+omega = 2.0 * math.pi / period_layer_cake
 
 # 根探索の末尾4引数は c_min, c_max, n_search, wave_type (位置引数)
 roots_rayleigh = dp.search_roots(
@@ -119,13 +123,13 @@ cont_mode = dp.compute_continuous_mode_count(
 ```python
 periods = [2.0, 3.0, 5.0, 8.0, 10.0, 15.0, 20.0]  # 単調な周期列
 
-# Pancake モデルの一括計算
-pancake_curve = dp.compute_dispersion_curve_pancake(
+# Layer-cake モデルの一括計算
+layer_cake_curve = dp.compute_dispersion_curve_layer_cake(
     layers, thicknesses, half_space,
     periods=periods, wave_type="Rayleigh", branch=0,
     c_min=2.0, c_max=4.4, verify_branch=True
 )
-c_pancake = pancake_curve["phase_velocities"]
+c_layer_cake = layer_cake_curve["phase_velocities"]
 
 # GRID モデル (速度基底): §1で構築した入力を使う
 grid_curve = dp.compute_dispersion_curve_romberg_grid_velocity_vti(
@@ -136,9 +140,9 @@ c_grid_velocity = grid_curve["phase_velocities"]
 print("GRID fallback回数:", grid_curve["fallback_count"])
 ```
 
-Pancakeの `branch=0` は初回・再探索時の速度順の基本モードを選び、`verify_branch=True` は予測した根の整数カウントも確認します。GRIDの `branch=0` は各レベルでモード順を指定します。既定の `branch=None` は近い根を追跡する経路で、分岐を指定した場合とは処理時間も異なります。
+LayerCakeの `branch=0` は初回・再探索時の速度順の基本モードを選び、`verify_branch=True` は予測した根の整数カウントも確認します。GRIDの `branch=0` は各レベルでモード順を指定します。既定の `branch=None` は近い根を追跡する経路で、分岐を指定した場合とは処理時間も異なります。
 
-戻り値には `relative_errors`、`converged_levels`、`fallback_mask` もあります。fallbackは予測から通常探索へ戻ったことを示し、それ自体は失敗ではありません。Pancakeのレベルは `-1`、相対誤差は `NaN` です。バッチと単点計算の整合性・fallbackの回帰確認は [test_phase_velocity_curves.py](../tests/python/test_phase_velocity_curves.py) を参照してください。
+戻り値には `relative_errors`、`converged_levels`、`fallback_mask` もあります。fallbackは予測から通常探索へ戻ったことを示し、それ自体は失敗ではありません。LayerCakeのレベルは `-1`、相対誤差は `NaN` です。バッチと単点計算の整合性・fallbackの回帰確認は [test_phase_velocity_curves.py](../tests/python/test_phase_velocity_curves.py) を参照してください。
 
 ---
 
@@ -176,12 +180,12 @@ I1, I2, I3, c_energy = dp.compute_energy_integrals_analytical_rayleigh(
 
 ## 5. 感度カーネル (1階微分: dc/dp, dU/dp, d(H/V)/dp)
 
-### Pancake モデル
+### Layer-cake モデル
 
 位相速度・群速度・H/Vの感度をFull ADで計算します。LoveのH/Vは定義されず、対応する値・感度は `NaN` になります。
 
 ```python
-kernels = dp.compute_kernels_ad_pancake(
+kernels = dp.compute_kernels_ad_layer_cake(
     layers, thicknesses, half_space, omega, c_rayleigh,
     wave_type="Rayleigh",
     sensitivity_mode="Isotropic",  # または "VTI"
@@ -192,7 +196,7 @@ for k in kernels:
     print(f"Layer {k.layer_index} [{k.parameter_name}]: dc/dp={k.d_c:.6e}, dU/dp={k.d_U:.6e}, d(HV)/dp={k.d_HV:.6e}")
 ```
 
-`layer_index` は有限層の0始まりの番号で、半無限媒質は `-1` です。このPancake APIの物性成分の順序は `Isotropic` が `(Vs,Vp,Rho)`、`VTI` が `(Rho,A,C,F,L,N)` です。感度の単位は出力量の単位を入力パラメータの単位で割ったものです。
+`layer_index` は有限層の0始まりの番号で、半無限媒質は `-1` です。このLayerCake APIの物性成分の順序は `Isotropic` が `(Vs,Vp,Rho)`、`VTI` が `(Rho,A,C,F,L,N)` です。感度の単位は出力量の単位を入力パラメータの単位で割ったものです。
 
 ### GRID モデル (Romberg 加速)
 
@@ -228,13 +232,13 @@ GRIDの `layer_index` はノード番号です。物性感度のほか、不連�
 
 ## 6. 位相速度ヘシアン (2階微分: d²c/dp²)
 
-主要経路は**変分法 + 1階AD**です。速度と精度はモデル・積分法・バックエンドに依存します。検証済みの比較条件 と [実装マップ](sensitivity_implementation_map.md) を参照してください。Full ADの `compute_hessian_ad_pancake` は独立した検算に利用できます。
+主要経路は**変分法 + 1階AD**です。速度と精度はモデル・積分法・バックエンドに依存します。検証済みの比較条件 と [実装マップ](sensitivity_implementation_map.md) を参照してください。Full ADの `compute_hessian_ad_layer_cake` は独立した検算に利用できます。
 
-### 1. Pancake モデルのヘシアン
+### 1. Layer-cake モデルのヘシアン
 
 ```python
 # Rayleigh波
-res_rayleigh = dp.compute_hessian_variational_ad_rayleigh_pancake(
+res_rayleigh = dp.compute_hessian_variational_ad_rayleigh_layer_cake(
     layers, thicknesses, half_space, omega, c_rayleigh,
     sensitivity_mode="Isotropic",
     use_analytical=True  # 解析的エネルギー積分 (固体のみ)。海洋層がある場合は False (台形積分)
@@ -243,7 +247,7 @@ H = res_rayleigh["hessian"]   # 2次元 numpy array
 g = res_rayleigh["gradient"]  # 1次元 numpy array
 
 # Love波
-res_love = dp.compute_hessian_variational_ad_love_pancake(
+res_love = dp.compute_hessian_variational_ad_love_layer_cake(
     layers, thicknesses, half_space, omega, c_love,
     sensitivity_mode="Isotropic", use_analytical=True,
 )
@@ -265,7 +269,7 @@ print("GRID Hessian:", H_grid.shape, parameter_labels)
 
 この5ノード・等方性例の物性ヘシアンは15×15です。界面深さは含まれず、§7で別に扱います。配列の対応には必ず `parameter_names` と `layer_indices` を使ってください。API間で同じ列順とは限りません。
 
-Rayleighの最上部に流体層がある場合、Pancakeヘシアンは `use_analytical=False` の台形積分経路を使います (Rayleighの既定値も `False`)。GRIDヘシアンでは流体を波動場に含めますが、**流体ノードは既知・固定**とし、対応する勾配・ヘシアン行列要素はゼロです。海底は重複深さの不連続面として指定します。
+Rayleighの最上部に流体層がある場合、LayerCakeヘシアンは `use_analytical=False` の台形積分経路を使います (Rayleighの既定値も `False`)。GRIDヘシアンでは流体を波動場に含めますが、**流体ノードは既知・固定**とし、対応する勾配・ヘシアン行列要素はゼロです。海底は重複深さの不連続面として指定します。
 
 ---
 
@@ -273,11 +277,11 @@ Rayleighの最上部に流体層がある場合、Pancakeヘシアンは `use_an
 
 ## 7. 界面深さ感度とヘシアン (Kd)
 
-Pancakeの $K_d$ は各境界のカーネルです。幾何パラメータ $q$ に対する感度は $dc/dq=\sum_b [K_d]_b\,dz_b/dq$ で、層厚変更と一つの界面だけの移動では動く境界が異なります。GRIDの界面APIは指定した不連続面の深さ微分を組み立てます。
+LayerCakeの $K_d$ は各境界のカーネルです。幾何パラメータ $q$ に対する感度は $dc/dq=\sum_b [K_d]_b\,dz_b/dq$ で、層厚変更と一つの界面だけの移動では動く境界が異なります。GRIDの界面APIは指定した不連続面の深さ微分を組み立てます。
 
 ```python
-# Pancake 界面感度 Kd
-kd_rayleigh = dp.compute_interface_kernels_variational_rayleigh_pancake(
+# Layer-cake 界面感度 Kd
+kd_rayleigh = dp.compute_interface_kernels_variational_rayleigh_layer_cake(
     layers, thicknesses, half_space, omega, c_rayleigh
 )
 
@@ -311,7 +315,7 @@ row_z = dp.compute_interface_hessian_row_variational_ad_grid_extrapolated(
 ```python
 r_earth = 6371.0
 
-# 1. Pancake モデルの平坦化 (Bhattacharya & Arora 1997, デフォルト p=-2)
+# 1. Layer-cake モデルの平坦化 (Bhattacharya & Arora 1997, デフォルト p=-2)
 flat_layers, flat_thick = dp.earth_flattening_transformation_layers(
     layers, thicknesses, planet_radius=r_earth
 )
@@ -327,7 +331,7 @@ corrected_layers = dp.apply_mineos_physical_dispersion_model(
 )
 ```
 
-Pancakeの平坦化関数は渡した有限層だけを変換し、`half_space` を自動変換しません。上の出力だけでは半無限媒質まで平坦化した一式にはなりません。GRID関数は最深ノードも変換します。
+LayerCakeの平坦化関数は渡した有限層だけを変換し、`half_space` を自動変換しません。上の出力だけでは半無限媒質まで平坦化した一式にはなりません。GRID関数は最深ノードも変換します。
 
 GRIDのノードを先に平坦化して `grid_policy="flat"` で補間するモデルと、球面ノードを渡して `grid_policy="spherical_ba97"` で細分点ごとに補間・変換するモデルは異なります。後者では事前のノード平坦化を重ねないでください。モデル空間の扱いは EFT方針 と [実装マップ](sensitivity_implementation_map.md) を参照してください。
 
@@ -347,7 +351,7 @@ u_x=i*y3*exp(...), epsilon < 0 is retrograde and epsilon > 0 is prograde
 for propagation in positive x. The eigenfunction arrays `ur` and `uz`
 store y3 and y1, respectively; the horizontal phase factor i is implicit.
 
-Both layer-cake (`pancake`) and GRID models evaluate the solid free surface,
+Both layer-cake (`layer_cake`) and GRID models evaluate the solid free surface,
 or the solid side of the seabed when surface fluid layers are present.
 The common expression is -Y12/Y14, obtained from zero shear traction.
 This also corrects the former seabed amplitude, which used a free-surface

@@ -39,7 +39,7 @@ python -m pip install '.[paper]'
 
 ```python
 import disper26 as d26
-model = d26.create_model([0., 10.], kind="pancake",
+model = d26.create_model([0., 10.], kind="layer_cake",
                          vs=[3., 4.5], vp=[5.2, 8.], rho=[2.5, 3.3])
 solution = d26.compute_dispersion(model, period=5.)
 print(solution.phase_velocity)

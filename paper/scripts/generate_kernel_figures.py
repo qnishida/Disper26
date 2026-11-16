@@ -31,8 +31,16 @@ def mesh(model,level):
             mats.append((1-t)*a[j]+t*a[j+1]);h.append((z[j+1]-z[j])/2**level);mapping.append((j,t))
     return np.array(mats),np.array(h),mapping
 
+def layer_cake_curve(*args, **kwargs):
+    """Prefer the current API; retain compatibility with frozen source snapshots."""
+    compute = getattr(dp, 'compute_dispersion_curve_layer_cake', None)
+    if compute is None:
+        compute = dp.compute_dispersion_curve_pancake
+    return compute(*args, **kwargs)
+
+
 def root(mats,h,half,period,wave):
-    r=dp.compute_dispersion_curve_pancake([parameters(a) for a in mats],h.tolist(),parameters(half),[period],wave,0,.1,6.,2400,1e-12,True)
+    r=layer_cake_curve([parameters(a) for a in mats],h.tolist(),parameters(half),[period],wave,0,.1,6.,2400,1e-12,True)
     c=r['phase_velocities'][0]
     assert np.isfinite(c) and c>0
     return c

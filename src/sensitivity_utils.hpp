@@ -3553,7 +3553,7 @@ inline PhysicalParameters<T> to_ad_params(const PhysicalParameters<double>& p, i
 // parameter ordering and the isotropic chain rule must match the per-pass
 // seeding of the dual backend exactly, or the backends stop agreeing.
 template <typename T>
-inline void seedPancakeParamBlock(
+inline void seedLayerCakeParamBlock(
     const std::vector<PhysicalParameters<double>>& layers,
     const PhysicalParameters<double>& halfSpace,
     SensitivityMode mode,
@@ -3688,7 +3688,7 @@ inline Eigen::VectorXd computeLoveIFTGradientFirstOrder(
     for (int j0 = 0; j0 < num_params; j0 += width) {
         std::vector<PhysicalParameters<T>> l_ad;
         PhysicalParameters<T> h_ad;
-        seedPancakeParamBlock<T>(layers, halfSpace, mode, j0, width, l_ad, h_ad);
+        seedLayerCakeParamBlock<T>(layers, halfSpace, mode, j0, width, l_ad, h_ad);
 
         std::vector<T> t_ad(thicknesses.size());
         for (size_t i = 0; i < thicknesses.size(); ++i)
@@ -3759,7 +3759,7 @@ inline HessianResult computePhaseVelocityHessianWeakFormLove(
             using T = typename decltype(tag)::type;
             std::vector<PhysicalParameters<T>> v_layers;
             PhysicalParameters<T> v_hs;
-            seedPancakeParamBlock<T>(layers, halfSpace, mode, j0, width, v_layers, v_hs);
+            seedLayerCakeParamBlock<T>(layers, halfSpace, mode, j0, width, v_layers, v_hs);
 
             std::vector<T> v_thick(thicknesses.size());
             for (size_t i = 0; i < thicknesses.size(); ++i)
@@ -4871,7 +4871,7 @@ inline HessianResult computePhaseVelocityHessianWeakFormRayleigh(
             using T = typename decltype(tag)::type;
             std::vector<PhysicalParameters<T>> v_layers;
             PhysicalParameters<T> v_hs;
-            seedPancakeParamBlock<T>(layers, halfSpace, mode, j0, width, v_layers, v_hs);
+            seedLayerCakeParamBlock<T>(layers, halfSpace, mode, j0, width, v_layers, v_hs);
 
             std::vector<T> v_thick(thicknesses.size());
             for (size_t i = 0; i < thicknesses.size(); ++i)
@@ -5339,7 +5339,7 @@ inline Eigen::VectorXd mapFixedStackVtiKernelToMode(
     return out;
 }
 
-inline Eigen::VectorXd mapBoundaryKernelToPancakeThickness(
+inline Eigen::VectorXd mapBoundaryKernelToLayerCakeThickness(
     const Eigen::VectorXd& boundary_kernel
 ) {
     // h_j moves boundary j+1 and every deeper boundary by the same amount.
@@ -5369,7 +5369,7 @@ inline std::vector<SensitivityKernel> computeSensitivityKernelsWeakFormLove(
     if (uKernelMode != "variational_frequency_ad" &&
         uKernelMode != "variational") {
         throw std::invalid_argument(
-            "PANCAKE u_kernel_mode must be \"variational_frequency_ad\" "
+            "LAYER_CAKE u_kernel_mode must be \"variational_frequency_ad\" "
             "or \"variational\"");
     }
     const double omega = 2.0 * M_PI * freq;
@@ -5555,7 +5555,7 @@ inline std::vector<SensitivityKernel> computeSensitivityKernelsWeakFormRayleigh(
     if (uKernelMode != "variational_frequency_ad" &&
         uKernelMode != "variational") {
         throw std::invalid_argument(
-            "PANCAKE u_kernel_mode must be \"variational_frequency_ad\" "
+            "LAYER_CAKE u_kernel_mode must be \"variational_frequency_ad\" "
             "or \"variational\"");
     }
     const double omega = 2.0 * M_PI * freq;
@@ -5627,7 +5627,7 @@ inline std::vector<SensitivityKernel> computeSensitivityKernelsWeakFormRayleigh(
                     layers, halfSpace, frequency.group_material_vti, mode);
             if (computeThickness) {
                 frequency_du.tail(num_layers) =
-                    mapBoundaryKernelToPancakeThickness(
+                    mapBoundaryKernelToLayerCakeThickness(
                         frequency.group_boundary);
             }
             frequency_ready = frequency_du.allFinite();
@@ -5766,7 +5766,7 @@ inline std::vector<SensitivityKernel> computeSensitivityKernelsWeakFormRayleigh(
 // condition only AT the root of this mesh's dispersion function, and the
 // energy-integral U is extremely sensitive to that consistency, so c_guess
 // is Newton-polished to machine precision on the double mesh first (the
-// pancake weak-form drivers do the same; an extrapolated Romberg c is off
+// layer_cake weak-form drivers do the same; an extrapolated Romberg c is off
 // this mesh's root by O(h^2) and would corrupt dU/dp).
 // Not valid for fluid layers with the analytical integrals (division by c44);
 // callers must gate fluid models to the full-AD path.
@@ -6352,4 +6352,17 @@ inline HessianResult computePhaseVelocityHessianReference(
 ) {
     if (wt == WaveType::Love) return computePhaseVelocityHessianLove(l, t, h, f, c);
     return computePhaseVelocityHessianStable(l, t, h, f, c, wt);
+}
+
+// Deprecated aliases. Use the LayerCake spellings in new code.
+template <typename T>
+inline void seedPancakeParamBlock(
+    const std::vector<PhysicalParameters<double>>& layers,
+    const PhysicalParameters<double>& halfSpace, SensitivityMode mode,
+    int j0, int width, std::vector<PhysicalParameters<T>>& layers_ad,
+    PhysicalParameters<T>& hs_ad) {
+    seedLayerCakeParamBlock<T>(layers,halfSpace,mode,j0,width,layers_ad,hs_ad);
+}
+inline Eigen::VectorXd mapBoundaryKernelToPancakeThickness(const Eigen::VectorXd& kernel) {
+    return mapBoundaryKernelToLayerCakeThickness(kernel);
 }

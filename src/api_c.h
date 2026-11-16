@@ -61,7 +61,7 @@ void d26_api_default_options(d26_api_options* options);
 void d26_api_default_tracking_options(d26_api_tracking_options* options);
 /* Column-major values[components,count]: isotropic = Vs,Vp,Rho;
  * velocity_vti = rho,vph,vpv,vsh,vsv,eta; stiffness = A,C,F,L,N,Rho.
- * interpolation must be NULL for Pancake and explicit for GRID. */
+ * interpolation must be NULL for Layer-cake and explicit for GRID. */
 int d26_api_create_model(size_t count,const double* depths,const char* kind,
     const char* parameterization,const double* values,size_t components,
     const char* interpolation,const d26_api_geometry* geometry,const char* name,
@@ -72,6 +72,11 @@ int d26_api_create_fluid_parameters(double vp,double rho,
     d26_api_material* out,char* message,size_t message_capacity);
 int d26_api_create_velocity_vti_parameters(double rho,double vph,double vpv,
     double vsh,double vsv,double eta,d26_api_material* out,char* message,size_t message_capacity);
+int d26_api_create_layer_cake_model(size_t count,const d26_api_material* layers,
+    const double* thicknesses,const d26_api_material* halfspace,
+    const d26_api_geometry* geometry,const char* name,d26_api_model** out,
+    char* message,size_t message_capacity);
+// Deprecated alias; preserves kind="pancake".
 int d26_api_create_pancake_model(size_t count,const d26_api_material* layers,
     const double* thicknesses,const d26_api_material* halfspace,
     const d26_api_geometry* geometry,const char* name,d26_api_model** out,

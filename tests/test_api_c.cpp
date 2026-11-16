@@ -51,6 +51,35 @@ double phase_velocity(d26_api_solution* s) {
 int main() {
     namespace api=disper26::api;
     {
+        const auto upper=api::create_isotropic_parameters(3.,5.2,2.5);
+        const auto halfspace=api::create_isotropic_parameters(4.5,8.,3.3);
+        const auto modern=api::create_layer_cake_model({upper},{10.},halfspace);
+        const auto legacy=api::create_pancake_model({upper},{10.},halfspace);
+        check(modern.data().kind=="layer_cake" && legacy.data().kind=="pancake", "C++ kind compatibility");
+        check(api::compute_dispersion(modern,10.).phase_velocity()==
+              api::compute_dispersion(legacy,10.).phase_velocity(), "C++ legacy numerical parity");
+        d26_api_material a{},b{};
+        success(d26_api_create_isotropic_parameters(3.,5.2,2.5,&a,message,sizeof message));
+        success(d26_api_create_isotropic_parameters(4.5,8.,3.3,&b,message,sizeof message));
+        const double h=10., depths[]={0.,10.}, fields[]={3.,5.2,2.5,4.5,8.,3.3};
+        for(int old=0;old<2;++old) for(int arrays=0;arrays<2;++arrays) {
+            const char* kind=old?"pancake":"layer_cake";
+            d26_api_model* model=nullptr;
+            if(arrays) success(d26_api_create_model(2,depths,kind,"isotropic",fields,3,
+                nullptr,nullptr,nullptr,&model,message,sizeof message));
+            else {
+                const auto create=old?d26_api_create_pancake_model:d26_api_create_layer_cake_model;
+                success(create(1,&a,&h,&b,nullptr,nullptr,&model,message,sizeof message));
+            }
+            d26_api_result* info=nullptr;
+            success(d26_api_model_info(model,&info,message,sizeof message));
+            check(text(info,"kind")==kind,"C kind compatibility");
+            d26_api_result_release(info);
+            d26_api_model_release(model);
+        }
+    }
+
+    {
         const double depths[]={0,20,60};
         const double fields[]={3,5.2,2.5,3.5,6,2.8,4.5,8,3.3};
         d26_api_model* model=nullptr;
@@ -84,7 +113,7 @@ int main() {
         auto original=api::create_dispersion_context();
         auto moved=std::move(original);
         const auto hs=api::create_isotropic_parameters(4.5,8.,3.3);
-        auto m=api::create_pancake_model({}, {},hs);
+        auto m=api::create_layer_cake_model({}, {},hs);
         bool rejected=false;
         try {api::compute_dispersion(m,8.,"Rayleigh",0,{"phase_velocity"},{},original);}
         catch(const api::Error& e) {rejected=e.code=="invalid_argument";}
@@ -96,7 +125,7 @@ int main() {
         const double depths[]={0};
         const double fields[]={4.5,8.,3.3};
         d26_api_model* homogeneous=nullptr;
-        success(d26_api_create_model(1,depths,"pancake","isotropic",fields,3,
+        success(d26_api_create_model(1,depths,"layer_cake","isotropic",fields,3,
             nullptr,nullptr,nullptr,&homogeneous,message,sizeof message));
         d26_api_solution* fundamental=nullptr;
         success(d26_api_compute_dispersion(homogeneous,10.,"Rayleigh",0,nullptr,nullptr,
@@ -178,9 +207,9 @@ int main() {
         api::MaterialArrays arrays;
         arrays.vs=std::vector<double>{3,4.5};arrays.vp=std::vector<double>{5.2,8};
         arrays.rho=std::vector<double>{2.5,3.3};
-        auto cpp=api::create_model({0,10},"pancake",arrays);
+        auto cpp=api::create_model({0,10},"layer_cake",arrays);
         d26_api_model* owned=nullptr;
-        success(d26_api_create_model(2,depths,"pancake","isotropic",fields,3,nullptr,nullptr,nullptr,
+        success(d26_api_create_model(2,depths,"layer_cake","isotropic",fields,3,nullptr,nullptr,nullptr,
             &owned,message,sizeof message));
         d26_api_solution* s=nullptr;
         success(d26_api_compute_dispersion(owned,20,"Rayleigh",0,nullptr,nullptr,&s,message,sizeof message));
@@ -189,11 +218,11 @@ int main() {
         const double vti[]={2.5,5.3,5.2,3.1,3.0,.9,3.3,8.2,8.,4.6,4.5,.95};
         const auto top=api::create_velocity_vti_parameters(2.5,5.3,5.2,3.1,3.,.9);
         const auto bottom=api::create_velocity_vti_parameters(3.3,8.2,8.,4.6,4.5,.95);
-        const auto reference=api::create_pancake_model({top},{10},bottom);
+        const auto reference=api::create_layer_cake_model({top},{10},bottom);
         const double stiffness[]={top.A,top.C,top.F,top.L,top.N,top.rho,
             bottom.A,bottom.C,bottom.F,bottom.L,bottom.N,bottom.rho};
         for(const char* basis:{"velocity_vti","stiffness"}) {
-            success(d26_api_create_model(2,depths,"pancake",basis,
+            success(d26_api_create_model(2,depths,"layer_cake",basis,
                 std::string(basis)=="stiffness"?stiffness:vti,6,nullptr,nullptr,nullptr,&owned,message,sizeof message));
             success(d26_api_compute_dispersion(owned,20,"Rayleigh",0,nullptr,nullptr,&s,message,sizeof message));
             check(phase_velocity(s)==api::compute_dispersion(reference,20).phase_velocity(),"C array component order differs");
@@ -205,15 +234,15 @@ int main() {
             d26_api_model_release(owned);
         }
         const double repeated[]={0,0};
-        check(d26_api_create_model(2,repeated,"pancake","isotropic",fields,3,nullptr,nullptr,nullptr,
-            &owned,message,sizeof message)==D26_API_INVALID_ARGUMENT && !owned,"Duplicate Pancake knot accepted");
-        check(d26_api_create_model(2,depths,"pancake","isotropic",fields,6,nullptr,nullptr,nullptr,
+        check(d26_api_create_model(2,repeated,"layer_cake","isotropic",fields,3,nullptr,nullptr,nullptr,
+            &owned,message,sizeof message)==D26_API_INVALID_ARGUMENT && !owned,"Duplicate Layer-cake knot accepted");
+        check(d26_api_create_model(2,depths,"layer_cake","isotropic",fields,6,nullptr,nullptr,nullptr,
             &owned,message,sizeof message)==D26_API_INVALID_ARGUMENT && !owned,"Wrong component count accepted");
         check(d26_api_create_model(2,depths,"grid","isotropic",fields,3,nullptr,nullptr,nullptr,
             &owned,message,sizeof message)==D26_API_INVALID_ARGUMENT && !owned,"Missing interpolation accepted");
         arrays.A=std::vector<double>{1,2};
         bool rejected=false;
-        try {(void)api::create_model({0,10},"pancake",arrays);}catch(const api::Error&){rejected=true;}
+        try {(void)api::create_model({0,10},"layer_cake",arrays);}catch(const api::Error&){rejected=true;}
         check(rejected,"Mixed C++ array representations accepted");
     }
     d26_api_geometry geo; d26_api_default_geometry(&geo);
@@ -223,7 +252,7 @@ int main() {
     success(d26_api_create_isotropic_parameters(4.5,8,3.3,&halfspace,message,sizeof message));
     double thickness=10;
     d26_api_model* model=nullptr;
-    success(d26_api_create_pancake_model(1,&layer,&thickness,&halfspace,&geo,"native test",&model,message,sizeof message));
+    success(d26_api_create_layer_cake_model(1,&layer,&thickness,&halfspace,&geo,"native test",&model,message,sizeof message));
     // Input ownership is independent of caller buffers.
     const double original_A=layer.A;
     layer.A=0;
@@ -243,7 +272,7 @@ int main() {
     d26_api_solution_retain(solution);
     d26_api_solution_release(solution);
     // Mixed C and C++ use must link to the same core without duplicate symbols.
-    const auto reference_model=api::create_pancake_model({api::create_isotropic_parameters(3,5.2,2.5)},
+    const auto reference_model=api::create_layer_cake_model({api::create_isotropic_parameters(3,5.2,2.5)},
         {10},api::create_isotropic_parameters(4.5,8,3.3));
     const auto reference=api::compute_dispersion(reference_model,20,"Rayleigh",0,
         {"phase_velocity","group_velocity","hv_ratio"});

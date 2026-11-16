@@ -38,12 +38,12 @@ def test_signed_layer_matrix_and_legacy_depth_utilities(c):
     y_depth = np.array([.7, -.2], dtype=complex)
     original = y_depth.copy()
     expected = elementary_matrix(p, omega, c, depth) @ y_depth
-    for mode in ('PANCAKE', 'GRID'):
+    for mode in ('LAYER_CAKE', 'GRID'):
         actual = dp.eval_layer_state(y_depth, p, p, h, depth, omega, c, 'Love', mode, 4, 1e-12)
         np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-12)
     actual = dp.propagate_layer_quadrature_vector(y_depth, p, p, h, depth, omega, c, 'Love', 4, 1e-12)
     np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-12)
-    actual = dp.eval_global_state([p], [h], p, y_depth, depth, omega, c, 'Love', 'PANCAKE', 4, 1e-12)
+    actual = dp.eval_global_state([p], [h], p, y_depth, depth, omega, c, 'Love', 'LAYER_CAKE', 4, 1e-12)
     np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-12)
     np.testing.assert_array_equal(y_depth, original)
 
@@ -97,7 +97,7 @@ def test_public_stress_is_the_upward_displacement_derivative(anisotropic, mode):
         args.update(vsv=vs, vsh=1.07*vs, vpv=vp, vph=1.03*vp, eta=np.full(4, .95))
     else:
         args.update(vs=vs, vp=vp)
-    model = api.create_model(np.linspace(0., 100., 4), kind='pancake', **args)
+    model = api.create_model(np.linspace(0., 100., 4), kind='layer_cake', **args)
     solution = api.compute_dispersion(model, period=20., wave='Love', mode=mode)
     ef = api.compute_eigenfunctions(solution, num_sub_layers=400)
     for i, material in enumerate(model.materials):

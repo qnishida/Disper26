@@ -36,6 +36,10 @@ struct Access {
     }
 };
 namespace detail {
+inline bool is_layer_cake_kind(const std::string& kind) {
+    return kind == "layer_cake" || kind == "pancake"; // Legacy metadata spelling.
+}
+
 inline void require(bool ok, const char* message) {
     if (!ok) throw Error("invalid_argument", message);
 }
@@ -142,8 +146,8 @@ inline VelocityFields velocities(const Model& m) {
 }
 inline VelocityGridRefinement mesh(const Model& model, int level) {
     const auto& d=model.data();
-    if (d.kind == "pancake") {
-        if (d.geometry.kind != "flat") unsupported("Pancake spherical input needs explicit earth_flattening_transformation");
+    if (detail::is_layer_cake_kind(d.kind)) {
+        if (d.geometry.kind != "flat") unsupported("Layer-cake spherical input needs explicit earth_flattening_transformation");
         VelocityGridRefinement out; out.layers=unpack(d.materials); out.thicknesses=d.thicknesses; out.halfspace=unpack(d.halfspace); return out;
     }
     if (d.interpolation == "stiffness") {
@@ -197,7 +201,7 @@ inline void derivative_wave(const ModeSolution& s) {
 inline std::vector<double> trace_roots(const ModeSolution& s, int level) {
     ensure_mode_verified(s);
     const auto& a=Access::solution(s);
-    if (a.model.data().kind == "pancake") return {a.c};
+    if (detail::is_layer_cake_kind(a.model.data().kind)) return {a.c};
     require(level >= 0 && level <= 12, "Trace refinement level must be between 0 and 12");
     auto& cache = *a.trace_cache;
     std::lock_guard<std::mutex> lock(cache.mutex);
@@ -222,7 +226,7 @@ inline std::vector<double> trace_roots(const ModeSolution& s, int level) {
 }
 inline std::vector<Material> parameter_materials(const Model& model) {
     auto p=model.data().materials;
-    if (model.data().kind=="pancake") p.push_back(model.data().halfspace);
+    if (detail::is_layer_cake_kind(model.data().kind)) p.push_back(model.data().halfspace);
     return p;
 }
 inline std::string entity(const Model& m,int i) {
@@ -321,7 +325,7 @@ inline DerivativeResult from_hessian(const HessianResult& h,const Model& model) 
     DerivativeResult out; const int n=static_cast<int>(parameter_materials(model).size())*6;
     std::vector<int> ix; ix.reserve(n);
     for(int i=0;i<n/6;++i) for(const auto& name:stiffness_names()) {
-        const int source_index=model.data().kind=="pancake" && i==n/6-1 ? -1 : i;
+        const int source_index=detail::is_layer_cake_kind(model.data().kind) && i==n/6-1 ? -1 : i;
         int found=-1;
         for(int j=0;j<static_cast<int>(h.parameterNames.size());++j)
             if(h.parameterNames[j]==name && h.layerIndices[j]==source_index) {found=j;break;}
@@ -359,8 +363,8 @@ struct DispersionContextData {
         auto& out=meshes.at(static_cast<size_t>(level));
         if(ready.at(level)) return out;
         const auto& d=model.data();
-        if(d.kind=="pancake") {
-            if(d.geometry.kind!="flat") detail::unsupported("Pancake spherical input needs explicit earth_flattening_transformation");
+        if(detail::is_layer_cake_kind(d.kind)) {
+            if(d.geometry.kind!="flat") detail::unsupported("Layer-cake spherical input needs explicit earth_flattening_transformation");
             out.layers.reserve(d.materials.size());
             for(const auto& p:d.materials) out.layers.push_back(detail::unpack(p));
             out.thicknesses.assign(d.thicknesses.begin(),d.thicknesses.end());
@@ -420,16 +424,23 @@ Material create_velocity_vti_parameters(double rho,double ph,double pv,double sh
     Material p; p.rho=rho;p.A=rho*ph*ph;p.C=rho*pv*pv;p.L=rho*sv*sv;p.N=rho*sh*sh;p.F=eta*(p.A-2*p.L);
     detail::check_material(p); return p;
 }
-Model create_pancake_model(const std::vector<Material>& layers,const std::vector<double>& h,const Material& hs,const Geometry& geo,const std::string& name) {
+static Model create_layer_cake_model_impl(const std::vector<Material>& layers,const std::vector<double>& h,const Material& hs,const Geometry& geo,const std::string& name,const std::string& kind) {
     detail::check_geometry(geo);
     detail::require(layers.size()==h.size(),"layers and thicknesses differ in length");
     detail::check_material(hs); for(const auto& p:layers) detail::check_material(p);
     for(double v:h) detail::positive(v,"thickness");
     (void)make_grid_refinement_policy(geo.kind,geo.planet_radius,geo.flattening_exponent);
     if(geo.kind!="flat") detail::require(std::accumulate(h.begin(),h.end(),0.0)<geo.planet_radius,
-        "Pancake extends to planet centre");
-    ModelData d;d.kind="pancake";d.interpolation="constant";d.materials=layers;d.thicknesses=h;d.halfspace=hs;d.geometry=geo;d.name=name;
+        "Layer-cake extends to planet centre");
+    ModelData d;d.kind=kind;d.interpolation="constant";d.materials=layers;d.thicknesses=h;d.halfspace=hs;d.geometry=geo;d.name=name;
     return Access::model(std::move(d));
+}
+Model create_layer_cake_model(const std::vector<Material>& layers,const std::vector<double>& h,const Material& hs,const Geometry& geo,const std::string& name) {
+    return create_layer_cake_model_impl(layers,h,hs,geo,name,"layer_cake");
+}
+// Deprecated alias. Retain the legacy model kind for existing callers.
+Model create_pancake_model(const std::vector<Material>& layers,const std::vector<double>& h,const Material& hs,const Geometry& geo,const std::string& name) {
+    return create_layer_cake_model_impl(layers,h,hs,geo,name,"pancake");
 }
 Model create_grid_model(const std::vector<double>& z,const std::vector<Material>& ps,const std::string& interpolation,const Geometry& geo,const std::string& name) {
     detail::require(z.size()==ps.size() && z.size()>=2,"Grid needs equally sized depth/material arrays with at least two nodes");
@@ -454,15 +465,15 @@ Model create_grid_model(const std::vector<double>& z,const std::vector<Material>
 Model create_model(const std::vector<double>& depths,const std::string& kind,
     const MaterialArrays& p,const std::optional<std::string>& interpolation,
     const Geometry& geometry,const std::string& name) {
-    detail::require(kind=="pancake" || kind=="grid","kind must be pancake or grid");
+    detail::require(detail::is_layer_cake_kind(kind) || kind=="grid","kind must be layer_cake or grid");
     detail::require(!depths.empty(),"depths must not be empty");
     detail::require(depths.front()==0,"depths must start at zero");
     for(size_t i=0;i<depths.size();++i) {
         detail::require(std::isfinite(depths[i]) && depths[i]>=0,"depths must be finite and nonnegative");
-        if(i) detail::require(kind=="pancake"?depths[i]>depths[i-1]:depths[i]>=depths[i-1],
-            kind=="pancake"?"Pancake depths must strictly increase; duplicate knots are forbidden":"GRID depths must be nondecreasing");
+        if(i) detail::require(detail::is_layer_cake_kind(kind)?depths[i]>depths[i-1]:depths[i]>=depths[i-1],
+            detail::is_layer_cake_kind(kind)?"Layer-cake depths must strictly increase; duplicate knots are forbidden":"GRID depths must be nondecreasing");
     }
-    if(kind=="pancake") detail::require(!interpolation,"Pancake does not accept interpolation");
+    if(detail::is_layer_cake_kind(kind)) detail::require(!interpolation,"Layer-cake does not accept interpolation");
     else detail::require(interpolation && (*interpolation=="stiffness" || *interpolation=="velocity"),
         "GRID requires interpolation=stiffness or velocity");
     const bool iso=p.vs || p.vp;
@@ -491,7 +502,7 @@ Model create_model(const std::vector<double>& depths,const std::string& kind,
     std::vector<double> thicknesses;
     for(size_t i=1;i<depths.size();++i) thicknesses.push_back(depths[i]-depths[i-1]);
     const auto halfspace=materials.back();materials.pop_back();
-    return create_pancake_model(materials,thicknesses,halfspace,geometry,name);
+    return create_layer_cake_model_impl(materials,thicknesses,halfspace,geometry,name,kind);
 }
 
 namespace detail {
@@ -841,11 +852,11 @@ DerivativeResult compute_hessian(const ModeSolution& s,const std::string& basis,
     detail::check_options(o);detail::derivative_wave(s);const auto& m=s.model();const auto& d=m.data();
     detail::check_basis(m,basis);
     detail::require(o.method=="standard"||o.method=="variational_ad"||o.method=="ad", "Hessian method must be standard, variational_ad or ad");
-    if(d.kind=="pancake" && o.method=="ad") {
+    if(detail::is_layer_cake_kind(d.kind) && o.method=="ad") {
         if((d.materials.size()+1)*6+1>MAX_AD_PARAMS)
-            detail::unsupported("Pancake Full AD Hessian exceeds the backend capacity of 80 AD coordinates");
+            detail::unsupported("Layer-cake Full AD Hessian exceeds the backend capacity of 80 AD coordinates");
         for(const auto& p:detail::parameter_materials(m)) if(p.gravity!=0)
-            detail::unsupported("Pancake Full AD Hessian does not preserve Cowling gravity parameters");
+            detail::unsupported("Layer-cake Full AD Hessian does not preserve Cowling gravity parameters");
     }
     HessianResult raw;
     if(d.kind=="grid") {
@@ -949,11 +960,11 @@ DerivativeResult compute_interface_hessian_row(const ModeSolution& s,int interfa
 std::vector<Capability> get_capabilities(const Model& m,const std::string& wave) {
     const auto w=detail::wave_name(wave);
     const auto& d=m.data();
-    const bool pancake=d.kind=="pancake";
-    const bool stiffness=pancake||d.interpolation=="stiffness";
+    const bool layer_cake=detail::is_layer_cake_kind(d.kind);
+    const bool stiffness=layer_cake||d.interpolation=="stiffness";
     std::string base_reason;
-    if(pancake && d.geometry.kind!="flat")
-        base_reason="Pancake spherical geometry requires explicit earth flattening";
+    if(layer_cake && d.geometry.kind!="flat")
+        base_reason="Layer-cake spherical geometry requires explicit earth flattening";
     else if(detail::fluid(d.halfspace))
         base_reason="A fluid halfspace is not supported by the mode solver";
     else if(w=="Love" && detail::has_fluid(m))
@@ -965,7 +976,7 @@ std::vector<Capability> get_capabilities(const Model& m,const std::string& wave)
         } catch(const std::exception& error) {base_reason=error.what();}
     }
     std::string grid_variational_reason;
-    if(!pancake && stiffness && w=="Rayleigh") {
+    if(!layer_cake && stiffness && w=="Rayleigh") {
         try {validate_rayleigh_grid_fixed_fluid_model(detail::grid(m));}
         catch(const std::exception& error) {grid_variational_reason=error.what();}
     }
@@ -996,7 +1007,7 @@ std::vector<Capability> get_capabilities(const Model& m,const std::string& wave)
         // Explicit variational GRID kernels are limited to this output, while
         // AD supports the value-specific derivative requests as well.
         add("kernels",basis,"standard",first_reason(common,
-            !pancake && stiffness?grid_variational_reason:std::string{}));
+            !layer_cake && stiffness?grid_variational_reason:std::string{}));
         add("kernels",basis,"ad",common);
         add("kernels",basis,"variational",first_reason(common,
             stiffness?grid_variational_reason:
@@ -1006,21 +1017,21 @@ std::vector<Capability> get_capabilities(const Model& m,const std::string& wave)
         add("hessian",basis,"standard",hessian_reason);
         add("hessian",basis,"variational_ad",hessian_reason);
         std::string ad_reason;
-        if(!pancake) ad_reason="Full AD GRID is a fixed-level validation API, not the extrapolated public Hessian";
-        else if(cowling) ad_reason="Full AD Pancake Hessians do not preserve Cowling gravity fields";
+        if(!layer_cake) ad_reason="Full AD GRID is a fixed-level validation API, not the extrapolated public Hessian";
+        else if(cowling) ad_reason="Full AD Layer-cake Hessians do not preserve Cowling gravity fields";
         else if((d.materials.size()+1)*6+1>MAX_AD_PARAMS)
-            ad_reason="Full AD Pancake Hessian exceeds MAX_AD_PARAMS="+std::to_string(MAX_AD_PARAMS);
+            ad_reason="Full AD Layer-cake Hessian exceeds MAX_AD_PARAMS="+std::to_string(MAX_AD_PARAMS);
         add("hessian",basis,"ad",first_reason(common,ad_reason));
     }
     add("hessian_reduced","linear_projection","variational_ad",first_reason(first_reason(base_reason,derivative_reason),
-        !pancake && stiffness?grid_variational_reason:"Reduced Hessians require stiffness GRID"));
+        !layer_cake && stiffness?grid_variational_reason:"Reduced Hessians require stiffness GRID"));
     const auto interface_reason=first_reason(first_reason(base_reason,derivative_reason),
         stiffness && d.geometry.kind=="flat"?std::string{}:
-            "Interface derivatives require flat stiffness GRID or flat Pancake");
+            "Interface derivatives require flat stiffness GRID or flat Layer-cake");
     add("interface_kernels","interface_depth","variational",interface_reason);
     for(const auto& basis:{"isotropic","stiffness","velocity_vti","log_velocity_vti"}) {
         std::string reason=first_reason(interface_reason,
-            pancake?"Interface Hessian rows require stiffness GRID":std::string{});
+            layer_cake?"Interface Hessian rows require stiffness GRID":std::string{});
         try {detail::check_basis(m,basis);}
         catch(const std::exception& error) {reason=first_reason(reason,error.what());}
         add("interface_hessian_row",basis,"variational_ad",reason);
@@ -1029,7 +1040,7 @@ std::vector<Capability> get_capabilities(const Model& m,const std::string& wave)
     add("energy_integrals","","standard",base_reason);
     add("frequency_curvature","","ad",base_reason);
     add("gravity_correction","","kg",first_reason(base_reason,
-        !pancake || w!="Rayleigh"?"Kg correction requires flat Rayleigh Pancake":
+        !layer_cake || w!="Rayleigh"?"Kg correction requires flat Rayleigh Layer-cake":
         (cowling?"Kg correction requires a non-gravitating reference model":std::string{})));
     add("earth_flattening_transformation","","",!d.flattened && d.geometry.kind!="flat"?
         std::string{}:"EFT requires an unflattened spherical model");

@@ -27,7 +27,7 @@ for wave in ('Rayleigh','Love'):
     raw=[]
     for level in range(9):
         a,h,_=g.mesh(model,level)
-        r=dp.compute_dispersion_curve_pancake([g.parameters(v) for v in a],h.tolist(),half,(1/f).tolist(),wave,0,.1,6.,2400,1e-12,True)
+        r=g.layer_cake_curve([g.parameters(v) for v in a],h.tolist(),half,(1/f).tolist(),wave,0,.1,6.,2400,1e-12,True)
         c=np.array(r['phase_velocities']);assert np.all(np.isfinite(c)) and np.all(c>0)
         raw.append(c);print(wave,level,flush=True)
     out[wave+'_raw']=raw;out[wave+'_diagonal']=g.extrap(raw)

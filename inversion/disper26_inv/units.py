@@ -1,7 +1,7 @@
 """Frequency-argument conversions.
 
 The raw disper26py bindings mix conventions: Romberg forwards take period [s],
-grid Hessians take frequency [Hz], pancake kernels / Hessians / mode counts
+grid Hessians take frequency [Hz], layer-cake kernels / Hessians / mode counts
 take omega [rad/s]. Every call site in this package converts through here so
 the package-level API is uniformly period [s].
 """

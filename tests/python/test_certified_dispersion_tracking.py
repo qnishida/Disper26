@@ -12,14 +12,14 @@ from test_halfspace_mode_count import comparison_models
 
 @pytest.mark.parametrize('wave', ['Rayleigh', 'Love'])
 @pytest.mark.parametrize('mode', [0, 1])
-def test_pancake_candidates_are_certified_against_fresh_search(wave, mode):
-    model = d26.create_model([0., 20., 60.], kind='pancake',
+def test_layer_cake_candidates_are_certified_against_fresh_search(wave, mode):
+    model = d26.create_model([0., 20., 60.], kind='layer_cake',
         vs=[3., 3.5, 4.5], vp=[5.2, 6., 8.], rho=[2.5, 2.8, 3.3])
     periods = [8., 8.02, 8.04, 8.06]
     options = d26.Options(root_tolerance=1e-12)
     curve = d26.compute_dispersion_curve(model, periods=periods, wave=wave,
         mode=mode, options=options)
-    # Single PANCAKE solves have no history or coarse level: they still use
+    # Single LAYER_CAKE solves have no history or coarse level: they still use
     # the original integer-count bracket search, independently of this path.
     reference = [d26.compute_dispersion(model, period=p, wave=wave,
                  mode=mode, options=options) for p in periods]
@@ -42,7 +42,7 @@ def test_rayleigh_highest_branch_tracks_without_relabeling(name, method):
     depths = np.r_[0., np.cumsum(thicknesses)].tolist()
     fields = {key: [getattr(p, attr) for p in params] for key, attr in
               [('rho','rho'), ('A','c11'), ('C','c33'), ('F','c13'), ('L','c44'), ('N','c66')]}
-    model = d26.create_model(depths, kind='pancake', **fields)
+    model = d26.create_model(depths, kind='layer_cake', **fields)
     roots = dp.search_roots(layers, thicknesses, halfspace, np.pi, .05,
         .9995*np.sqrt(halfspace.c44/halfspace.rho), 4000, 'Rayleigh')
     assert len(roots) > 1

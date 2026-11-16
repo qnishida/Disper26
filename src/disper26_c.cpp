@@ -47,7 +47,7 @@ PhysicalParameters<double> unpack(const double* p) {
     out.rho=p[0]; out.c11=p[1]; out.c13=p[2]; out.c33=p[3]; out.c44=p[4]; out.c66=p[5];
     return out;
 }
-VelocityGridRefinement pancake(int n, const double* fields, const double* h, const double* hs) {
+VelocityGridRefinement layer_cake(int n, const double* fields, const double* h, const double* hs) {
     require(n >= 0 && (n == 0 || (fields && h)), "Invalid layer buffers");
     VelocityGridRefinement out;
     out.halfspace = unpack(hs);
@@ -66,7 +66,7 @@ int scalar_value(bool hv, int n, const double* fields, const double* h, const do
         const auto type = wave_type(wave);
         positive(omega, "omega must be finite and positive [rad/s]");
         positive(cp, "Phase velocity must be finite and positive");
-        const auto model = pancake(n, fields, h, hs);
+        const auto model = layer_cake(n, fields, h, hs);
         double result;
         if (!hv) {
             result = calculateGroupVelocityFullAD(model.layers, model.thicknesses,
@@ -156,7 +156,7 @@ extern "C" int disper26_search_roots(int n, const double* fields, const double* 
         const double step = (c_max-c_min)/n_search;
         require(step > 0 && c_min + step > c_min && c_max + step > c_max,
                 "Root scan step is too small to advance");
-        const auto model = pancake(n, fields, h, hs);
+        const auto model = layer_cake(n, fields, h, hs);
         auto function = [&](double cp) {
             return calculateDispersionPhaseValueDouble(model.layers, model.thicknesses,
                 model.halfspace, omega, cp, type);

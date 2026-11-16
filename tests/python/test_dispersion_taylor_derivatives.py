@@ -33,7 +33,7 @@ def table(reference=None):
             key = f"{wave}_{sign:+g}"
             velocity = (reference["cases"][key]["phase_velocity"]
                         if reference else root * (1.0 + sign * 1e-6))
-            kernels = dp.compute_kernels_ad_pancake(
+            kernels = dp.compute_kernels_ad_layer_cake(
                 layers, thicknesses, halfspace, omega, velocity, wave,
                 "Isotropic", True)
             result["cases"][key] = {

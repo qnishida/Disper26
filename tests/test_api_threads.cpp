@@ -47,8 +47,8 @@ int main() {
     const auto middle=api::create_isotropic_parameters(3.4,5.9,2.7);
     const auto lower=api::create_isotropic_parameters(3.8,6.5,2.9);
     const auto halfspace=api::create_isotropic_parameters(4.5,8.0,3.3);
-    const auto small=api::create_pancake_model({upper},{10.0},halfspace);
-    const auto large=api::create_pancake_model({upper,middle,lower},{5.0,8.0,10.0},halfspace);
+    const auto small=api::create_layer_cake_model({upper},{10.0},halfspace);
+    const auto large=api::create_layer_cake_model({upper,middle,lower},{5.0,8.0,10.0},halfspace);
     api::Options options;
     options.method="ad";
     std::vector<api::ModeSolution> solutions;

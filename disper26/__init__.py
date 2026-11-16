@@ -63,13 +63,15 @@ def create_model(depths: Sequence[float], *, kind: str,
                  F: Optional[Sequence[float]] = None, L: Optional[Sequence[float]] = None,
                  N: Optional[Sequence[float]] = None, interpolation: Optional[str] = None,
                  geometry: Optional[Geometry] = None, name: str = "") -> Model:
-    """Copy depth/material arrays into a Pancake or GRID model.
+    """Copy depth/material arrays into a Layer-cake or GRID model.
 
     Supply exactly one complete set: vs/vp/rho, vph/vpv/vsh/vsv/eta/rho,
     or A/C/F/L/N/rho. Every array is 1D and matches depths in length.
-    Pancake depths are strictly increasing layer tops; the last point starts
+    Layer-cake depths are strictly increasing layer tops; the last point starts
     the halfspace. GRID duplicate depths specify shallow/deep interface sides.
-    GRID requires interpolation='stiffness' or 'velocity'; Pancake forbids it.
+    GRID requires interpolation='stiffness' or 'velocity'; layer-cake forbids it.
+    Use kind="layer_cake" for new code. Legacy kind="pancake" remains accepted
+    and retains that spelling in Model.kind, including after transformations.
     """
     fields = {}
     for key, value in (("vs", vs), ("vp", vp), ("rho", rho), ("vph", vph),
@@ -86,10 +88,25 @@ def create_model(depths: Sequence[float], *, kind: str,
     return _api.create_model(depths, kind, fields, interpolation, geometry or Geometry(), name)
 
 
-def create_pancake_model(layers: Sequence[Material], thicknesses: Sequence[float],
+def create_layer_cake_model(layers: Sequence[Material], thicknesses: Sequence[float],
                          halfspace: Material, *, geometry: Optional[Geometry] = None,
                          name: str = "") -> Model:
     """Copy finite-layer materials/thicknesses and the explicit halfspace.
+
+    All thicknesses are in km. Changing input lists afterwards does not alter
+    the model. Geometry defaults to a flat model.
+    """
+    return _api.create_layer_cake_model(layers, thicknesses, halfspace,
+                                     geometry or Geometry(), name)
+
+
+def create_pancake_model(layers: Sequence[Material], thicknesses: Sequence[float],
+                         halfspace: Material, *, geometry: Optional[Geometry] = None,
+                         name: str = "") -> Model:
+    """Deprecated alias. Use create_layer_cake_model.
+
+    Retains kind="pancake" for legacy callers.
+    Copy finite-layer materials/thicknesses and the explicit halfspace.
 
     All thicknesses are in km. Changing input lists afterwards does not alter
     the model. Geometry defaults to a flat model.
@@ -155,7 +172,7 @@ def compute_dispersion_curve(model: Model, *, periods: Sequence[float], wave: st
     at selected solutions and GRID levels. Method="continuation_recover" counts
     during initialization at each level and recovery after failed local tracking;
     intermediate roots remain unverified. verify_mode=True verifies every root
-    in either method. Auto uses one startup group-velocity predictor on pancake.
+    in either method. Auto uses one startup group-velocity predictor on layer-cake models.
     GRID uses level 0 for all-point verification, or levels 0 and 1 otherwise;
     history disables this extra computation.
     """
@@ -269,7 +286,7 @@ __all__ = [
     "FrequencyCurvature", "GravityCorrection", "Capability", "Error", "ConvergenceWarning",
     "create_isotropic_parameters", "create_fluid_parameters", "create_velocity_vti_parameters",
     "DispersionContext", "create_dispersion_context",
-    "create_model", "create_pancake_model", "create_grid_model", "compute_dispersion", "compute_dispersion_curve", "compute_mode_count",
+    "create_model", "create_layer_cake_model", "create_pancake_model", "create_grid_model", "compute_dispersion", "compute_dispersion_curve", "compute_mode_count",
     "compute_kernels", "compute_hessian", "compute_hessian_reduced", "compute_interface_kernels",
     "compute_interface_hessian_row", "compute_eigenfunctions", "compute_energy_integrals",
     "compute_frequency_curvature", "compute_gravity_correction", "earth_flattening_transformation",

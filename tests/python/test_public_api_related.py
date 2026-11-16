@@ -40,11 +40,11 @@ class RelatedPublicAPI(unittest.TestCase):
     def setUpClass(cls):
         cls.layer = dp.create_isotropic_parameters(3.2, 5.8, 2.6)
         cls.halfspace = dp.create_isotropic_parameters(4.5, 8.1, 3.35)
-        cls.model = dp.create_pancake_model([cls.layer], [20.], cls.halfspace)
+        cls.model = dp.create_layer_cake_model([cls.layer], [20.], cls.halfspace)
         cls.raw_layer = legacy_material(cls.layer)
         cls.raw_halfspace = legacy_material(cls.halfspace)
         cls.fluid = dp.create_fluid_parameters(1.5, 1.03)
-        cls.ocean = dp.create_pancake_model([cls.fluid, cls.layer], [4., 20.], cls.halfspace)
+        cls.ocean = dp.create_layer_cake_model([cls.fluid, cls.layer], [4., 20.], cls.halfspace)
 
     def test_eigenfunctions_and_both_energy_methods_match_legacy(self):
         for wave in ("Rayleigh", "Love"):
@@ -113,7 +113,7 @@ class RelatedPublicAPI(unittest.TestCase):
         self.assertEqual(energy.phase_velocity, initial)  # Original level is zero.
         self.assertTrue(any("not extrapolated" in text for text in energy.diagnostics.messages))
 
-    def test_pancake_frequency_curvature_against_resolved_frequency_fd(self):
+    def test_layer_cake_frequency_curvature_against_resolved_frequency_fd(self):
         solution = dp.compute_dispersion(self.model, period=5.)
         result = dp.compute_frequency_curvature(solution)
         omega = 2 * math.pi / solution.period
@@ -135,12 +135,12 @@ class RelatedPublicAPI(unittest.TestCase):
         self.assertAlmostEqual(result.wavenumber_omega_second_derivative,
             -result.group_velocity_omega_derivative / result.group_velocity**2, places=13)
 
-    def test_eft_matches_legacy_and_transforms_pancake_halfspace_at_its_top(self):
+    def test_eft_matches_legacy_and_transforms_layer_cake_halfspace_at_its_top(self):
         for scheme, exponent, suffix in (("spherical_ba97", -2., ""),
                 ("spherical_experimental_density", 2.275, "_experimental_density")):
             with self.subTest(scheme=scheme):
                 geometry = dp.Geometry(scheme, flattening_exponent=exponent)
-                source = dp.create_pancake_model([self.layer], [20.],
+                source = dp.create_layer_cake_model([self.layer], [20.],
                     self.halfspace, geometry=geometry)
                 result = dp.earth_flattening_transformation(source)
                 layers, thicknesses = getattr(raw, "earth_flattening_transformation_layers" + suffix)(
@@ -227,9 +227,9 @@ class RelatedPublicAPI(unittest.TestCase):
         rows = capabilities(self.model)
         self.assertTrue(rows["frequency_curvature", "", "ad"].supported)
         self.assertTrue(rows["hessian", "stiffness", "ad"].supported)
-        large = dp.create_pancake_model([self.layer] * 13, [1.] * 13, self.halfspace)
+        large = dp.create_layer_cake_model([self.layer] * 13, [1.] * 13, self.halfspace)
         self.assertFalse(capabilities(large)["hessian", "stiffness", "ad"].supported)
-        liquid_halfspace = dp.create_pancake_model([self.fluid], [4.], self.fluid)
+        liquid_halfspace = dp.create_layer_cake_model([self.fluid], [4.], self.fluid)
         rows = capabilities(liquid_halfspace)
         self.assertFalse(rows["dispersion", "", "mode_order"].supported)
         self.assertIn("halfspace", rows["dispersion", "", "mode_order"].reason)

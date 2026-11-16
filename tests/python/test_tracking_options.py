@@ -7,7 +7,7 @@ import pytest
 import disper26 as d26
 
 
-def solid(kind='pancake', interpolation=None):
+def solid(kind='layer_cake', interpolation=None):
     fields = dict(vs=[3., 3.5, 4.5], vp=[5.2, 6., 8.], rho=[2.5, 2.8, 3.3])
     if interpolation:
         fields['interpolation'] = interpolation
@@ -21,7 +21,7 @@ def solve(model, periods, wave='Rayleigh', mode=0, context=None, **settings):
             options=d26.Options(max_steps=4, tolerance=1e-8, **settings), context=context)
 
 
-@pytest.mark.parametrize('kind,interpolation', [('pancake', None), ('grid', 'stiffness'), ('grid', 'velocity')])
+@pytest.mark.parametrize('kind,interpolation', [('layer_cake', None), ('grid', 'stiffness'), ('grid', 'velocity')])
 @pytest.mark.parametrize('wave', ['Rayleigh', 'Love'])
 @pytest.mark.parametrize('mode', [0, 1])
 def test_both_directions_match_fresh_mode_order(kind, interpolation, wave, mode):
@@ -111,7 +111,7 @@ def test_unchecked_range_has_no_number_guarantee_but_recovers_ambiguity():
 
 @pytest.mark.parametrize('start', ['short', 'long'])
 def test_cutoff_missing_periods_do_not_consume_initial_range(start):
-    model = d26.create_model([0., 10.], kind='pancake', vs=[3., 4.5], vp=[5.2, 8.], rho=[2.6, 3.3])
+    model = d26.create_model([0., 10.], kind='layer_cake', vs=[3., 4.5], vp=[5.2, 8.], rho=[2.6, 3.3])
     periods = [2., 3., 8., 10., 8.]
     seed_period = 2. if start == 'short' else 3.
     root = d26.compute_dispersion(model, period=seed_period, wave='Love', mode=1).phase_velocity
@@ -201,7 +201,7 @@ def test_ranges_cover_vti_fluid_and_low_velocity_models(name, start):
     parameters = layers+[halfspace]
     fields = {key: [getattr(p, attr) for p in parameters] for key, attr in
               [('rho', 'rho'), ('A', 'c11'), ('C', 'c33'), ('F', 'c13'), ('L', 'c44'), ('N', 'c66')]}
-    model = d26.create_model(np.r_[0., np.cumsum(thicknesses)], kind='pancake', **fields)
+    model = d26.create_model(np.r_[0., np.cumsum(thicknesses)], kind='layer_cake', **fields)
     periods = [1.999, 2., 2.001]
     checked = solve(model, periods, start=start, verify='every')
     seed = checked.phase_velocity[0 if start == 'short' else -1]
@@ -238,7 +238,7 @@ def test_range_from_previous_model_recovers_after_model_change(wave, mode, surfa
     periods = [8., 8.2, 8.4]
     previous = solve(solid(), periods, wave, mode, verify='every')
     seed = previous.phase_velocity[-1]
-    changed = d26.create_model([0., 20., 60.], kind='pancake',
+    changed = d26.create_model([0., 20., 60.], kind='layer_cake',
         vs=[surface_vs, 3.5, 4.5], vp=[5.2, 6., 8.], rho=[2.5, 2.8, 3.3])
     reference = solve(changed, periods, wave, mode, verify='every')
     reused = solve(changed, periods, wave, mode, verify='every', c_range=(seed-1e-5, seed+1e-5))
@@ -247,7 +247,7 @@ def test_range_from_previous_model_recovers_after_model_change(wave, mode, surfa
     assert all(s.diagnostics.mode_verified for s in reused.solutions)
 
 
-@pytest.mark.parametrize('kind,interpolation', [('pancake', None), ('grid', 'stiffness'), ('grid', 'velocity')])
+@pytest.mark.parametrize('kind,interpolation', [('layer_cake', None), ('grid', 'stiffness'), ('grid', 'velocity')])
 @pytest.mark.parametrize('start', ['short', 'long'])
 @pytest.mark.parametrize('settings', [dict(method='standard'), dict(method='mode_order'),
     dict(method='continuation', verify_mode=True), dict(verify='every')])
@@ -270,7 +270,7 @@ def test_checked_long_start_tangent_avoids_the_second_point_recovery():
     count = 64
     midpoint = (np.arange(count, dtype=float)+.5)/count
     vs = 2.5+1.5*midpoint
-    model = d26.create_model(np.linspace(0., 80., count+1), kind='pancake',
+    model = d26.create_model(np.linspace(0., 80., count+1), kind='layer_cake',
         vs=np.r_[vs, 4.5], vp=np.r_[1.75*vs, 8.], rho=np.r_[2.4+.7*midpoint, 3.3])
     periods = np.geomspace(2., 50., 64)
     automatic = solve(model, periods, start='long', verify='every', strict=True)

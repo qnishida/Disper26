@@ -68,19 +68,17 @@ def test_full_kernels():
     else:
         print("⚠ dHV/dp: some zero values")
     
-    return all_U_nonzero and all_HV_nonzero
+    assert all_U_nonzero, "Some dU/dp kernels are zero"
+    assert all_HV_nonzero, "Some dHV/dp kernels are zero"
 
 
 if __name__ == "__main__":
     try:
-        success = test_full_kernels()
+        test_full_kernels()
         print()
-        if success:
-            print("=" * 80)
-            print("ALL KERNELS COMPUTED SUCCESSFULLY!")
-            print("=" * 80)
-        else:
-            print("Some kernels returned zero - review implementation")
+        print("=" * 80)
+        print("ALL KERNELS COMPUTED SUCCESSFULLY!")
+        print("=" * 80)
     except Exception as e:
         print(f"\n*** TEST FAILED: {e} ***\n")
         import traceback

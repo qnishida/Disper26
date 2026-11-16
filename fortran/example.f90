@@ -20,7 +20,7 @@ program example
   call check_status()
   call compute_hv_ratio(layers,[10.0_c_double],halfspace,omega,c,'Rayleigh',hv,status,message)
   call check_status()
-  print *, 'Pancake c, U [km/s], H/V:',c,u,hv
+  print *, 'Layer-cake c, U [km/s], H/V:',c,u,hv
 
   depths=[0.0_c_double,10.0_c_double,30.0_c_double]
   rhos=[2.5_c_double,2.8_c_double,3.3_c_double]

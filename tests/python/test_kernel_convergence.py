@@ -13,7 +13,7 @@ import numpy as np
 def get_refined_model(base_depths, base_params, refinement_level):
     """
     Refine a model by subdividing each segment into 2^n parts.
-    Returns (layers, thicknesses) for PANCAKE-style calculation.
+    Returns (layers, thicknesses) for LAYER_CAKE-style calculation.
     """
     n_subdivisions = 2 ** refinement_level
     
@@ -93,7 +93,7 @@ def test_kernel_convergence():
         c = roots[0]
         
         # Compute kernels
-        kernels = dp.compute_kernels_ad_pancake(
+        kernels = dp.compute_kernels_ad_layer_cake(
             layers, thicknesses, halfspace, omega, c,
             wave_type="Rayleigh", sensitivity_mode="Isotropic"
         )

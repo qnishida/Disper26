@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     const auto b = create_isotropic_parameters(3.5, 6., 2.8);
     const auto h = create_isotropic_parameters(4.5, 8., 3.3);
     const std::vector<Model> models = {
-        create_pancake_model({a,b}, {10.,20.}, h),
+        create_layer_cake_model({a,b}, {10.,20.}, h),
         create_grid_model({0.,10.,30.}, {a,b,h}, "stiffness"),
         create_grid_model({0.,10.,30.}, {a,b,h}, "velocity")};
     std::cout << std::setprecision(17);

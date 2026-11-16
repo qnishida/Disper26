@@ -85,10 +85,10 @@ def main():
             mat, thickness, _ = g.mesh(m, level)
             rows = np.vstack([mat, m['materials'][-1]])
             rho, A, C, F, L, N = rows.T
-            pancake = api.create_model(np.r_[0., np.cumsum(thickness)], kind='pancake',
+            layer_cake = api.create_model(np.r_[0., np.cumsum(thickness)], kind='layer_cake',
                                        rho=rho, A=A, C=C, F=F, L=L, N=N)
             guess = guesses[level] if guesses is not None else (roots[-1] if roots else 3.8)
-            solution = api.compute_dispersion(pancake, period=1/frequency, mode=0,
+            solution = api.compute_dispersion(layer_cake, period=1/frequency, mode=0,
                 outputs=('phase_velocity', 'hv_ratio'),
                 options=api.Options(method='continuation', verify_mode=True,
                                     c_guess=float(guess), root_tolerance=1e-12))

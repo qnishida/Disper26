@@ -57,7 +57,6 @@ def test_node_kernels_basic():
     
     print()
     print("✓ Node kernels computed successfully!")
-    return True
 
 
 def test_kernel_convergence_by_level():
@@ -129,7 +128,6 @@ def test_kernel_convergence_by_level():
     
     print()
     print("✓ Kernel convergence test complete!")
-    return True
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ import disper26 as d26
 
 def run():
     model = d26.create_model(
-        [0., 20., 60.], kind="pancake",
+        [0., 20., 60.], kind="layer_cake",
         vs=[3., 3.5, 4.5], vp=[5.2, 6., 8.], rho=[2.5, 2.8, 3.3])
     return d26.compute_dispersion_curve(
         model, periods=[8., 8.2, 8.4, 8.6],

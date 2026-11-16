@@ -143,7 +143,7 @@ FrequencyCurvature compute_frequency_curvature(const ModeSolution& solution,
     out.diagnostics = detail::diagnostic("ad", options);
     out.diagnostics.mode_verified = true;
     const double omega = 2.0 * M_PI / data.period;
-    if (data.model.data().kind == "pancake") {
+    if (detail::is_layer_cake_kind(data.model.data().kind)) {
         const auto stack = detail::mesh(data.model, 0);
         const auto result = compute_frequency_curvature_ad_level(stack.layers,
             stack.thicknesses, stack.halfspace, omega, data.c, type);
@@ -261,10 +261,10 @@ Model apply_mineos_physical_dispersion(const Model& reference_model,
         "Q dispersion requires the uncorrected reference model, not a previously corrected model.");
     detail::require(std::isfinite(reference_period) && reference_period > 0.0 &&
         std::isfinite(period) && period > 0.0, "Reference and target periods must be positive and finite.");
-    const size_t expected = out.materials.size() + (out.kind == "pancake" ? 1 : 0);
+    const size_t expected = out.materials.size() + (detail::is_layer_cake_kind(out.kind) ? 1 : 0);
     detail::require(qkappa.size() == expected && qmu.size() == expected,
         "Q arrays must contain one value per material, including the halfspace "
-        "(the final node for GRID, one extra entry for Pancake).");
+        "(the final node for GRID, one extra entry for Layer-cake).");
     for (size_t index = 0; index < expected; ++index)
         detail::require(std::isfinite(qkappa[index]) && std::isfinite(qmu[index]),
             "Q values must be finite; nonpositive values retain the Mineos inverse-Q convention.");
@@ -272,7 +272,7 @@ Model apply_mineos_physical_dispersion(const Model& reference_model,
         out.materials[index] = detail::pack(py_applyMineosPhysicalDispersion(
             detail::unpack(out.materials[index]), qkappa[index], qmu[index],
             reference_period, period));
-    if (out.kind == "pancake")
+    if (detail::is_layer_cake_kind(out.kind))
         out.halfspace = detail::pack(py_applyMineosPhysicalDispersion(
             detail::unpack(out.halfspace), qkappa.back(), qmu.back(), reference_period, period));
     else
@@ -346,8 +346,8 @@ GravityCorrection compute_gravity_correction(const ModeSolution& solution,
     const auto& data = Access::solution(solution);
     if (data.wave != "Rayleigh")
         detail::unsupported("The gravity correction is applicable to Rayleigh waves only.");
-    if (data.model.data().kind != "pancake" || data.model.data().geometry.kind != "flat")
-        detail::unsupported("The adopted gravity correction requires a flat Pancake model.");
+    if (!detail::is_layer_cake_kind(data.model.data().kind) || data.model.data().geometry.kind != "flat")
+        detail::unsupported("The adopted gravity correction requires a flat Layer-cake model.");
     detail::require(std::isfinite(gravity) && gravity >= 0.0,
         "gravity must be a finite nonnegative magnitude in km/s^2");
     detail::require(region == "all" || region == "solid" || region == "fluid",

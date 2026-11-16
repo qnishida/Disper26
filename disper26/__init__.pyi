@@ -212,6 +212,9 @@ def create_model(depths: Sequence[float], *, kind: str,
                  N: Optional[Sequence[float]] = None, interpolation: Optional[str] = None,
                  geometry: Optional[Geometry] = None, name: str = "") -> Model: ...
 
+def create_layer_cake_model(layers: Sequence[Material], thicknesses: Sequence[float],
+                         halfspace: Material, *, geometry: Optional[Geometry] = ..., name: str = ...) -> Model: ...
+# Legacy constructor preserves kind="pancake".
 def create_pancake_model(layers: Sequence[Material], thicknesses: Sequence[float],
                          halfspace: Material, *, geometry: Optional[Geometry] = ..., name: str = ...) -> Model: ...
 def create_grid_model(depths: Sequence[float], materials: Optional[Sequence[Material]] = ..., *,

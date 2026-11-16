@@ -15,7 +15,7 @@
 
 `compute` のみ。`calculate` は退役（`compute` と意味差なし、`disper26.cpp` が古いだけ）。
 `debug_` は診断専用の接頭辞として `compute` の代わりに文頭へ立つ
-（例: `debug_hessian_variational_ad_love_pancake`）。`create_*`、`search_roots`、
+（例: `debug_hessian_variational_ad_love_layer_cake`）。`create_*`、`search_roots`、
 `apply_*`、`earth_flattening_*`、`get_*`、`eval_*`、`propagate_*` など、量の微分経路の
 区別と無関係な慣用動詞は本文法の対象外とし、§7 で個別に 据置 と判定する。
 
@@ -27,10 +27,10 @@
 | `dispersion_curve` | 単調な周期列に沿う位相速度cと収束・fallback診断の一括値 |
 | `group_velocity` / `hv_ratio` | U または H/V を単独で返す関数の量（`dispersion` の部分成分を単独公開する場合はこちらを使う） |
 | `frequency_curvature` | 実数分散branch上の dU/dω、d²k/dω²、および無次元曲率診断をまとめて返す値 |
-| `kernels` | ∂c/∂p の深さ分布（PANCAKE の層別、または GRID のノード別） |
+| `kernels` | ∂c/∂p の深さ分布（LAYER_CAKE の層別、または GRID のノード別） |
 | `gradient` | ∂c/∂p を組み上げたベクトル |
 | `hessian` | ∂²c/∂p² |
-| `interface_kernels` | 界面ごとの K_d（PANCAKE、生の境界カーネル） |
+| `interface_kernels` | 界面ごとの K_d（LAYER_CAKE、生の境界カーネル） |
 | `interface_gradient` | K_d を幾何重みで足し合わせた dc/dz（GRID、1階） |
 | `interface_hessian_row` | interface_gradient をもう1階微分した Hessian の行（GRID、2階）。C++ 側の「row」に統一し、Python 側の「column」呼称を退役させる（§5） |
 | `eigenfunctions` / `energy_integrals` / `mode_count` / `continuous_mode_count` | そのまま |
@@ -63,10 +63,9 @@ dispersion/group_velocity/hv_ratio/eigenfunctions/energy_integrals/mode_count �
 
 ### model
 
-`pancake` | `grid`。**両方明示**する。ただし model の区別自体が存在しない
+`layer_cake` | `grid`。**両方明示**する。ただし model の区別自体が存在しない
 関数（`kernels`/`hessian` 系以外の大半のユーティリティ）には付けない。
-`grid` の有無で PANCAKE を暗黙に表す現状をやめる（`Pancake` という語は現在
-`seedPancakeParamBlock` 1箇所にしか現れない）。
+`layer_cake` は一つのモデル種別を表す語として扱う。`grid` の省略で暗黙に表さない。
 
 ### variant
 
@@ -100,7 +99,7 @@ dispersion/group_velocity/hv_ratio/eigenfunctions/energy_integrals/mode_count �
 - `sensitivity_mode`（`bindings.cpp:3365`）/ `mode`（3283）/ `mode_str`（3484）/
   `parameter_mode`（3251）の4綴り → `sensitivity_mode` に統一。`wave_type_str`（3484）
   → `wave_type`（3283 に合わせる）。
-- **同一量 ∂c/∂p の4名**: `d_c`（PANCAKE 層別分布、`SensitivityKernel`）/
+- **同一量 ∂c/∂p の4名**: `d_c`（LAYER_CAKE 層別分布、`SensitivityKernel`）/
   `gradient` / `gradient_node`（組み上げたベクトル、`HessianResult` /
   `GridHessianReducedResult`）と役割で分け、出所は method 語彙の接尾辞で示す。
   Python 側の `g_a_kernel` / `g_a_hessian`（`inversion/disper26_inv/parallel.py:94,116`）
@@ -140,8 +139,15 @@ dispersion/group_velocity/hv_ratio/eigenfunctions/energy_integrals/mode_count �
 ### 共通公開APIの名前（2026-09）
 
 通常のモデル構築は `create_model(depths, kind=..., ...)` に統一する。
-`kind` は `pancake` / `grid`、物性は等方性・速度VTI・弾性定数の配列を一組だけ指定する。
-既存 `create_pancake_model` / `create_grid_model` は互換の構築入口として維持する。
+`kind` は `layer_cake` / `grid`、物性は等方性・速度VTI・弾性定数の配列を一組だけ指定する。
+オブジェクト入力は `create_layer_cake_model` / `create_grid_model` を使う。
+
+`pancake` は legacy 名として維持する。旧関数名・引数・既定値は呼び出し可能なまま残し、
+新規コードと文書では `layer_cake` を使う。新たな実行時警告や削除期限は設けない。
+`kind="layer_cake"` と `create_layer_cake_model` はモデル種別 `"layer_cake"` を返す。
+`kind="pancake"` と `create_pancake_model` は従来どおり `"pancake"` を返す。
+この表記は解に保持されるモデル、平坦化、Q 補正、C/Fortran のモデル情報でも保持する。
+計算経路は共通とし、種別判定は両方の文字列を受け付ける。
 
 `disper26` / `disper26::api` / `disper26_api` の型付き入口では、モデルと波種は
 `Model` / `ModeSolution` が保持し、計算法は `Options.method` が指定する。

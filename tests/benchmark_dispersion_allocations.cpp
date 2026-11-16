@@ -30,7 +30,7 @@ int main() {
     const auto a=create_isotropic_parameters(3.,5.2,2.5);
     const auto b=create_isotropic_parameters(3.5,6.,2.8);
     const auto h=create_isotropic_parameters(4.5,8.,3.3);
-    const std::vector<Model> models={create_pancake_model({a,b},{20.,40.},h),
+    const std::vector<Model> models={create_layer_cake_model({a,b},{20.,40.},h),
         create_grid_model({0.,20.,60.},{a,b,h},"stiffness"),
         create_grid_model({0.,20.,60.},{a,b,h},"velocity")};
     Options o; o.max_steps=4;o.tolerance=1e-8;

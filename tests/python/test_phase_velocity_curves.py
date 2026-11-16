@@ -19,7 +19,7 @@ for build_lib in sorted((ROOT / "build").glob("lib.*")):
 import disper26py as dp  # noqa: E402
 
 
-def pancake_model():
+def layer_cake_model():
     layers = [
         dp.create_isotropic_parameters(3.15, 5.70, 2.60),
         dp.create_isotropic_parameters(3.55, 6.25, 2.78),
@@ -109,11 +109,11 @@ def batch_grid_curve(model, periods, wave, max_steps, c_guess=3.8, branch=None):
     )
 
 
-def test_pancake_curve_matches_tight_roots_and_branch():
-    layers, thicknesses, halfspace = pancake_model()
+def test_layer_cake_curve_matches_tight_roots_and_branch():
+    layers, thicknesses, halfspace = layer_cake_model()
     periods = [5.0, 6.0, 7.5, 10.0, 15.0, 25.0, 40.0]
     for wave in ("Rayleigh", "Love"):
-        curve = dp.compute_dispersion_curve_pancake(
+        curve = dp.compute_dispersion_curve_layer_cake(
             layers, thicknesses, halfspace, periods, wave,
             branch=0, c_min=2.0, c_max=4.5,
             scan_points=1600, root_tolerance=1.0e-12,
@@ -133,7 +133,7 @@ def test_pancake_curve_matches_tight_roots_and_branch():
                 layers, thicknesses, halfspace, omega, root, wave
             ) == 0
 
-        verified = dp.compute_dispersion_curve_pancake(
+        verified = dp.compute_dispersion_curve_layer_cake(
             layers, thicknesses, halfspace, periods, wave,
             branch=0, c_min=2.0, c_max=4.5,
             scan_points=1600, root_tolerance=1.0e-12,
@@ -145,7 +145,7 @@ def test_pancake_curve_matches_tight_roots_and_branch():
         )
 
         overtone_periods = [5.0, 6.0, 7.0, 8.0, 10.0]
-        overtone = dp.compute_dispersion_curve_pancake(
+        overtone = dp.compute_dispersion_curve_layer_cake(
             layers, thicknesses, halfspace, overtone_periods, wave,
             branch=1, c_min=2.0, c_max=4.5,
             scan_points=1600, root_tolerance=1.0e-12,
@@ -287,7 +287,7 @@ def test_curve_validation_and_gil_release():
     else:
         raise AssertionError("non-monotonic periods were accepted")
 
-    layers, thicknesses, halfspace = pancake_model()
+    layers, thicknesses, halfspace = layer_cake_model()
     running = True
     counter = 0
     started = threading.Event()
@@ -302,7 +302,7 @@ def test_curve_validation_and_gil_release():
     worker.start()
     started.wait()
     before = counter
-    dp.compute_dispersion_curve_pancake(
+    dp.compute_dispersion_curve_layer_cake(
         layers, thicknesses, halfspace, [10.0], "Rayleigh",
         branch=0, c_min=2.0, c_max=4.5, scan_points=100000,
     )
@@ -313,7 +313,7 @@ def test_curve_validation_and_gil_release():
 
 
 if __name__ == "__main__":
-    test_pancake_curve_matches_tight_roots_and_branch()
+    test_layer_cake_curve_matches_tight_roots_and_branch()
     test_grid_curve_matches_scalar_and_reduces_evaluations()
     test_grid_curve_perturbations_and_mode_order()
     test_grid_curve_vti_discontinuity_short_love_and_ocean()

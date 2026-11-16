@@ -45,7 +45,7 @@ int main() {
     namespace api=disper26::api;
     const auto low=api::create_isotropic_parameters(3.,5.2,2.5);
     const auto high=api::create_isotropic_parameters(4.5,8.,3.3);
-    const auto model=api::create_pancake_model({low},{60.},high);
+    const auto model=api::create_layer_cake_model({low},{60.},high);
     const auto first=api::compute_dispersion(model,8.,"Rayleigh",1);
     auto data=api::Access::solution(first);
     data.mode=0; // Deliberately label an adjacent-mode root with the wrong index.

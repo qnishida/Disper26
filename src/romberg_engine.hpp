@@ -19,8 +19,9 @@ enum class WaveType;
 
 // --- Enum Definitions ---
 enum class ModelInterpolation {
-    PANCAKE, // Staircase approximation (use input layers as-is)
-    GRID     // Grid mode (linear interpolation + discontinuity handling + Romberg)
+    LAYER_CAKE = 0, // Staircase approximation (use input layers as-is)
+    PANCAKE = LAYER_CAKE, // Legacy alias.
+    GRID = 1 // Grid mode (linear interpolation + discontinuity handling + Romberg)
 };
 
 // --- Grid Model Input Structure ---

@@ -6,7 +6,7 @@ def run():
     # Depths: km; velocities: km/s; densities: g/cm^3.
     # The last point starts the halfspace.
     model = d26.create_model(
-        [0.0, 10.0], kind="pancake",
+        [0.0, 10.0], kind="layer_cake",
         vs=[3.0, 4.5], vp=[5.2, 8.0], rho=[2.5, 3.3],
     )
     periods = [2.0, 3.0, 5.0, 8.0, 12.0, 20.0]

@@ -204,6 +204,13 @@ int d26_api_create_velocity_vti_parameters(double rho,double vph,double vpv,doub
     d26_api_material* out,char* msg,size_t cap) {
     return guard(msg,cap,[&]{require(out,"NULL material output"); *out=material(api::create_velocity_vti_parameters(rho,vph,vpv,vsh,vsv,eta));});
 }
+int d26_api_create_layer_cake_model(size_t n,const d26_api_material* layers,const double* thicknesses,
+    const d26_api_material* halfspace,const d26_api_geometry* geo,const char* name,d26_api_model** out,char* msg,size_t cap) {
+    if(out) *out=nullptr;
+    return guard(msg,cap,[&]{prepare(out); require(halfspace,"NULL halfspace");
+        auto r=std::make_unique<d26_api_model>(); r->value=api::create_layer_cake_model(materials(layers,n),copy_array(thicknesses,n),material(*halfspace),geometry(geo),text(name)); *out=r.release();});
+}
+// Deprecated alias; preserves the original model metadata.
 int d26_api_create_pancake_model(size_t n,const d26_api_material* layers,const double* thicknesses,
     const d26_api_material* halfspace,const d26_api_geometry* geo,const char* name,d26_api_model** out,char* msg,size_t cap) {
     if(out) *out=nullptr;

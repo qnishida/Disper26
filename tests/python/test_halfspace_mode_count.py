@@ -97,7 +97,7 @@ def test_counts_match_independent_secular_scan(name, layers, thicknesses, halfsp
 
 
 @pytest.mark.parametrize("kind,interpolation,depths", [
-    ("pancake", None, [0.]), ("pancake", None, [0., 10.]),
+    ("layer_cake", None, [0.]), ("layer_cake", None, [0., 10.]),
     ("grid", "stiffness", [0., 10.]), ("grid", "velocity", [0., 10.]),
 ])
 def test_public_mode_order_solver_on_homogeneous_medium(kind, interpolation, depths):
@@ -128,11 +128,11 @@ def test_debug_separates_initial_contribution_from_depth_crossings():
 @pytest.mark.parametrize("ocean", [False, True])
 def test_public_solver_retains_highest_supra_rayleigh_mode(ocean):
     if ocean:
-        model = api.create_model([0., 3., 15.], kind="pancake", vs=[0., 2.2, 3.],
+        model = api.create_model([0., 3., 15.], kind="layer_cake", vs=[0., 2.2, 3.],
                                  vp=[1.5, 3.8, 5.2], rho=[1.03, 2.5, 2.7])
         name = "ocean"
     else:
-        model = api.create_model([0., 2., 7., 15.], kind="pancake", vs=[1., 1.5, 2.2, 3.],
+        model = api.create_model([0., 2., 7., 15.], kind="layer_cake", vs=[1., 1.5, 2.2, 3.],
                                  vp=[1.73, 2.6, 3.8, 5.2], rho=[2., 2.2, 2.5, 2.7])
         name = "solid"
     _, layers, ds, h = next(x for x in comparison_models() if x[0] == name)

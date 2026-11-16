@@ -56,7 +56,7 @@ program test_fortran_interface
       call success()
       call close_value(hv,ref_hv)
     end do
-    print *, 'Pancake reference passed:',scenario,count
+    print *, 'Layer-cake reference passed:',scenario,count
   end do
 
   do scenario=1,6

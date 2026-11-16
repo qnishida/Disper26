@@ -74,7 +74,6 @@ def test_basic_romberg():
     assert -10 < HV < 0, f"Signed H/V ratio {HV} out of reasonable range"
     
     print("✓ All basic sanity checks passed!")
-    return True
 
 
 def test_discontinuity():
@@ -128,7 +127,6 @@ def test_discontinuity():
     
     assert 3.0 < c < 5.0, f"Phase velocity {c} out of reasonable range"
     print("✓ Discontinuity test passed!")
-    return True
 
 
 if __name__ == "__main__":

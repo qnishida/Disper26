@@ -20,10 +20,10 @@ def multilayer_model(anisotropic=False):
     vp = np.linspace(5.2, 8., 4)
     rho = np.linspace(2.5, 3.3, 4)
     if anisotropic:
-        return d26.create_model(depths, kind="pancake", rho=rho,
+        return d26.create_model(depths, kind="layer_cake", rho=rho,
                                 vsv=vs, vsh=1.07 * vs, vpv=vp,
                                 vph=1.03 * vp, eta=np.full(4, 0.95))
-    return d26.create_model(depths, kind="pancake", vs=vs, vp=vp, rho=rho)
+    return d26.create_model(depths, kind="layer_cake", vs=vs, vp=vp, rho=rho)
 
 
 class LoveEnergyIntegrals(unittest.TestCase):

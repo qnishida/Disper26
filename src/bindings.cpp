@@ -295,7 +295,7 @@ py::dict phase_velocity_curve_result_to_dict(
     return out;
 }
 
-py::dict py_computeDispersionCurvePancake(
+py::dict py_computeDispersionCurveLayerCake(
     const std::vector<PhysicalParameters<double>>& layers,
     const std::vector<double>& thicknesses,
     const PhysicalParameters<double>& halfspace,
@@ -311,7 +311,7 @@ py::dict py_computeDispersionCurvePancake(
     PhaseVelocityCurveResult result;
     {
         py::gil_scoped_release release;
-        result = compute_dispersion_curve_pancake_impl(
+        result = compute_dispersion_curve_layer_cake_impl(
             layers, thicknesses, halfspace, periods,
             parseWaveType(wave_type_str), branch, c_min, c_max,
             scan_points, root_tolerance, verify_branch);
@@ -763,7 +763,7 @@ py::array_t<std::complex<double>> py_compute_state_at_depth(
     double omega,
     double phaseVelocity,
     const std::string& wave_type,
-    const std::string& mode, // "GRID" or "PANCAKE"
+    const std::string& mode, // "GRID" or "LAYER_CAKE"
     int max_depth,
     double tolerance
 ) {
@@ -792,7 +792,7 @@ py::array_t<std::complex<double>> py_evaluate_global_state(
     double omega,
     double phaseVelocity,
     const std::string& wave_type,
-    const std::string& mode, // "GRID" or "PANCAKE"
+    const std::string& mode, // "GRID" or "LAYER_CAKE"
     int max_depth,
     double tolerance
 ) {
@@ -1706,9 +1706,10 @@ PYBIND11_MODULE(disper26py, m) {
     m.def("calculate_dispersion_value", &py_calculateDispersionValue,
           "Deprecated alias. Use compute_dispersion_value.");
     m.def("search_roots", &py_searchRoots);
-    m.def("compute_kernels_fd_pancake", &py_computeSensitivityFD, py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"), py::arg("omega"), py::arg("phase_velocity"), py::arg("wave_type") = "Rayleigh", py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false);
+    m.def("compute_kernels_fd_layer_cake", &py_computeSensitivityFD, py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"), py::arg("omega"), py::arg("phase_velocity"), py::arg("wave_type") = "Rayleigh", py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false);
+    m.def("compute_kernels_fd_pancake", &py_computeSensitivityFD, py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"), py::arg("omega"), py::arg("phase_velocity"), py::arg("wave_type") = "Rayleigh", py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false, "Deprecated alias. Use compute_kernels_fd_layer_cake.\n");
     m.def("compute_sensitivity_kernels_fd", &py_computeSensitivityFD, py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"), py::arg("omega"), py::arg("phase_velocity"), py::arg("wave_type") = "Rayleigh", py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false,
-          "Deprecated alias. Use compute_kernels_fd_pancake.");
+          "Deprecated alias. Use compute_kernels_fd_layer_cake.");
     m.def("get_rayleigh_minors", &py_getRayleighMinors);
     m.def("compute_group_velocity_ad", &py_calculateGroupVelocityFullAD);
     m.def("calculate_group_velocity", &py_calculateGroupVelocity,
@@ -1729,7 +1730,7 @@ PYBIND11_MODULE(disper26py, m) {
     m.def("earth_flattening_transformation_layers", &py_earthFlatteningLayers,
           py::arg("layers_spherical"), py::arg("spherical_thicknesses"),
           py::arg("planet_radius"), py::arg("flattening_exponent") = -2.0,
-          "Transform a spherical layer/pancake model to a flat layer model using inverse Bhattacharya-Arora P-SV scaling: solid elastic moduli scale as (r/R)^(-p), solid density as (r/R)^(2-p); fluid density is fixed and fluid C scales as (r/R)^(-2).");
+          "Transform a spherical layer/layer_cake model to a flat layer model using inverse Bhattacharya-Arora P-SV scaling: solid elastic moduli scale as (r/R)^(-p), solid density as (r/R)^(2-p); fluid density is fixed and fluid C scales as (r/R)^(-2).");
     m.def("earth_flattening_transformation_grid", &py_earthFlatteningGrid,
           py::arg("depths_spherical"), py::arg("params_spherical"), py::arg("is_discontinuity"),
           py::arg("planet_radius"), py::arg("flattening_exponent") = -2.0,
@@ -1742,21 +1743,44 @@ PYBIND11_MODULE(disper26py, m) {
           py::arg("depths_spherical"), py::arg("params_spherical"), py::arg("is_discontinuity"),
           py::arg("planet_radius"), py::arg("density_exponent") = 2.275,
           "Experimental legacy EFT for grid models: velocity scales as R/r, density as (r/R)^p, and elastic moduli follow rho*v^2.");
+    m.def("compute_kernels_ad_layer_cake", &py_computeSensitivityFullAD,
+          py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
+          py::arg("omega"), py::arg("phase_velocity"),
+          py::arg("wave_type") = "Rayleigh", py::arg("sensitivity_mode") = "Isotropic",
+          py::arg("compute_thickness") = false,
+          "LAYER_CAKE-mode sensitivity kernels (dc/dp, dU/dp, dHV/dp) on the given fixed layers via full "
+          "(nested) AD through the propagator. Returns list[SensitivityKernel]. No Romberg extrapolation "
+          "(fixed mesh). For the GRID/node-based version see compute_kernels_ad_grid; "
+          "for the faster variational layer_cake version see compute_kernels_variational_layer_cake.");
     m.def("compute_kernels_ad_pancake", &py_computeSensitivityFullAD,
           py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
           py::arg("omega"), py::arg("phase_velocity"),
           py::arg("wave_type") = "Rayleigh", py::arg("sensitivity_mode") = "Isotropic",
           py::arg("compute_thickness") = false,
-          "PANCAKE-mode sensitivity kernels (dc/dp, dU/dp, dHV/dp) on the given fixed layers via full "
+          "Deprecated alias. Use compute_kernels_ad_layer_cake.\n"
+          "LAYER_CAKE-mode sensitivity kernels (dc/dp, dU/dp, dHV/dp) on the given fixed layers via full "
           "(nested) AD through the propagator. Returns list[SensitivityKernel]. No Romberg extrapolation "
           "(fixed mesh). For the GRID/node-based version see compute_kernels_ad_grid; "
-          "for the faster variational pancake version see compute_kernels_variational_pancake.");
+          "for the faster variational layer_cake version see compute_kernels_variational_layer_cake.");
     m.def("compute_sensitivity_kernels_full_ad", &py_computeSensitivityFullAD,
           py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
           py::arg("omega"), py::arg("phase_velocity"),
           py::arg("wave_type") = "Rayleigh", py::arg("sensitivity_mode") = "Isotropic",
           py::arg("compute_thickness") = false,
-          "Deprecated alias. Use compute_kernels_ad_pancake.");
+          "Deprecated alias. Use compute_kernels_ad_layer_cake.");
+    m.def("compute_kernels_variational_layer_cake", &py_computeSensitivityWeakForm,
+          py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
+          py::arg("omega"), py::arg("phase_velocity"),
+          py::arg("wave_type") = "Rayleigh", py::arg("sensitivity_mode") = "Isotropic",
+          py::arg("compute_thickness") = false,
+          py::arg("num_sub_layers") = 10, py::arg("use_analytical") = false,
+          py::arg("u_kernel_mode") = "variational_frequency_ad",
+          py::arg("compute_c") = true, py::arg("want_kernel_u") = true,
+          py::arg("want_kernel_hv") = true,
+          "Variational (weak-form) sensitivity kernels: dc/dp from the frozen-displacement "
+          "variational gradient. dU/dp uses a width-1 frequency derivative of the phase "
+          "variational kernel by default; u_kernel_mode='variational' retains the per-parameter "
+          "energy-integral AD path. The target switches zero unrequested kernel fields.");
     m.def("compute_kernels_variational_pancake", &py_computeSensitivityWeakForm,
           py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
           py::arg("omega"), py::arg("phase_velocity"),
@@ -1766,6 +1790,7 @@ PYBIND11_MODULE(disper26py, m) {
           py::arg("u_kernel_mode") = "variational_frequency_ad",
           py::arg("compute_c") = true, py::arg("want_kernel_u") = true,
           py::arg("want_kernel_hv") = true,
+          "Deprecated alias. Use compute_kernels_variational_layer_cake.\n"
           "Variational (weak-form) sensitivity kernels: dc/dp from the frozen-displacement "
           "variational gradient. dU/dp uses a width-1 frequency derivative of the phase "
           "variational kernel by default; u_kernel_mode='variational' retains the per-parameter "
@@ -1779,7 +1804,7 @@ PYBIND11_MODULE(disper26py, m) {
           py::arg("u_kernel_mode") = "variational_frequency_ad",
           py::arg("compute_c") = true, py::arg("want_kernel_u") = true,
           py::arg("want_kernel_hv") = true,
-          "Deprecated alias. Use compute_kernels_variational_pancake.");
+          "Deprecated alias. Use compute_kernels_variational_layer_cake.");
     m.def("calculate_group_velocity_full_ad", &py_calculateGroupVelocityFullAD,
           "Deprecated alias. Use compute_group_velocity_ad.");
     m.def("get_dispersion_eval_counts", []() {
@@ -1895,14 +1920,28 @@ PYBIND11_MODULE(disper26py, m) {
           py::arg("flattening_exponent") = std::numeric_limits<double>::quiet_NaN(),
           "Velocity-basis (rho,Vph,Vpv,Vsh,Vsv,eta) GRID dispersion (no kernels). "
           "Returns (c, U, HV, level, rel_err). See compute_dispersion_romberg.");
-    m.def("compute_dispersion_curve_pancake", &py_computeDispersionCurvePancake,
+    m.def("compute_dispersion_curve_layer_cake", &py_computeDispersionCurveLayerCake,
           py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
           py::arg("periods"), py::arg("wave_type") = "Rayleigh",
           py::arg("branch") = 0, py::arg("c_min") = 0.1,
           py::arg("c_max") = 4.5, py::arg("scan_points") = 2400,
           py::arg("root_tolerance") = 1e-12,
           py::arg("verify_branch") = false,
-          "Compute a strictly monotonic PANCAKE phase-velocity period curve "
+          "Compute a strictly monotonic LAYER_CAKE phase-velocity period curve "
+          "inside one C++ call. Roots are ordered by increasing phase "
+          "velocity at the initial/fallback scan. Continuation uses a local "
+          "predicted bracket and falls back to the full scan. "
+          "verify_branch=True confirms predicted roots with the integer mode "
+          "counter at additional cost. Returns a diagnostic dict.");
+    m.def("compute_dispersion_curve_pancake", &py_computeDispersionCurveLayerCake,
+          py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
+          py::arg("periods"), py::arg("wave_type") = "Rayleigh",
+          py::arg("branch") = 0, py::arg("c_min") = 0.1,
+          py::arg("c_max") = 4.5, py::arg("scan_points") = 2400,
+          py::arg("root_tolerance") = 1e-12,
+          py::arg("verify_branch") = false,
+          "Deprecated alias. Use compute_dispersion_curve_layer_cake.\n"
+          "Compute a strictly monotonic LAYER_CAKE phase-velocity period curve "
           "inside one C++ call. Roots are ordered by increasing phase "
           "velocity at the initial/fallback scan. Continuation uses a local "
           "predicted bracket and falls back to the full scan. "
@@ -2063,10 +2102,24 @@ PYBIND11_MODULE(disper26py, m) {
           py::arg("phase_velocity_roots") = py::none(),
           py::arg("phase_accepted_level") = -1,
           "Deprecated alias. Use compute_interface_hessian_row_ad_grid.");
+    m.def("compute_interface_kernels_variational_rayleigh_layer_cake", &py_computeBoundaryKernelsRayleigh,
+          py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
+          py::arg("omega"), py::arg("phase_velocity"),
+          py::arg("use_analytical") = false,
+          "Variational boundary kernel [K_d]_b for every stack boundary.\n"
+          "Returns N values for N layers: entry b-1 is the jump at the boundary between\n"
+          "layer b-1 and layer b (the last one being layer N-1 against the halfspace).\n"
+          "These are per-boundary quantities; a geometric derivative is\n"
+          "  dc/dq = sum_b [K_d]_b * dz_b/dq,\n"
+          "and the weights dz_b/dq are what distinguish an interface-depth derivative\n"
+          "from a layer-thickness one, so they are left to the caller.\n"
+          "Formulation: docs/depth_sensitivity_kernels.tex, sections 'The variational\n"
+          "boundary kernel K_d' and 'K_d must be summed over every boundary that moves'.");
     m.def("compute_interface_kernels_variational_rayleigh_pancake", &py_computeBoundaryKernelsRayleigh,
           py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
           py::arg("omega"), py::arg("phase_velocity"),
           py::arg("use_analytical") = false,
+          "Deprecated alias. Use compute_interface_kernels_variational_rayleigh_layer_cake.\n"
           "Variational boundary kernel [K_d]_b for every stack boundary.\n"
           "Returns N values for N layers: entry b-1 is the jump at the boundary between\n"
           "layer b-1 and layer b (the last one being layer N-1 against the halfspace).\n"
@@ -2080,7 +2133,7 @@ PYBIND11_MODULE(disper26py, m) {
           py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
           py::arg("omega"), py::arg("phase_velocity"),
           py::arg("use_analytical") = false,
-          "Deprecated alias. Use compute_interface_kernels_variational_rayleigh_pancake.");
+          "Deprecated alias. Use compute_interface_kernels_variational_rayleigh_layer_cake.");
     m.def("compute_interface_hessian_row_variational_ad_grid",
           &py_computeInterfaceHessianRowVariational,
           py::arg("depths"), py::arg("params"), py::arg("is_discontinuity"),
@@ -2155,18 +2208,27 @@ PYBIND11_MODULE(disper26py, m) {
           py::arg("phase_velocity_roots") = py::none(),
           py::arg("phase_accepted_level") = -1,
           "Deprecated alias. Use compute_interface_hessian_row_variational_ad_grid_extrapolated.");
-    m.def("compute_interface_kernels_variational_love_pancake", &py_computeBoundaryKernelsLove,
+    m.def("compute_interface_kernels_variational_love_layer_cake", &py_computeBoundaryKernelsLove,
           py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
           py::arg("omega"), py::arg("phase_velocity"),
           "Love variational boundary kernel [K_d]_b, one jump per stack boundary.\n"
-          "Same contract as compute_interface_kernels_variational_rayleigh_pancake: weights are the caller's.\n"
+          "Same contract as compute_interface_kernels_variational_rayleigh_layer_cake: weights are the caller's.\n"
+          "K_d = -Lambda (rho w^2 y1^2 + y2^2/L - k^2 N y1^2) with y1=u_y, y2=tau_yz.\n"
+          "The PLUS on y2^2/L is the spatial-Hamiltonian form; the Lagrangian density\n"
+          "T - V has a minus there and near-cancels, suppressing Love by ~50x.");
+    m.def("compute_interface_kernels_variational_love_pancake", &py_computeBoundaryKernelsLove,
+          py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
+          py::arg("omega"), py::arg("phase_velocity"),
+          "Deprecated alias. Use compute_interface_kernels_variational_love_layer_cake.\n"
+          "Love variational boundary kernel [K_d]_b, one jump per stack boundary.\n"
+          "Same contract as compute_interface_kernels_variational_rayleigh_layer_cake: weights are the caller's.\n"
           "K_d = -Lambda (rho w^2 y1^2 + y2^2/L - k^2 N y1^2) with y1=u_y, y2=tau_yz.\n"
           "The PLUS on y2^2/L is the spatial-Hamiltonian form; the Lagrangian density\n"
           "T - V has a minus there and near-cancels, suppressing Love by ~50x.");
     m.def("compute_boundary_kernels_love", &py_computeBoundaryKernelsLove,
           py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
           py::arg("omega"), py::arg("phase_velocity"),
-          "Deprecated alias. Use compute_interface_kernels_variational_love_pancake.");
+          "Deprecated alias. Use compute_interface_kernels_variational_love_layer_cake.");
     m.def("compute_eigenfunctions_rayleigh", &py_computeRayleighEigenfunctions);
     m.def("compute_rayleigh_eigenfunctions", &py_computeRayleighEigenfunctions,
           "Deprecated alias. Use compute_eigenfunctions_rayleigh.");
@@ -2180,15 +2242,19 @@ PYBIND11_MODULE(disper26py, m) {
     m.def("compute_energy_integrals_analytical_love", &py_computeLoveEnergyIntegrals_Analytical);
     m.def("compute_love_energy_integrals_analytical", &py_computeLoveEnergyIntegrals_Analytical,
           "Deprecated alias. Use compute_energy_integrals_analytical_love.");
-    m.def("debug_kernels_variational_rayleigh_pancake", &py_debugRayleighWeakformTrace,
+    m.def("debug_kernels_variational_rayleigh_layer_cake", &py_debugRayleighWeakformTrace,
           py::arg("layers"), py::arg("thicknesses"), py::arg("halfspace"),
           py::arg("omega"), py::arg("phase_velocity"),
           py::arg("num_sub_layers") = 10, py::arg("use_analytical") = false);
+    m.def("debug_kernels_variational_rayleigh_pancake", &py_debugRayleighWeakformTrace,
+          py::arg("layers"), py::arg("thicknesses"), py::arg("halfspace"),
+          py::arg("omega"), py::arg("phase_velocity"),
+          py::arg("num_sub_layers") = 10, py::arg("use_analytical") = false, "Deprecated alias. Use debug_kernels_variational_rayleigh_layer_cake.\n");
     m.def("debug_rayleigh_weakform_trace", &py_debugRayleighWeakformTrace,
           py::arg("layers"), py::arg("thicknesses"), py::arg("halfspace"),
           py::arg("omega"), py::arg("phase_velocity"),
           py::arg("num_sub_layers") = 10, py::arg("use_analytical") = false,
-          "Deprecated alias. Use debug_kernels_variational_rayleigh_pancake.");
+          "Deprecated alias. Use debug_kernels_variational_rayleigh_layer_cake.");
     m.def("integrate_grid_layer_quadrature", &py_integrateGridLayer_Romberg,
           py::arg("y_top"), py::arg("p_top"), py::arg("p_bot"), py::arg("thickness"),
           py::arg("omega"), py::arg("phase_velocity"), py::arg("wave_type"),
@@ -2207,12 +2273,20 @@ PYBIND11_MODULE(disper26py, m) {
     m.def("eval_global_state", &py_evaluate_global_state);
 
     // Hessian API
+    m.def("compute_hessian_ad_layer_cake", &py_computePhaseVelocityHessianFullAD,
+          py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
+          py::arg("wave_type"), py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false,
+          "LAYER_CAKE-mode full-AD Hessian d2c/dp2 via nested second-order AD (HessianAD<N>, O(L*N^2)). "
+          "Fixed mesh (no Romberg). For the lighter weak-form version see "
+          "compute_hessian_variational_ad_rayleigh_layer_cake/_love; for GRID see the *_grid variants. "
+          "See docs/sensitivity_implementation_map.md.");
     m.def("compute_hessian_ad_pancake", &py_computePhaseVelocityHessianFullAD,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("wave_type"), py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false,
-          "PANCAKE-mode full-AD Hessian d2c/dp2 via nested second-order AD (HessianAD<N>, O(L*N^2)). "
+          "Deprecated alias. Use compute_hessian_ad_layer_cake.\n"
+          "LAYER_CAKE-mode full-AD Hessian d2c/dp2 via nested second-order AD (HessianAD<N>, O(L*N^2)). "
           "Fixed mesh (no Romberg). For the lighter weak-form version see "
-          "compute_hessian_variational_ad_rayleigh_pancake/_love; for GRID see the *_grid variants. "
+          "compute_hessian_variational_ad_rayleigh_layer_cake/_love; for GRID see the *_grid variants. "
           "See docs/sensitivity_implementation_map.md.");
     m.def("compute_hessian_ad_grid", &py_computePhaseVelocityHessianGridFullAD,
           py::arg("depths"), py::arg("params"), py::arg("is_discontinuity"),
@@ -2229,89 +2303,122 @@ PYBIND11_MODULE(disper26py, m) {
     m.def("compute_phase_velocity_hessian", &py_computePhaseVelocityHessian,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("wave_type"), py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false,
-          "Deprecated alias. Use compute_hessian_ad_pancake.");
+          "Deprecated alias. Use compute_hessian_ad_layer_cake.");
     m.def("compute_phase_velocity_hessian_full_ad", &py_computePhaseVelocityHessianFullAD,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("wave_type"), py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false,
-          "Deprecated alias. Use compute_hessian_ad_pancake.");
+          "Deprecated alias. Use compute_hessian_ad_layer_cake.");
     m.def("compute_phase_velocity_hessian_reference", &py_computePhaseVelocityHessianRef,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("wave_type"), py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false,
-          "Deprecated alias. Use compute_hessian_ad_pancake.");
-    m.def("compute_hessian_variational_fd_love_pancake", &py_computePhaseVelocityHessianVariationalFDLove,
+          "Deprecated alias. Use compute_hessian_ad_layer_cake.");
+    m.def("compute_hessian_variational_fd_love_layer_cake", &py_computePhaseVelocityHessianVariationalFDLove,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false,
           py::arg("num_sub_layers") = 200, py::arg("fd_eps") = 1e-5);
+    m.def("compute_hessian_variational_fd_love_pancake", &py_computePhaseVelocityHessianVariationalFDLove,
+          py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
+          py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false,
+          py::arg("num_sub_layers") = 200, py::arg("fd_eps") = 1e-5, "Deprecated alias. Use compute_hessian_variational_fd_love_layer_cake.\n");
     m.def("compute_phase_velocity_hessian_variational_fd_love", &py_computePhaseVelocityHessianVariationalFDLove,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false,
           py::arg("num_sub_layers") = 200, py::arg("fd_eps") = 1e-5,
-          "Deprecated alias. Use compute_hessian_variational_fd_love_pancake.");
-    m.def("compute_hessian_variational_ad_love_pancake", &py_computePhaseVelocityHessianWeakFormLove,
+          "Deprecated alias. Use compute_hessian_variational_fd_love_layer_cake.");
+    m.def("compute_hessian_variational_ad_love_layer_cake", &py_computePhaseVelocityHessianWeakFormLove,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false,
           py::arg("use_analytical") = true, py::arg("branch_policy") = "auto",
           py::arg("backend") = "dual");
+    m.def("compute_hessian_variational_ad_love_pancake", &py_computePhaseVelocityHessianWeakFormLove,
+          py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
+          py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false,
+          py::arg("use_analytical") = true, py::arg("branch_policy") = "auto",
+          py::arg("backend") = "dual", "Deprecated alias. Use compute_hessian_variational_ad_love_layer_cake.\n");
     m.def("compute_phase_velocity_hessian_weakform_love", &py_computePhaseVelocityHessianWeakFormLove,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false,
           py::arg("use_analytical") = true, py::arg("branch_policy") = "auto",
           py::arg("backend") = "dual",
-          "Deprecated alias. Use compute_hessian_variational_ad_love_pancake.");
-    m.def("debug_hessian_variational_ad_love_pancake", &py_debugLoveWeakformHessianBreakdown,
+          "Deprecated alias. Use compute_hessian_variational_ad_love_layer_cake.");
+    m.def("debug_hessian_variational_ad_love_layer_cake", &py_debugLoveWeakformHessianBreakdown,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("sensitivity_mode") = "Isotropic", py::arg("use_analytical") = true,
           py::arg("branch_policy") = "auto", py::arg("num_sub_layers") = 200,
           py::arg("provided_scales") = std::vector<double>{},
           py::arg("cp_grad_multiplier") = 1.0);
+    m.def("debug_hessian_variational_ad_love_pancake", &py_debugLoveWeakformHessianBreakdown,
+          py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
+          py::arg("sensitivity_mode") = "Isotropic", py::arg("use_analytical") = true,
+          py::arg("branch_policy") = "auto", py::arg("num_sub_layers") = 200,
+          py::arg("provided_scales") = std::vector<double>{},
+          py::arg("cp_grad_multiplier") = 1.0, "Deprecated alias. Use debug_hessian_variational_ad_love_layer_cake.\n");
     m.def("debug_love_weakform_hessian_breakdown", &py_debugLoveWeakformHessianBreakdown,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("sensitivity_mode") = "Isotropic", py::arg("use_analytical") = true,
           py::arg("branch_policy") = "auto", py::arg("num_sub_layers") = 200,
           py::arg("provided_scales") = std::vector<double>{},
           py::arg("cp_grad_multiplier") = 1.0,
-          "Deprecated alias. Use debug_hessian_variational_ad_love_pancake.");
-    m.def("debug_gradient_variational_love_pancake", &py_debugLoveWeakformGradientPieces,
+          "Deprecated alias. Use debug_hessian_variational_ad_love_layer_cake.");
+    m.def("debug_gradient_variational_love_layer_cake", &py_debugLoveWeakformGradientPieces,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("sensitivity_mode") = "Isotropic", py::arg("use_analytical") = true,
           py::arg("branch_policy") = "auto", py::arg("num_sub_layers") = 200,
           py::arg("provided_scales") = std::vector<double>{});
+    m.def("debug_gradient_variational_love_pancake", &py_debugLoveWeakformGradientPieces,
+          py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
+          py::arg("sensitivity_mode") = "Isotropic", py::arg("use_analytical") = true,
+          py::arg("branch_policy") = "auto", py::arg("num_sub_layers") = 200,
+          py::arg("provided_scales") = std::vector<double>{}, "Deprecated alias. Use debug_gradient_variational_love_layer_cake.\n");
     m.def("debug_love_weakform_gradient_pieces", &py_debugLoveWeakformGradientPieces,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("sensitivity_mode") = "Isotropic", py::arg("use_analytical") = true,
           py::arg("branch_policy") = "auto", py::arg("num_sub_layers") = 200,
           py::arg("provided_scales") = std::vector<double>{},
-          "Deprecated alias. Use debug_gradient_variational_love_pancake.");
-    m.def("debug_layer_integrals_love_pancake", &py_debugLoveLayerIntegralProbe,
+          "Deprecated alias. Use debug_gradient_variational_love_layer_cake.");
+    m.def("debug_layer_integrals_love_layer_cake", &py_debugLoveLayerIntegralProbe,
           py::arg("layer"), py::arg("thickness"), py::arg("top_u"), py::arg("top_tau"),
           py::arg("omega"), py::arg("cp"), py::arg("branch_policy") = "auto");
+    m.def("debug_layer_integrals_love_pancake", &py_debugLoveLayerIntegralProbe,
+          py::arg("layer"), py::arg("thickness"), py::arg("top_u"), py::arg("top_tau"),
+          py::arg("omega"), py::arg("cp"), py::arg("branch_policy") = "auto", "Deprecated alias. Use debug_layer_integrals_love_layer_cake.\n");
     m.def("debug_love_layer_integral_probe", &py_debugLoveLayerIntegralProbe,
           py::arg("layer"), py::arg("thickness"), py::arg("top_u"), py::arg("top_tau"),
           py::arg("omega"), py::arg("cp"), py::arg("branch_policy") = "auto",
-          "Deprecated alias. Use debug_layer_integrals_love_pancake.");
-    m.def("debug_layer_integrals_hessian_love_pancake", &py_debugLoveLayerIntegralHessian,
+          "Deprecated alias. Use debug_layer_integrals_love_layer_cake.");
+    m.def("debug_layer_integrals_hessian_love_layer_cake", &py_debugLoveLayerIntegralHessian,
           py::arg("layer"), py::arg("thickness"), py::arg("top_u"), py::arg("top_tau"),
           py::arg("omega"), py::arg("cp"), py::arg("branch_policy") = "auto");
+    m.def("debug_layer_integrals_hessian_love_pancake", &py_debugLoveLayerIntegralHessian,
+          py::arg("layer"), py::arg("thickness"), py::arg("top_u"), py::arg("top_tau"),
+          py::arg("omega"), py::arg("cp"), py::arg("branch_policy") = "auto", "Deprecated alias. Use debug_layer_integrals_hessian_love_layer_cake.\n");
     m.def("debug_love_layer_integral_hessian", &py_debugLoveLayerIntegralHessian,
           py::arg("layer"), py::arg("thickness"), py::arg("top_u"), py::arg("top_tau"),
           py::arg("omega"), py::arg("cp"), py::arg("branch_policy") = "auto",
-          "Deprecated alias. Use debug_layer_integrals_hessian_love_pancake.");
-    m.def("debug_hessian_ad_love_upward_ift_pancake", &py_debugLoveUpwardIFTHessianBreakdown,
+          "Deprecated alias. Use debug_layer_integrals_hessian_love_layer_cake.");
+    m.def("debug_hessian_ad_love_upward_ift_layer_cake", &py_debugLoveUpwardIFTHessianBreakdown,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("sensitivity_mode") = "Isotropic");
+    m.def("debug_hessian_ad_love_upward_ift_pancake", &py_debugLoveUpwardIFTHessianBreakdown,
+          py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
+          py::arg("sensitivity_mode") = "Isotropic", "Deprecated alias. Use debug_hessian_ad_love_upward_ift_layer_cake.\n");
     m.def("debug_love_upward_ift_hessian_breakdown", &py_debugLoveUpwardIFTHessianBreakdown,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("sensitivity_mode") = "Isotropic",
-          "Deprecated alias. Use debug_hessian_ad_love_upward_ift_pancake.");
-    m.def("compute_hessian_variational_ad_rayleigh_pancake", &py_computePhaseVelocityHessianWeakFormRayleigh,
+          "Deprecated alias. Use debug_hessian_ad_love_upward_ift_layer_cake.");
+    m.def("compute_hessian_variational_ad_rayleigh_layer_cake", &py_computePhaseVelocityHessianWeakFormRayleigh,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false, py::arg("num_sub_layers") = 10,
           py::arg("use_analytical") = false, py::arg("backend") = "dual");
+    m.def("compute_hessian_variational_ad_rayleigh_pancake", &py_computePhaseVelocityHessianWeakFormRayleigh,
+          py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
+          py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false, py::arg("num_sub_layers") = 10,
+          py::arg("use_analytical") = false, py::arg("backend") = "dual", "Deprecated alias. Use compute_hessian_variational_ad_rayleigh_layer_cake.\n");
     m.def("compute_phase_velocity_hessian_weakform_rayleigh", &py_computePhaseVelocityHessianWeakFormRayleigh,
           py::arg("layers"), py::arg("thicknesses"), py::arg("hs"), py::arg("omega"), py::arg("cp"),
           py::arg("sensitivity_mode") = "Isotropic", py::arg("compute_thickness") = false, py::arg("num_sub_layers") = 10,
           py::arg("use_analytical") = false, py::arg("backend") = "dual",
-          "Deprecated alias. Use compute_hessian_variational_ad_rayleigh_pancake.");
+          "Deprecated alias. Use compute_hessian_variational_ad_rayleigh_layer_cake.");
 
     m.def("compute_hessian_variational_ad_rayleigh_grid",
           &py_computePhaseVelocityHessianWeakFormRayleigh_Grid,
@@ -2327,7 +2434,7 @@ PYBIND11_MODULE(disper26py, m) {
           py::arg("phase_accepted_level") = -1,
           "GRID-mode Rayleigh phase-velocity gradient dc/dp and Hessian d2c/dp2 via the weak-form "
           "(variational) method, Neville-extrapolated across Romberg levels (this is NOT full-AD; "
-          "full-AD HessianAD is pancake-only). Note freq [Hz], not period.\n"
+          "full-AD HessianAD is layer_cake-only). Note freq [Hz], not period.\n"
           "Returns a dict with keys 'gradient', 'hessian', 'parameter_names', 'layer_indices'. "
           "See docs/sensitivity_implementation_map.md and docs/grid_wf_hessian.md.");
     m.def("compute_phase_velocity_hessian_weakform_rayleigh_grid",

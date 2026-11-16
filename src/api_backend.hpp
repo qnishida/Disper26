@@ -412,7 +412,7 @@ inline PhysicalParameters<double> applyEarthFlatteningScaleExperimentalDensity(
     return p_f;
 }
 
-// Earth Flattening Transformation for layer/pancake models (Bhattacharya & Arora 1997).
+// Earth Flattening Transformation for layer/layer_cake models (Bhattacharya & Arora 1997).
 inline std::tuple<std::vector<PhysicalParameters<double>>, std::vector<double>> py_earthFlatteningLayers(
     const std::vector<PhysicalParameters<double>>& layers_spherical,
     const std::vector<double>& spherical_thicknesses,
@@ -1079,7 +1079,7 @@ inline double scan_phase_velocity_curve_branch(
     std::sort(roots.begin(), roots.end());
     if (static_cast<size_t>(branch) >= roots.size()) {
         std::ostringstream message;
-        message << "pancake branch " << branch
+        message << "layer_cake branch " << branch
                 << " was not found in the velocity interval ["
                 << c_min << ", " << c_max << "]";
         throw std::runtime_error(message.str());
@@ -1087,7 +1087,7 @@ inline double scan_phase_velocity_curve_branch(
     return roots[static_cast<size_t>(branch)];
 }
 
-inline PhaseVelocityCurveResult compute_dispersion_curve_pancake_impl(
+inline PhaseVelocityCurveResult compute_dispersion_curve_layer_cake_impl(
     const std::vector<PhysicalParameters<double>>& layers,
     const std::vector<double>& thicknesses,
     const PhysicalParameters<double>& halfspace,
@@ -3019,4 +3019,14 @@ inline WFHessianBackend parseWFHessianBackend(const std::string& backend_str) {
     if (backend_str == "vector_dyn") return WFHessianBackend::VectorDyn;
     throw std::runtime_error("invalid weak-form Hessian backend: " + backend_str +
                              " (expected \"dual\", \"vector\" or \"vector_dyn\")");
+}
+
+// Deprecated alias. Use compute_dispersion_curve_layer_cake_impl.
+inline PhaseVelocityCurveResult compute_dispersion_curve_pancake_impl(
+    const std::vector<PhysicalParameters<double>>& layers,
+    const std::vector<double>& thicknesses, const PhysicalParameters<double>& halfspace,
+    const std::vector<double>& periods, WaveType type, int branch,
+    double c_min, double c_max, int scan_points, double root_tolerance, bool verify_branch) {
+    return compute_dispersion_curve_layer_cake_impl(layers,thicknesses,halfspace,periods,
+        type,branch,c_min,c_max,scan_points,root_tolerance,verify_branch);
 }

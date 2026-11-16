@@ -28,11 +28,11 @@ class ModelArrays(unittest.TestCase):
         stiffness = {f: [getattr(m, f) for m in vti] for f in ('rho', 'A', 'C', 'F', 'L', 'N')}
         options = dp.Options(max_steps=2, max_levels=2)
         for fields, materials in ((self.iso, self.materials), (velocity, vti), (stiffness, vti)):
-            for kind, interpolation in (('pancake', None), ('grid', 'stiffness'), ('grid', 'velocity')):
+            for kind, interpolation in (('layer_cake', None), ('grid', 'stiffness'), ('grid', 'velocity')):
                 with self.subTest(fields=tuple(fields), kind=kind, interpolation=interpolation):
                     new = dp.create_model(self.depths, kind=kind, interpolation=interpolation, **fields)
-                    old = (dp.create_pancake_model(materials[:-1], [10., 20.], materials[-1])
-                           if kind == 'pancake' else dp.create_grid_model(self.depths, materials, interpolation=interpolation))
+                    old = (dp.create_layer_cake_model(materials[:-1], [10., 20.], materials[-1])
+                           if kind == 'layer_cake' else dp.create_grid_model(self.depths, materials, interpolation=interpolation))
                     self.assert_models_equal(new, old)
                     with warnings.catch_warnings():
                         warnings.simplefilter('ignore', dp.ConvergenceWarning)
@@ -49,18 +49,18 @@ class ModelArrays(unittest.TestCase):
                                 np.testing.assert_array_equal(ha.hessian, hb.hessian)
 
     def test_halfspace_fluid_and_interfaces(self):
-        model = dp.create_model([0.], kind='pancake', vs=[4.5], vp=[8.], rho=[3.3])
+        model = dp.create_model([0.], kind='layer_cake', vs=[4.5], vp=[8.], rho=[3.3])
         self.assertEqual(len(model.materials), 0)
         # Construction and mode-order search both support a halfspace alone.
-        self.assert_models_equal(model, dp.create_pancake_model([], [], self.materials[-1]))
+        self.assert_models_equal(model, dp.create_layer_cake_model([], [], self.materials[-1]))
         self.assertAlmostEqual(dp.compute_dispersion(model, period=10.).phase_velocity,
                                4.150909460643234, places=8)
         fields = dict(vs=[0., 0., 3.5, 4.5], vp=[1.5, 1.5, 6., 8.], rho=[1., 1., 2.8, 3.3])
         grid = dp.create_model([0., 4., 4., 30.], kind='grid', interpolation='stiffness', **fields)
         np.testing.assert_array_equal(grid.discontinuities, [False, True, False, False])
-        pancake = dp.create_model([0., 4., 30.], kind='pancake',
+        layer_cake = dp.create_model([0., 4., 30.], kind='layer_cake',
                                   vs=[0., 3.5, 4.5], vp=[1.5, 6., 8.], rho=[1., 2.8, 3.3])
-        for m in (grid, pancake):
+        for m in (grid, layer_cake):
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore', dp.ConvergenceWarning)
                 self.assertTrue(np.isfinite(dp.compute_dispersion(m, period=10.).phase_velocity))
@@ -73,7 +73,7 @@ class ModelArrays(unittest.TestCase):
         self.assertFalse(depths.flags.c_contiguous)
         self.assertFalse(fields['vs'].flags.c_contiguous)
         geometry = dp.Geometry('spherical_ba97')
-        model = dp.create_model(depths, kind='pancake', geometry=geometry, name='arrays', **fields)
+        model = dp.create_model(depths, kind='layer_cake', geometry=geometry, name='arrays', **fields)
         depths[:] = 99.
         fields['vs'][:] = 99.
         np.testing.assert_array_equal(model.thicknesses, [10., 20.])
@@ -84,14 +84,14 @@ class ModelArrays(unittest.TestCase):
     def test_invalid_inputs(self):
         for depth in ([0., 10., 10.], [0., 30., 10.], [1., 10., 30.], [0., np.nan, 30.], [], [[0., 10., 30.]]):
             with self.subTest(depth=depth), self.assertRaises((dp.Error, ValueError)):
-                dp.create_model(depth, kind='pancake', **self.iso)
+                dp.create_model(depth, kind='layer_cake', **self.iso)
         variants = [dict(self.iso, vs=[3.]), dict(self.iso, vs=3.), dict(self.iso, vp=[5., np.inf, 8.]),
                     dict(self.iso, A=[1., 2., 3.]), dict(rho=[2.5, 2.8, 3.3]),
                     dict(vs=[3., 3.5, 4.5], rho=[2.5, 2.8, 3.3])]
         for fields in variants:
             with self.subTest(fields=fields), self.assertRaises((dp.Error, ValueError)):
-                dp.create_model(self.depths, kind='pancake', **fields)
-        for kind, interpolation in [('unknown', None), ('pancake', 'constant'), ('pancake', ''),
+                dp.create_model(self.depths, kind='layer_cake', **fields)
+        for kind, interpolation in [('unknown', None), ('layer_cake', 'constant'), ('layer_cake', ''),
                                     ('grid', None), ('grid', 'linear')]:
             with self.subTest(kind=kind, interpolation=interpolation), self.assertRaises(dp.Error):
                 dp.create_model(self.depths, kind=kind, interpolation=interpolation, **self.iso)

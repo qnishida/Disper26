@@ -11,7 +11,7 @@ and implements the overtone-branch root resolution by mode-count bisection:
 3. Label re-verification at the converged velocity (count just below/above must
    be n / n+1).  If the initial window contains several roots, shrink only that
    window until it isolates the requested jump; otherwise escalate the count
-   pancake through ``confirmation_max_scan_level`` before raising BranchError.
+   layer-cake through ``confirmation_max_scan_level`` before raising BranchError.
    The per-level counts, window attempts, and scan-root offset are retained in
    ``ModeSolution.confirmation``.
 
@@ -472,7 +472,7 @@ class ForwardEngine:
         """Confirm a Romberg root, escalating the independent count mesh on failure.
 
         Romberg extrapolates toward the continuous model, while the mode count
-        is evaluated on a finite refined pancake.  A low count scan level can
+        is evaluated on a finite refined layer-cake.  A low count scan level can
         therefore put the count jump outside the confirmation window without
         any root jump.  Escalation is only used after a failed confirmation.
         """

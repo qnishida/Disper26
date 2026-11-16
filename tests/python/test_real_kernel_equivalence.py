@@ -16,7 +16,7 @@ Dump with the old build (point DISPER26_SO_DIR at a directory holding its .so),
 rebuild, then compare. Running with no arguments just computes the table and
 reports that there is nothing to diff against.
 
-Every case reports the pancake secular function F(c) on a c-grid (a direct,
+Every case reports the layer_cake secular function F(c) on a c-grid (a direct,
 branch-free probe of the layer loop) and the grid-mode Romberg c/U/HV.
 """
 
@@ -154,7 +154,7 @@ def grid_models():
     return out
 
 
-def pancake_stacks():
+def layer_cake_stacks():
     """(name, layers, thicknesses, halfspace, waves, periods, c_range).
 
     Fixed layer stacks fed straight to calculate_dispersion_value. This probes
@@ -213,7 +213,7 @@ def build_table():
     """Compute every case. Returns {case_key: [values...]}."""
     table = {}
 
-    for name, layers, thick, hs, waves, periods, (c_lo, c_hi) in pancake_stacks():
+    for name, layers, thick, hs, waves, periods, (c_lo, c_hi) in layer_cake_stacks():
         for wave in waves:
             for period in periods:
                 omega = 2.0 * math.pi / period

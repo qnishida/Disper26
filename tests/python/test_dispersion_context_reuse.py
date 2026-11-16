@@ -7,18 +7,31 @@ import disper26 as d26
 
 
 def models():
-    for kind, interpolation in [('pancake', None), ('grid', 'stiffness'), ('grid', 'velocity')]:
+    for kind, interpolation in [('layer_cake', None), ('grid', 'stiffness'), ('grid', 'velocity')]:
         for shift in (0., .1):
             yield d26.create_model([0., 20., 60.], kind=kind, interpolation=interpolation,
                 vs=[3.+shift, 3.5, 4.5], vp=[5.2, 6., 8.], rho=[2.5, 2.8, 3.3])
 
 
-def solve(model, context=None, mode=0, wave='Rayleigh', full=False, method='mode_order', steps=4):
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', d26.ConvergenceWarning)
-        return d26.compute_dispersion_curve(model, periods=[8.4, 8., 8.2, 8.2],
-            wave=wave, mode=mode, outputs=('phase_velocity', 'group_velocity') if full else ('phase_velocity',),
-            options=d26.Options(max_steps=steps, tolerance=1e-8, method=method), context=context)
+def compute_curve(model, context=None, mode=0, wave='Rayleigh', full=False, method='mode_order', steps=4):
+    return d26.compute_dispersion_curve(model, periods=[8.4, 8., 8.2, 8.2],
+        wave=wave, mode=mode, outputs=('phase_velocity', 'group_velocity') if full else ('phase_velocity',),
+        options=d26.Options(max_steps=steps, tolerance=1e-8, method=method), context=context)
+
+
+def assert_convergence_warnings(caught, results):
+    expected = ['; '.join(result.diagnostics.messages) for result in results
+                if result.diagnostics.status == 'warning']
+    assert all(item.category is d26.ConvergenceWarning for item in caught)
+    assert sorted(str(item.message) for item in caught) == sorted(expected)
+
+
+def solve(*args, **kwargs):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always', d26.ConvergenceWarning)
+        result = compute_curve(*args, **kwargs)
+    assert_convergence_warnings(caught, result.solutions)
+    return result
 
 
 def snapshot(curve):
@@ -68,10 +81,17 @@ def test_parallel_contexts(shared):
     inputs = list(models())
     def run(i):
         ctx = context if shared else d26.create_dispersion_context()
-        return snapshot(solve(inputs[i % len(inputs)], ctx, wave='Love' if i % 2 else 'Rayleigh', full=True))
-    reference = [run(i) for i in range(12)]
-    with ThreadPoolExecutor(4) as pool:
-        assert list(pool.map(run, range(12))) == reference
+        return compute_curve(inputs[i % len(inputs)], ctx, wave='Love' if i % 2 else 'Rayleigh', full=True)
+    # Python 3.8 warning filters are shared by threads. Capture once around
+    # the whole pool, and verify every warning against its result diagnostics.
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always', d26.ConvergenceWarning)
+        reference = [run(i) for i in range(12)]
+        with ThreadPoolExecutor(4) as pool:
+            actual = list(pool.map(run, range(12)))
+    assert_convergence_warnings(caught,
+        [solution for curve in reference + actual for solution in curve.solutions])
+    assert [snapshot(curve) for curve in actual] == [snapshot(curve) for curve in reference]
 
 
 def test_scalar_and_derivative_ownership():
@@ -90,19 +110,27 @@ def test_geometry_fluids_halfspace_and_q_changes():
     a = d26.create_isotropic_parameters(3., 5.2, 2.5)
     b = d26.create_isotropic_parameters(4.5, 8., 3.3)
     water = d26.create_fluid_parameters(1.5, 1.03)
-    inputs = [d26.create_pancake_model([], [], b),
-              d26.create_pancake_model([water, a], [1., 20.], b)]
+    inputs = [d26.create_layer_cake_model([], [], b),
+              d26.create_layer_cake_model([water, a], [1., 20.], b)]
     for interpolation in ('stiffness', 'velocity'):
         for geometry in (d26.Geometry(), d26.Geometry('spherical_ba97')):
             inputs.append(d26.create_grid_model([0., 1., 1., 20., 60.],
                 [water, water, a, a, b], interpolation=interpolation, geometry=geometry))
-    base = d26.create_pancake_model([a], [20.], b)
+    base = d26.create_layer_cake_model([a], [20.], b)
     corrected = d26.apply_mineos_physical_dispersion(base, [600., 800.], [300., 400.],
                                      reference_period=1., period=8.)
     inputs.extend([corrected, base, inputs[0]])
     for model in inputs:
-        actual = d26.compute_dispersion(model, period=8., context=context)
-        expected = d26.compute_dispersion(model, period=8.)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always', d26.ConvergenceWarning)
+            actual = d26.compute_dispersion(model, period=8., context=context)
+            expected = d26.compute_dispersion(model, period=8.)
+        assert_convergence_warnings(caught, [actual, expected])
+        # These GRID fixtures reach the default refinement limit. Context
+        # reuse must preserve both their values and their accuracy diagnostics.
+        convergence = 'not_converged' if model.kind == 'grid' else 'converged'
+        for result in (actual, expected):
+            assert result.diagnostics.convergence_by_quantity['phase_velocity'] == convergence
         assert actual.phase_velocity == expected.phase_velocity
         assert actual.diagnostics.accepted_level == expected.diagnostics.accepted_level
     with pytest.raises(d26.Error):

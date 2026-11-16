@@ -10,7 +10,8 @@ module disper26_api
   public :: c_double, material, model_geometry, computation_options, api_status
   public :: model, mode_solution, result_data, parameter_axis_entry, assignment(=)
   public :: create_isotropic_parameters, create_fluid_parameters, create_velocity_vti_parameters
-  public :: create_pancake_model, create_grid_model, compute_dispersion, compute_dispersion_curve
+  public :: create_layer_cake_model, create_pancake_model, create_grid_model
+  public :: compute_dispersion, compute_dispersion_curve
   public :: compute_mode_count
   public :: create_model, dispersion_context, create_dispersion_context
   public :: compute_kernels, compute_hessian, compute_hessian_reduced, compute_interface_kernels
@@ -224,6 +225,29 @@ module disper26_api
       type(c_geometry), intent(in) :: geometry
       type(c_ptr), intent(out) :: out
       character(kind=c_char), intent(out) :: msg(*)
+    end function
+
+    function c_layer_cake(n,layers,thicknesses,halfspace,geometry,name,out,msg,cap) &
+        bind(C,name="d26_api_create_layer_cake_model") result(code)
+      import
+      integer(c_int) :: code
+
+      integer(c_size_t), value :: n
+
+      type(material), intent(in) :: layers(*), halfspace
+
+      real(c_double), intent(in) :: thicknesses(*)
+
+      type(c_geometry), intent(in) :: geometry
+
+      character(kind=c_char), intent(in) :: name(*)
+
+      type(c_ptr), intent(out) :: out
+
+      character(kind=c_char), intent(out) :: msg(*)
+
+      integer(c_size_t), value :: cap
+
     end function
 
     function c_pancake(n,layers,thicknesses,halfspace,geometry,name,out,msg,cap) &
@@ -1120,6 +1144,16 @@ contains
     end subroutine
   end subroutine
 
+  subroutine create_layer_cake_model(layers,thicknesses,halfspace,out,status,geometry,name)
+    type(material), intent(in) :: layers(:),halfspace
+    real(c_double), intent(in) :: thicknesses(:)
+    type(model), intent(inout) :: out
+    type(api_status), intent(out) :: status
+    type(model_geometry), optional, intent(in) :: geometry
+    character(*), optional, intent(in) :: name
+    call create_layer_cake_model_impl(layers,thicknesses,halfspace,out,status,geometry,name, &
+        .false.)
+  end subroutine
   subroutine create_pancake_model(layers,thicknesses,halfspace,out,status,geometry,name)
     type(material), intent(in) :: layers(:),halfspace
     real(c_double), intent(in) :: thicknesses(:)
@@ -1127,6 +1161,17 @@ contains
     type(api_status), intent(out) :: status
     type(model_geometry), optional, intent(in) :: geometry
     character(*), optional, intent(in) :: name
+    call create_layer_cake_model_impl(layers,thicknesses,halfspace,out,status,geometry,name, &
+        .true.)
+  end subroutine
+  subroutine create_layer_cake_model_impl(layers,thicknesses,halfspace,out,status,geometry,name,legacy)
+    type(material), intent(in) :: layers(:),halfspace
+    real(c_double), intent(in) :: thicknesses(:)
+    type(model), intent(inout) :: out
+    type(api_status), intent(out) :: status
+    type(model_geometry), optional, intent(in) :: geometry
+    character(*), optional, intent(in) :: name
+    logical, intent(in) :: legacy
     character(:), allocatable :: actual_name
     type(c_geometry) :: geo
     type(c_ptr) :: handle
@@ -1140,8 +1185,13 @@ contains
     if(.not.status%ok()) return
     actual_name=''
     if(present(name)) actual_name=name
-    code=c_pancake(size(layers,kind=c_size_t),layers,thicknesses,halfspace,geo, &
+    if(legacy) then
+      code=c_pancake(size(layers,kind=c_size_t),layers,thicknesses,halfspace,geo, &
         actual_name//c_null_char,handle,msg,message_capacity)
+    else
+      code=c_layer_cake(size(layers,kind=c_size_t),layers,thicknesses,halfspace,geo, &
+        actual_name//c_null_char,handle,msg,message_capacity)
+    end if
     call finish_status(status,code,msg)
     call adopt_model(out,handle,status)
   end subroutine

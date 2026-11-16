@@ -29,14 +29,14 @@ Hessian d²c/dp²) を計算する経路が複数ある。互いをクロスチ�
 full-AD ではなく variational なのもこれが理由。
 
 nested AD（AD 2 段）が今も使われているのは 2 か所だけ:
-`u_kernel_mode="full_ad"` の dU/dp と、PANCAKE の `HessianAD<N>` Hessian。
+`u_kernel_mode="full_ad"` の dU/dp と、LAYER_CAKE の `HessianAD<N>` Hessian。
 U の**値**も full-AD だが、これは各レベル 1 回で全体の 0.1%。
 
 ### 付随する軸
 
 | 軸 | 見分け方 |
 |---|---|
-| **モデル** | `layers, thicknesses, half_space` → **PANCAKE**（固定層、外挿なし）<br>`depths, params, is_discontinuity` → **GRID**（node ベース、2ⁿ 分割して Neville 外挿） |
+| **モデル** | `layers, thicknesses, half_space` → **LAYER_CAKE**（固定層、外挿なし）<br>`depths, params, is_discontinuity` → **GRID**（node ベース、2ⁿ 分割して Neville 外挿） |
 | **縮約** | 末尾 `_reduced` → 基底方向だけ seed。AD パス数が `n_nodes*6` から `P` へ |
 
 `debug_*` は内訳を出す診断で、本番経路ではない。
@@ -45,12 +45,12 @@ U の**値**も full-AD だが、これは各レベル 1 回で全体の 0.1%。
 
 上の表を実装に当てはめると、**GRID × variational × 1 階（dc/dp）だけが空だった**。
 
-| | PANCAKE | GRID |
+| | LAYER_CAKE | GRID |
 |---|---|---|
-| 1 階 variational | `compute_kernels_variational_pancake` | `compute_kernels_variational_grid` |
-| 1 階 生の伝播子 | `compute_kernels_ad_pancake` | `compute_kernels_ad_grid` |
-| 2 階 variational | `compute_hessian_variational_ad_rayleigh_pancake` / `_love_pancake` | `compute_hessian_variational_ad_*_grid[_reduced]` |
-| 2 階 生の伝播子 | `compute_hessian_ad_pancake` | 無し（不要） |
+| 1 階 variational | `compute_kernels_variational_layer_cake` | `compute_kernels_variational_grid` |
+| 1 階 生の伝播子 | `compute_kernels_ad_layer_cake` | `compute_kernels_ad_grid` |
+| 2 階 variational | `compute_hessian_variational_ad_rayleigh_layer_cake` / `_love_layer_cake` | `compute_hessian_variational_ad_*_grid[_reduced]` |
+| 2 階 生の伝播子 | `compute_hessian_ad_layer_cake` | 無し（不要） |
 
 **空きマスは `compute_kernels_variational_grid` で埋まった**。命名は
 [命名規則](naming_convention.md) に従う。
@@ -84,20 +84,20 @@ derivative 用の余分な refinement level を生成しない。詳細・評価
 |---|---|---|---|---|
 | `compute_kernels_ad_grid` | GRID | **AD**（528 方向 `AutoDiffScalar<VectorXd>`、IFT `-dF/dp÷dF/dc`） | `u_kernel_mode`: `variational_frequency_ad`（既定、位相変分kernelを周波数1方向AD）/ `variational` / `full_ad` | 各レベルで計算 → Neville（`kernel_extrapolation` 既定 True） |
 | `compute_kernels_ad_grid_velocity_iso` / `_vti` | GRID（速度基底） | 同上 | 同上 | 同上 |
-| `compute_kernels_variational_pancake` | PANCAKE | **変分（閉形式）** | `u_kernel_mode`: `variational_frequency_ad`（既定、位相変分kernelを周波数1方向AD）/ `variational`（dual, N-pass） | なし |
-| `compute_kernels_ad_pancake` | PANCAKE | full-AD | nested AD | なし |
-| `compute_kernels_fd_pancake` | PANCAKE | 有限差分 | 有限差分 | 参照用 |
-| `compute_interface_kernels_variational_rayleigh_pancake` / `_love_pancake` | PANCAKE | 界面カーネル K_d | — | なし |
+| `compute_kernels_variational_layer_cake` | LAYER_CAKE | **変分（閉形式）** | `u_kernel_mode`: `variational_frequency_ad`（既定、位相変分kernelを周波数1方向AD）/ `variational`（dual, N-pass） | なし |
+| `compute_kernels_ad_layer_cake` | LAYER_CAKE | full-AD | nested AD | なし |
+| `compute_kernels_fd_layer_cake` | LAYER_CAKE | 有限差分 | 有限差分 | 参照用 |
+| `compute_interface_kernels_variational_rayleigh_layer_cake` / `_love_layer_cake` | LAYER_CAKE | 界面カーネル K_d | — | なし |
 
 GRID の変分カーネル単独入口は `compute_kernels_variational_grid`
 （上記「埋まっていないマス」参照、2026-08-11 に追加）。
 
-PANCAKE の `variational_frequency_ad` は Rayleigh の解析積分と Love の材料カーネルで
+LAYER_CAKE の `variational_frequency_ad` は Rayleigh の解析積分と Love の材料カーネルで
 有効になる。Rayleigh の台形積分（fluidを含む）と Love の層厚成分は、数値整合性を
 保つため旧 `variational` 経路へ成分単位でfallbackする。層厚・不連続面カーネルを
 省略するのではない。
 
-### PANCAKE kernel 経路のスイッチ
+### LAYER_CAKE kernel 経路のスイッチ
 
 | kwarg | 既定 | 制御対象 |
 |---|---|---|
@@ -141,15 +141,15 @@ $dU/dp=U^2 d(\omega K_p/c^2)/d\omega$ でwidth-1 AD微分するため、群速�
 `want_kernel_hv=False` では幅$P$のAD model自体を生成しない。H/V kernelを要求した
 場合はH/V部分のみ従来どおり幅$P$である。現在の検証は
 `tests/python/test_u_kernel_frequency_variational_grid.py` と
-`tests/python/test_u_kernel_frequency_variational_pancake.py` を参照。
+`tests/python/test_u_kernel_frequency_variational_layer_cake.py` を参照。
 
 ## 2 階: Hessian
 
 | binding | モデル | 実装 | 外挿 |
 |---|---|---|---|
-| `compute_hessian_ad_pancake` | PANCAKE | full-AD `HessianAD<N>`（nested 2 階、O(L·N²)）。無印・`_full_ad`・`_reference` の3名が統合され、この1つが正名（2026-08-11、Rayleigh/Love とも動作確認済み） | なし |
-| `compute_hessian_variational_ad_rayleigh_pancake` / `_love_pancake` | PANCAKE | variational（変分勾配を 1 階 dual で微分、O(L·N)）。Love 側が本番実装 | なし |
-| `compute_hessian_variational_fd_love_pancake` | PANCAKE | 変分勾配の有限差分。O(L·N²)、参照用 | なし |
+| `compute_hessian_ad_layer_cake` | LAYER_CAKE | full-AD `HessianAD<N>`（nested 2 階、O(L·N²)）。無印・`_full_ad`・`_reference` の3名が統合され、この1つが正名（2026-08-11、Rayleigh/Love とも動作確認済み） | なし |
+| `compute_hessian_variational_ad_rayleigh_layer_cake` / `_love_layer_cake` | LAYER_CAKE | variational（変分勾配を 1 階 dual で微分、O(L·N)）。Love 側が本番実装 | なし |
+| `compute_hessian_variational_fd_love_layer_cake` | LAYER_CAKE | 変分勾配の有限差分。O(L·N²)、参照用 | なし |
 | `compute_hessian_variational_ad_rayleigh_grid` / `_love_grid` | GRID | variational（`grid_hessian.hpp`）。全ノード列 | あり |
 | `..._rayleigh_grid_reduced` / `..._love_grid_reduced` | GRID | **基底縮約版**。`J` を受け取り基底方向だけ seed | あり |
 | `compute_interface_hessian_row_ad_grid` | GRID | 界面深さ列（nested forward AD） | — |
@@ -159,7 +159,7 @@ $dU/dp=U^2 d(\omega K_p/c^2)/d\omega$ でwidth-1 AD微分するため、群速�
 は2026-08-11に削除済み（下記「Love の Hessian」参照）。
 
 **GRID の Hessian は full-AD ではなく variational。** full-AD Hessian (`HessianAD<N>`)
-は PANCAKE のみ。
+は LAYER_CAKE のみ。
 
 `_reduced` は node-VTI 単位ベクトルの代わりに基底 `J` を seed するので、AD パス数が
 `n_nodes*6` から `P` に落ちる（528 → 約 19）。C++ 側は n_nodes*6 の正方 Hessian を
@@ -181,11 +181,11 @@ O(L·N²)）、`_variational_love`（`_hybrid_love` への 8 行転送、実装�
 [命名規則](naming_convention.md) を参照。
 
 現在の Love Hessian は canonical に 2 つ:
-`compute_hessian_variational_ad_love_pancake`（本番、旧 `_weakform_love`。
+`compute_hessian_variational_ad_love_layer_cake`（本番、旧 `_weakform_love`。
 IFT シードを `computeLoveIFTGradientFirstOrder` で作り、そのうえで
 variational の Hessian を組む。`wf-love-seed-gradient` で `HessianAD<80>`
 の完全 2 階 AD から置き換えた箇所で、10 層 Iso 1.45 → 0.079 ms）と
-`compute_hessian_variational_fd_love_pancake`（勾配の FD、O(L·N²)、参照用、
+`compute_hessian_variational_fd_love_layer_cake`（勾配の FD、O(L·N²)、参照用、
 旧 `_variational_fd_love`）。
 
 ここでいう **Hybrid Hessianはチェック・デバッグ専用の歴史的経路**である。
@@ -201,7 +201,7 @@ Variational ADが安定するまでの実装確認ではFull ADとの比較に�
 "Rename WeakForm → VariationalFD for clarity" が過去に逆方向へ振り替えた
 のがこの混乱の直接の原因だった。
 
-`diagnose_prem_grid_love_pancake_bridge.py:365-383` はかつて4経路を比較して
+`diagnose_prem_grid_love_layer_cake_bridge.py:365-383` はかつて4経路を比較して
 いるように見えて実質3経路だった（`variational` と `hybrid` が同じ関数への
 別名で、その2行は自分自身と比較していただけ）。この問題も `_hybrid_love`
 削除で解消済み。
@@ -333,8 +333,8 @@ dF/dc(計算値) ≈ s(c+ε)·F_c      dF_dp = s(c)·F_p   (同一 AD パス、�
 反復経路を変えるが不動点を動かさない**。根の精度は停止条件が決める。AD 化しても
 精度は変わらず反復ごとにコストが増えるだけなので、意図的に残す。
 
-設計上の FD (参照実装): `compute_kernels_fd_pancake`、
-`compute_hessian_variational_fd_love_pancake`、
+設計上の FD (参照実装): `compute_kernels_fd_layer_cake`、
+`compute_hessian_variational_fd_love_layer_cake`、
 `FdDepthHessianBackend`。
 
 死んだコード: `computeNumericalDerivative` (`disper26.cpp:1953`) は呼び出し 0 件。

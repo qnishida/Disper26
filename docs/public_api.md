@@ -26,7 +26,7 @@ C API の `model_info` の `materials` は列優先の9行配列、`halfspace` �
 import disper26 as d26
 
 model = d26.create_model(
-    [0.0, 10.0], kind="pancake",
+    [0.0, 10.0], kind="layer_cake",
     vs=[3.0, 4.5], vp=[5.2, 8.0], rho=[2.5, 3.3],
 )
 solution = d26.compute_dispersion(
@@ -83,7 +83,7 @@ GRIDは `interpolation="stiffness"` または `"velocity"` が必須。同じノ
 `predictor="history"` は同じレベルの直近最大3点とレベル間情報を使う。
 `"auto"` は既に求めた同じレベルの群速度を再利用する。群速度を出力しない場合も、
 周期方向の予測に使うレベルの初回に群速度を計算して次点を予測する。
-pancakeは1回のADを追加する。毎周期確認するGRIDはlevel 0のみ1回、
+layer_cakeは1回のADを追加する。毎周期確認するGRIDはlevel 0のみ1回、
 それ以外のGRID追跡はlevel 0・1だけ最大2回とする。
 次の異なる周期がない場合、周波数差25%超、単点計算では追加しない。
 群速度も出力する場合には、その計算を再利用する。
@@ -94,7 +94,7 @@ pancakeは1回のADを追加する。毎周期確認するGRIDはlevel 0のみ1�
 必要な地点ではPython/C++の `compute_mode_count(solution, level=-1)` を明示的に呼ぶ。
 1呼出しにつき整数カウンタを1回実行し、再探索や他レベルの確認は行わない。
 GRIDの `level` は保存済みレベル番号、`-1` は最後に生成したレベルを選ぶ。
-そのレベルの外挿前の根と対応するmeshを使用する。pancakeでは `0` または `-1`。
+そのレベルの外挿前の根と対応するmeshを使用する。layer_cakeでは `0` または `-1`。
 Cは `d26_api_compute_mode_count`、Fortranは `compute_mode_count` を提供する。
 refinement levelは全言語で0始まり。
 戻り値は0始まりの整数mode番号。要求番号と異なっても再探索や自動修正は行わない。
@@ -193,19 +193,25 @@ curve = disper26.compute_dispersion_curve(model, periods=[2., 5., 10., 20.], opt
 
 
 `create_model` は両モデルで深度と物性の配列を受け取る。`kind` は必須で自動判定しない。
-Pancakeの深度は層の上端で、物性は次の深度まで一定、最終点から下は半無限媒質となる。
+LayerCakeの深度は層の上端で、物性は次の深度まで一定、最終点から下は半無限媒質となる。
 深度は0から厳密に増加し、重複を許さない。厚さは深度差から生成する。
-GRIDは0からの非減少深度列で、不連続面の重複は2点まで。最小点数はPancakeが1点
-（均質半無限媒質）、GRIDが2点。Pancakeに `interpolation` を指定するとエラーになる。
-1点のPancakeでも `compute_dispersion(..., wave="Rayleigh", mode=0)` で
+GRIDは0からの非減少深度列で、不連続面の重複は2点まで。最小点数はLayerCakeが1点
+（均質半無限媒質）、GRIDが2点。LayerCakeに `interpolation` を指定するとエラーになる。
+1点のLayerCakeでも `compute_dispersion(..., wave="Rayleigh", mode=0)` で
 均質半無限媒質の基本Rayleighモードを計算できる。
 
 物性の指定は `vs/vp/rho`、`vph/vpv/vsh/vsv/eta/rho`、`A/C/F/L/N/rho` の
 いずれか完全な一組。全配列は深度と同じ長さの有限値の1次元配列とし、自動ソートや
 スカラー展開はしない。等方性の流体は `vs=0`。物性の入力方式とGRIDの補間方式は独立。
 入力から既存の不変モデルへ変換するため、モデル情報や微分軸の契約は変わらない。
-Pancakeのモデル情報は引き続き `thicknesses` と別の `halfspace` を保持する。
-従来のオブジェクト入力は `create_pancake_model` / `create_grid_model` で利用できる。
+LayerCakeのモデル情報は引き続き `thicknesses` と別の `halfspace` を保持する。
+従来のオブジェクト入力は `create_layer_cake_model` / `create_grid_model` で利用できる。
+
+正式なモデル種別は `layer_cake`。旧 `kind="pancake"` と `create_pancake_model`
+も引数・既定値を維持した legacy 入口として使える。新名で作ったモデルの `kind` は
+`"layer_cake"`、旧名で作ったモデルは `"pancake"` を返す。この表記は解、平坦化、
+Q 補正後も保持され、C++・C・Fortran でも同じ規則を使う。計算処理は共通である。
+
 
 ## 結果と診断の契約
 
@@ -251,13 +257,13 @@ Pancakeのモデル情報は引き続き `thicknesses` と別の `halfspace` を
 
 | 操作 | 対応 |
 |---|---|
-| 分散、曲線、カーネル | Pancake、剛性GRID、速度GRID |
-| フルHessian | Pancake、剛性GRID |
+| 分散、曲線、カーネル | Layer-cake、剛性GRID、速度GRID |
+| フルHessian | Layer-cake、剛性GRID |
 | 縮約Hessian | 剛性GRID |
-| 界面感度 | Pancake、flatの剛性GRID |
+| 界面感度 | Layer-cake、flatの剛性GRID |
 | 界面Hessian行 | flatの剛性GRID |
 | 固有関数・積分・周波数曲率 | 解を保持する各モデル。GRIDの波動場と積分は採用メッシュ上の量 |
-| 重力補正 | 非Cowling、flat PancakeのRayleigh。`region="fluid"/"solid"/"all"` |
+| 重力補正 | 非Cowling、flat LayerCakeのRayleigh。`region="fluid"/"solid"/"all"` |
 
 GRIDの周波数曲率は固有のRomberg停止条件を使うため、戻り値の位相速度が元の
 解と異なる場合がある。固有関数・積分の採用メッシュ上の値とは区別する。
@@ -278,11 +284,11 @@ Cowling重力を設定したモデルの物性・界面微分は、既存AD経�
 `Geometry("spherical_experimental_density", flattening_exponent=...)` で表す。
 GRIDの球面補間と、ノードを先に平坦化してからflatで補間するモデルは同一ではない。
 `earth_flattening_transformation` は新しいモデルと変換履歴を返し、二重変換を拒否する。
-球面Pancakeは明示的な平坦化が必要。
-Pancakeの半無限層は、その上端深度で物性を平坦化した均質半無限層とする。
+球面LayerCakeは明示的な平坦化が必要。
+LayerCakeの半無限層は、その上端深度で物性を平坦化した均質半無限層とする。
 
 `apply_mineos_physical_dispersion` は半無限層を含むQ配列を受け取り、補正周期と
-基準周期を保存する。Pancakeでは層数+1、GRIDではノード数。補正済みモデルの
+基準周期を保存する。LayerCakeでは層数+1、GRIDではノード数。補正済みモデルの
 再補正・別周期での利用を拒否する。周期列を計算するときは元モデルから各周期用の
 モデルを作る。
 
@@ -308,7 +314,7 @@ int main() {
     parameters.vs = std::vector<double>{3.0, 4.5};
     parameters.vp = std::vector<double>{5.2, 8.0};
     parameters.rho = std::vector<double>{2.5, 3.3};
-    auto model = d26::create_model({0.0, 10.0}, "pancake", parameters);
+    auto model = d26::create_model({0.0, 10.0}, "layer_cake", parameters);
     auto solution = d26::compute_dispersion(model, 5.0);
     auto kernels = d26::compute_kernels(solution, "isotropic");
     return kernels.parameters.empty();
@@ -318,7 +324,7 @@ int main() {
 Cは `api_c.h` の `d26_api_*` を使用する。`d26_api_create_model` は深度列と
 「成分×点」の列優先物性行列を受け取る。`parameterization` と成分順は
 `isotropic`: Vs,Vp,Rho、`velocity_vti`: rho,vph,vpv,vsh,vsv,eta、
-`stiffness`: A,C,F,L,N,Rho。Pancakeの補間引数はNULLとする。結果フィールドを列挙し、必要サイズを
+`stiffness`: A,C,F,L,N,Rho。LayerCakeの補間引数はNULLとする。結果フィールドを列挙し、必要サイズを
 照会してからバッファへコピーできる。複素数は実部・虚部の別配列。エラー文字列は
 呼び出し側のバッファに入り、グローバル状態を使わない。戻り値の成功と数値収束は
 別であり、成功時にも結果の診断を確認する。
@@ -326,7 +332,7 @@ Cは `api_c.h` の `d26_api_*` を使用する。`d26_api_create_model` は深�
 Fortranは `use disper26_api` と `disper26_fortran` targetを使用する。
 モデル・解・結果は派生型で、各演算に `status` を渡す。C++/C/Pythonの添字は0始まり、
 Fortranの配列・界面・ノード添字は1始まり、モードだけは共通で0始まり。
-構築例は `call create_model(depths, "pancake", model_out, status, vs=vs, vp=vp, rho=rho)`。
+構築例は `call create_model(depths, "layer_cake", model_out, status, vs=vs, vp=vp, rho=rho)`。
 GRIDでは `interpolation="stiffness"` または `"velocity"` を追加する。
 使用例と代入・寿命の検証は `tests/test_api_fortran.f90` を参照。
 
@@ -404,7 +410,7 @@ u_x=i*y3*exp(...), epsilon < 0 is retrograde and epsilon > 0 is prograde
 for propagation in positive x. The eigenfunction arrays `ur` and `uz`
 store y3 and y1, respectively; the horizontal phase factor i is implicit.
 
-Both layer-cake (`pancake`) and GRID models evaluate the solid free surface,
+Both layer-cake (`layer_cake`) and GRID models evaluate the solid free surface,
 or the solid side of the seabed when surface fluid layers are present.
 The common expression is -Y12/Y14, obtained from zero shear traction.
 This also corrects the former seabed amplitude, which used a free-surface

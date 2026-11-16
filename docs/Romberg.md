@@ -45,7 +45,7 @@ For phase velocity at many periods, use one of the C++ batch entry points
 instead of a Python loop:
 
 ```python
-pancake = dp.compute_dispersion_curve_pancake(
+layer_cake = dp.compute_dispersion_curve_layer_cake(
     layers, thicknesses, half_space,
     periods=[5.0, 6.0, 7.0, 8.0, 10.0],
     wave_type="Rayleigh",
@@ -68,7 +68,7 @@ grid = dp.compute_dispersion_curve_romberg_grid_velocity_vti(
 The period list must be positive, finite, and strictly increasing or strictly
 decreasing. The return value contains `periods`, `phase_velocities`,
 `converged_levels`, `relative_errors`, `fallback_mask`, `fallback_levels`,
-`fallback_count`, and `direct_prediction_count`. PANCAKE has no Romberg level,
+`fallback_count`, and `direct_prediction_count`. LAYER_CAKE has no Romberg level,
 so its level values are `-1` and its relative errors are `NaN`.
 
 This section describes the existing low-level `disper26py` batch APIs.
@@ -86,7 +86,7 @@ within-period continuation because it is faster there. `branch=None` preserves
 nearest-root continuation. Supplying an integer branch disables coarse-level
 prediction and uses mode-order selection on every refinement level.
 
-The PANCAKE path orders roots by increasing phase velocity on the first/full
+The LAYER_CAKE path orders roots by increasing phase velocity on the first/full
 fallback scan and tracks the requested index. Set `verify_branch=True` when
 every predicted root must also be checked by the integer mode counter; the
 default `False` avoids that additional cost for already isolated continuation

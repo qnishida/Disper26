@@ -62,6 +62,10 @@ public:
     Model() = default; // Empty output holder; computation rejects it.
     const ModelData& data() const;
 };
+Model create_layer_cake_model(const std::vector<Material>& layers,
+    const std::vector<double>& thicknesses, const Material& halfspace,
+    const Geometry& geometry = {}, const std::string& name = "");
+// Deprecated alias; preserves kind="pancake".
 Model create_pancake_model(const std::vector<Material>& layers,
     const std::vector<double>& thicknesses, const Material& halfspace,
     const Geometry& geometry = {}, const std::string& name = "");

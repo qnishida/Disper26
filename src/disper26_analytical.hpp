@@ -4,7 +4,7 @@
 #include "disper26.cpp" // Include main file for types and templates (PhysicalParameters, etc.)
 
 // ===========================================================================
-// Analytical Energy Integral Implementation (Pancake Model)
+// Analytical Energy Integral Implementation (Layer-cake Model)
 // ===========================================================================
 // This module implements exact analytical integration of energy integrals
 // for homogeneous layers, eliminating the need for numerical integration (Romberg).
@@ -434,7 +434,7 @@ EnergyIntegralResult<T> computeRayleighEnergyIntegrals_Analytical(
 // Romberg-Grid Energy Integration
 // ===========================================================================
 // Integrates energy over a continuous Gradient Layer by subdividing into
-// N homogeneous "pancakes", calculating the exact integral for each,
+// N homogeneous sublayers, calculating the exact integral for each,
 // and applying Romberg Extrapolation to the limit N -> infinity.
 
 template <typename T>
@@ -500,7 +500,7 @@ EnergyIntegralResult<T> integrateGridLayer_Romberg(
         if (type == WaveType::Rayleigh) E_curr = compute_energies_rayleigh(y_curr, p_curr, k_wave);
         else E_curr = compute_energies_love(y_curr, p_curr, k_wave);
         
-        // Loop over sub-pancakes
+        // Loop over homogeneous sublayers
         for(int i=0; i<N; ++i) {
             // Midpoint Parameters for Propagation
             T alpha_mid = (T(i) + 0.5) / T(N);
@@ -711,7 +711,7 @@ Eigen::Matrix<std::complex<T>, Eigen::Dynamic, 1> propagate_romberg_vector(
 
 // Unified State Evaluator
 // Calculates state y(z) at target_depth (relative to top) given layer properties.
-// mode=true -> Romberg (Grid), mode=false -> Pancake (Homogeneous approximation)
+// mode=true -> Romberg (Grid), mode=false -> Layer-cake (Homogeneous approximation)
 template <typename T>
 Eigen::Matrix<std::complex<T>, Eigen::Dynamic, 1> computeStateAtDepth(
     const Eigen::Matrix<std::complex<T>, Eigen::Dynamic, 1>& y_top,
@@ -732,7 +732,7 @@ Eigen::Matrix<std::complex<T>, Eigen::Dynamic, 1> computeStateAtDepth(
             omega, phaseVelocity, type, max_depth, tolerance
         );
     } else {
-        // Pancake Mode: Treat segment [0, target_depth] as single homogeneous layer
+        // Layer-cake Mode: Treat segment [0, target_depth] as single homogeneous layer
         // Use parameters at midpoint of this segment
         T dz = target_depth;
         T z_mid_global = dz * 0.5;

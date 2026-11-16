@@ -20,7 +20,7 @@ def kernels(velocity):
     model = FIXTURE['model']
     p = [dp.create_isotropic_parameters(*args) for args in
          zip(model['vs'], model['vp'], model['rho'])]
-    rows = dp.compute_kernels_ad_pancake(p[:-1], model['thicknesses'], p[-1],
+    rows = dp.compute_kernels_ad_layer_cake(p[:-1], model['thicknesses'], p[-1],
         model['omega'], velocity, 'Rayleigh', 'Isotropic', True)
     return {(row.layer_index, row.parameter_name): row.d_U for row in rows}
 

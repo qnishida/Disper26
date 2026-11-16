@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Frequency-AD variational PANCAKE group-kernel regression tests."""
+"""Frequency-AD variational LAYER_CAKE group-kernel regression tests."""
 
 import math
 import sys
@@ -42,7 +42,7 @@ def compute(mode, wave, sensitivity_mode="Isotropic", thickness=True,
     layers, thicknesses, halfspace = solid_model()
     omega = 2.0 * math.pi / 20.0
     c = phase_root(layers, thicknesses, halfspace, omega, wave)
-    kernels = dp.compute_kernels_variational_pancake(
+    kernels = dp.compute_kernels_variational_layer_cake(
         layers, thicknesses, halfspace, omega, c, wave,
         sensitivity_mode, thickness, 10, analytical,
         u_kernel_mode=mode, **targets)
@@ -91,7 +91,7 @@ def test_against_full_ad_reference():
         layers, thicknesses, halfspace, omega, c, new = compute(
             "variational_frequency_ad", wave, "VTI",
             thickness=True, analytical=analytical)
-        reference = dp.compute_kernels_ad_pancake(
+        reference = dp.compute_kernels_ad_layer_cake(
             layers, thicknesses, halfspace, omega, c,
             wave, "VTI", True)
         assert normalized_du_error(reference, new) < 1.0e-8
@@ -110,7 +110,7 @@ def test_centered_frequency_identity():
         for shifted_omega in (omega - eps, omega + eps):
             shifted_c = phase_root(
                 layers, thicknesses, halfspace, shifted_omega, wave, c)
-            shifted = dp.compute_kernels_variational_pancake(
+            shifted = dp.compute_kernels_variational_layer_cake(
                 layers, thicknesses, halfspace, shifted_omega, shifted_c,
                 wave, "VTI", True, 10, analytical,
                 u_kernel_mode="variational",
@@ -141,9 +141,9 @@ def test_fluid_and_trapezoidal_fallbacks_are_exact():
     c = phase_root(layers, thicknesses, halfspace, omega, "Rayleigh")
     args = (layers, thicknesses, halfspace, omega, c,
             "Rayleigh", "Isotropic", True, 5, False)
-    old = dp.compute_kernels_variational_pancake(
+    old = dp.compute_kernels_variational_layer_cake(
         *args, u_kernel_mode="variational")
-    new = dp.compute_kernels_variational_pancake(
+    new = dp.compute_kernels_variational_layer_cake(
         *args, u_kernel_mode="variational_frequency_ad")
     assert all(a.d_c == b.d_c and a.d_U == b.d_U and a.d_HV == b.d_HV
                for a, b in zip(old, new))
@@ -153,30 +153,30 @@ def test_defaults_targets_and_invalid_mode():
     explicit = compute("variational_frequency_ad", "Love")[-1]
     layers, thicknesses, halfspace, omega, c, _ = compute(
         "variational_frequency_ad", "Love")
-    default = dp.compute_kernels_variational_pancake(
+    default = dp.compute_kernels_variational_layer_cake(
         layers, thicknesses, halfspace, omega, c, "Love",
         "Isotropic", True, 10, False)
     assert all(a.d_U == b.d_U for a, b in zip(default, explicit))
 
-    selected = dp.compute_kernels_variational_pancake(
+    selected = dp.compute_kernels_variational_layer_cake(
         layers, thicknesses, halfspace, omega, c, "Love",
         "Isotropic", True, 10, False,
         compute_c=False, want_kernel_u=True, want_kernel_hv=False)
     assert all(k.d_c == 0.0 and k.d_HV == 0.0 for k in selected)
-    omitted = dp.compute_kernels_variational_pancake(
+    omitted = dp.compute_kernels_variational_layer_cake(
         layers, thicknesses, halfspace, omega, c, "Love",
         "Isotropic", True, 10, False,
         want_kernel_u=False, want_kernel_hv=False)
     assert all(k.d_U == 0.0 and k.d_HV == 0.0 for k in omitted)
 
     try:
-        dp.compute_kernels_variational_pancake(
+        dp.compute_kernels_variational_layer_cake(
             layers, thicknesses, halfspace, omega, c,
             u_kernel_mode="bogus")
     except ValueError:
         pass
     else:
-        raise AssertionError("invalid PANCAKE u_kernel_mode must raise")
+        raise AssertionError("invalid LAYER_CAKE u_kernel_mode must raise")
 
 
 if __name__ == "__main__":
@@ -185,4 +185,4 @@ if __name__ == "__main__":
     test_centered_frequency_identity()
     test_fluid_and_trapezoidal_fallbacks_are_exact()
     test_defaults_targets_and_invalid_mode()
-    print("All frequency-variational PANCAKE U-kernel tests passed.")
+    print("All frequency-variational LAYER_CAKE U-kernel tests passed.")

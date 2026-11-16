@@ -128,7 +128,7 @@ Phase 2: converged_levelの副層でWF Hessian（台形積分）を1回計算
 
 - 外挿なし → 収束次数の問題を完全回避
 - 解析積分 or 台形積分どちらでも使用可能（外挿しないため）
-- 精度は converged_level での pancake近似誤差 O(h²) に依存
+- 精度は converged_level での layer_cake近似誤差 O(h²) に依存
 - **現行 `useAnalytical=true` のままでも、この案では問題なし**
 
 ---
@@ -205,7 +205,7 @@ Eigen::VectorXd g0_node = interpolation_transpose(g_layer, mesher, k);
 
 | 手法 | 積分 | Romberg | パラメータ数 | N-pass | 副層数/セグメント | 計算量の目安 |
 |------|------|---------|------------|-------|----------------|------------|
-| 現行WF pancake（10層） | 解析 | なし | 30 | 30 | — | 30×10=300 |
+| 現行WF layer_cake（10層） | 解析 | なし | 30 | 30 | — | 30×10=300 |
 | Grid Two-phase（案） | 解析/台形 | Phase1のみ | 15 | 15 | 16 (k=4) | 15×80=1200 |
 | Grid Romberg Hessian | **台形** | **Hessian** | 15 | 15×K | 1,2,4,8(K=3) | 15×75=1125 |
 | Grid Romberg Hessian | **台形** | **Hessian** | 15 | 15×K | 1,2,4,8,16(K=4) | 15×155=2325 |

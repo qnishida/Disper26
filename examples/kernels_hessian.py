@@ -4,7 +4,7 @@ import disper26 as d26
 
 def model(vs_layer=3.0):
     return d26.create_model(
-        [0.0, 10.0], kind="pancake",
+        [0.0, 10.0], kind="layer_cake",
         vs=[vs_layer, 4.5], vp=[5.2, 8.0], rho=[2.5, 3.3],
     )
 
