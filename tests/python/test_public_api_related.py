@@ -72,18 +72,27 @@ class RelatedPublicAPI(unittest.TestCase):
                         result.I3 / (result.phase_velocity * result.I1), places=13)
                     self.assertEqual(result.diagnostics.method, integration)
 
-    def test_fluid_energy_uses_trapezoidal_and_keeps_fluid_flags(self):
+    def test_fluid_energy_uses_analytical_and_keeps_fluid_flags(self):
         solution = dp.compute_dispersion(self.ocean, period=5.)
         result = dp.compute_eigenfunctions(solution)
         self.assertTrue(np.any(result.is_fluid))
         self.assertTrue(np.any(~result.is_fluid))
+        # A top ocean stack selects the closed-form liquid moments by default;
+        # the trapezoidal integrals remain available as an explicit check.
         automatic = dp.compute_energy_integrals(solution)
-        explicit = dp.compute_energy_integrals(solution,
+        analytical = dp.compute_energy_integrals(solution,
+            options=dp.Options(integration="analytical"))
+        trapezoidal = dp.compute_energy_integrals(solution,
             options=dp.Options(integration="trapezoidal"))
-        self.assertEqual(automatic.diagnostics.method, "trapezoidal")
-        self.assertEqual(automatic.I1, explicit.I1)
-        with self.assertRaises(dp.Error):
-            dp.compute_energy_integrals(solution, options=dp.Options(integration="analytical"))
+        self.assertEqual(automatic.diagnostics.method, "analytical")
+        self.assertEqual(automatic.I1, analytical.I1)
+        self.assertEqual(trapezoidal.diagnostics.method, "trapezoidal")
+        self.assertEqual(analytical.diagnostics.method, "analytical")
+        reference = dp.compute_dispersion(self.ocean, period=5.,
+            outputs=("phase_velocity", "group_velocity")).group_velocity
+        np.testing.assert_allclose(analytical.group_velocity, reference, rtol=1e-9, atol=0.)
+        np.testing.assert_allclose(analytical.I2,
+            (2 * np.pi / solution.period)**2 * analytical.I1, rtol=1e-9, atol=0.)
 
     def test_grid_trace_extension_is_shared_without_changing_solution(self):
         grid = dp.create_grid_model([0., 20., 40.], interpolation="stiffness",

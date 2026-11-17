@@ -73,8 +73,8 @@ may appear so that fluid-side and solid-side states remain distinct.
 
 ### Rayleigh Variational Gradients
 
-The trapezoidal Rayleigh weak-form path supports top fluid stacks. Fluid layers
-use the acoustic frozen-displacement kernels
+Both the trapezoidal and the analytical Rayleigh weak-form paths support top
+fluid stacks. Fluid layers use the acoustic frozen-displacement kernels
 
 $$
 K_\rho = -\omega^2\int (u_z^2+u_r^2)\,dz,\qquad
@@ -83,8 +83,33 @@ $$
 
 with no sensitivity to shear moduli. In isotropic output, the fluid `Vs`
 gradient is zero and the `Vp`/`Rho` gradients use
-$C=\rho V_p^2$. Analytical Rayleigh weak-form integrals are still solid-only;
-use `useAnalytical=false` for fluid models.
+$C=\rho V_p^2$.
+
+With `useAnalytical=true`, the integrals over a fluid layer are closed-form
+moments of the state $[U,T_{zz}]$ taken from the top of the layer
+(`fluid_moments` in `src/energy_entire.hpp`). The coefficient matrix $G$ of the
+fluid propagator has zero trace, so $G^2=\delta^2 I$ and the state at local
+depth $x$ is $\mathcal C\,y_0-x\mathcal S\,Gy_0$ with the entire functions of
+$\delta^2x^2$; the moments need $\int\mathcal C^2$, $\int x\mathcal C\mathcal S$
+and $\int x^2\mathcal S^2$ only, and remain regular at $\delta=0$. The
+horizontal displacement follows from the fluid relation above, including the
+constant-$g$ term. The kernels agree with Full AD to roundoff.
+
+By design the energy functional and the variational kernels are those of the
+non-gravitating reference model; background gravity is applied separately as
+the first-order $K_g$ correction, and the public derivative API rejects
+gravitating models. Fluid Cowling propagation is kept as a cross-check only.
+If it is enabled through the low-level functions, the analytical and
+trapezoidal integrals still agree with each other, but the kernels are not
+derivatives of the gravitating model, because the functional is no longer
+stationary for its eigenfunctions.
+
+For Layer-cake models the public `integration="auto"` option selects these
+analytical integrals when the fluid layers form a contiguous stack at the top
+of the model above a solid halfspace; other fluid arrangements keep the
+trapezoidal integrals. Pass `integration="trapezoidal"` to use the
+trapezoidal integrals as a check. The point-based
+`compute_energy_integrals_analytical_rayleigh` remains solid-only.
 
 ### Grid/Romberg Rayleigh Weak-Form Hessian
 
@@ -186,7 +211,7 @@ thicknesses.push_back(1.0);
 | c = Vp singularity | Near-singularity handling via fallback (not exact limit) |
 | Liquid half-space | Not supported (ocean must be on top of solid) |
 | Liquid→Solid transition | Ocean below solid not supported |
-| Analytical Rayleigh weak-form integrals | Fluid layers are not supported; use trapezoidal integrals |
+| Analytical Rayleigh weak-form integrals | Top fluid layers supported; a fluid half-space and the point-based energy-integral routine are not |
 | Grid/Romberg Rayleigh weak-form Hessian | Fluid nodes are treated as fixed; use a duplicate-depth seabed discontinuity |
 
 ## References

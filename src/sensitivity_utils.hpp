@@ -4310,6 +4310,21 @@ RayleighLayerIntegrals<T> computeRayleighLayerIntegrals_Analytical(
     T h, T omega, T k
 ) {
     using CT = typename ComplexType<T>::type;
+    if (isLiquidLayer(layer)) {
+        // Acoustic layer: only [U,Tzz] propagate. ur follows from Saito's
+        // liquid relation (computeFluidHorizontalDisplacement) and szr = 0.
+        CT uu, ut, tt;
+        disper26_energy::fluid_moments(layer,h,omega,k,
+            toComplex(uz_top),toComplex(szz_top),uu,ut,tt);
+        const T m11 = uu.real(), m12 = ut.real(), m22 = tt.real();
+        const T zero = make_zero_like(h);
+        const T factor = k / (layer.rho * omega * omega);
+        const T gravity_coeff = layer.rho * (layer.gravity * layer.gravity_internal_scale);
+        const T ur2 = factor * factor
+            * (gravity_coeff * gravity_coeff * m11 - T(2.0) * gravity_coeff * m12 + m22);
+        const T szz_ur = factor * (gravity_coeff * m12 - m22);
+        return {T(m11 + ur2), m22, zero, ur2, zero, szz_ur};
+    }
     Eigen::Matrix<CT,4,4> moments;
     disper26_energy::rayleigh_moments(layer,h,omega,k,
         std::array<CT,4>{toComplex(uz_top),toComplex(szz_top),toComplex(ur_top),toComplex(szr_top)},moments);
@@ -4327,17 +4342,14 @@ RayleighEnergyResult<T> computeRayleighEnergyIntegrals_Analytical(
     T omega, T phaseVelocity,
     bool useAdaptiveSplit = true
 ) {
-    // The analytical layer integrals assume a solid layer: they divide by c44
-    // and use the P-SV eigenfunction form, neither of which survives c44 = 0.
-    // Without this the fluid case returns NaN with no indication of why -- the
-    // variational-gradient entry point has thrown here since it was written,
-    // but the energy integrals themselves and the weak-form kernel path
-    // reached this code unguarded. See docs/fluid_gravity_status.md.
-    if (hasLiquidLayer(layers) || isLiquidLayer(halfSpaceParams)) {
+    // Liquid layers at the model top use the acoustic moments of
+    // computeRayleighLayerIntegrals_Analytical; the half-space modal integral
+    // below divides by c44 and has no liquid form.
+    // See docs/fluid_gravity_status.md.
+    if (isLiquidLayer(halfSpaceParams)) {
         throw std::runtime_error(
-            "Analytical Rayleigh energy integrals are not implemented for fluid "
-            "layers. Use the trapezoidal integrals (use_analytical=false), or "
-            "compute_sensitivity_kernels_full_ad, which handles fluid models.");
+            "Analytical Rayleigh energy integrals are not implemented for a "
+            "fluid half-space.");
     }
     RayleighEnergyResult<T> res;
     T zero = T(0.0);
@@ -4363,7 +4375,11 @@ RayleighEnergyResult<T> computeRayleighEnergyIntegrals_Analytical(
     if (useAdaptiveSplit) {
         virtual_layers = buildAdaptiveRayleighVirtualLayers(layers, thicknesses, omega, 1);
     }
-    if (!useAdaptiveSplit || boundary_states.size() != virtual_layers.layers.size() + 1) {
+    const auto expected_states = [](const std::vector<PhysicalParameters<T>>& stack) {
+        return stack.size() + 1
+            + (hasLiquidLayer(stack) ? countTopLiquidLayersOrThrow(stack) : 0);
+    };
+    if (!useAdaptiveSplit || boundary_states.size() != expected_states(virtual_layers.layers)) {
         virtual_layers.layers = layers;
         virtual_layers.thicknesses = thicknesses;
         virtual_layers.original_layer_index.resize(layers.size());
@@ -4375,8 +4391,22 @@ RayleighEnergyResult<T> computeRayleighEnergyIntegrals_Analytical(
 
     int M = static_cast<int>(virtual_layers.layers.size());
     int usable_layers = std::min(M, static_cast<int>(boundary_states.size()) - 1);
+    // propagateRayleighEigenstates repeats the state at the bottom of every
+    // top liquid layer (the horizontal displacement jumps there), so the top
+    // of layer i is entry 2i in the liquid stack and i+L below it.
+    const int liquid_count = hasLiquidLayer(virtual_layers.layers)
+        ? countTopLiquidLayersOrThrow(virtual_layers.layers) : 0;
+    if (liquid_count > 0) {
+        if (static_cast<int>(boundary_states.size()) != M + liquid_count + 1) {
+            throw std::runtime_error(
+                "Analytical Rayleigh energy integrals: boundary states do not "
+                "match the fluid layer stack.");
+        }
+        usable_layers = M;
+    }
     for (int layer_i = 0; layer_i < usable_layers; ++layer_i) {
-        const auto& st = boundary_states[layer_i];
+        const auto& st = boundary_states[layer_i < liquid_count ? 2 * layer_i
+                                                               : layer_i + liquid_count];
         T uz_top = st.uz.real(), szz_top = st.szz.real();
         T ur_top = st.ur.real(), szr_top = st.szr.real();
 
@@ -4387,6 +4417,12 @@ RayleighEnergyResult<T> computeRayleighEnergyIntegrals_Analytical(
         add_layer_integrals(res.layer_integrals[original_i], sub_lint);
 
         const auto& p = layers[original_i];
+        if (isLiquidLayer(p)) {
+            res.I1 += p.rho * sub_lint.int_uz2_ur2;
+            res.I2 += sub_lint.int_szz2 / p.c33;
+            res.I3 += -sub_lint.int_szz_ur / k;
+            continue;
+        }
         T A_coeff = p.c11 - p.c13 * p.c13 / p.c33;
         res.I1 += p.rho * sub_lint.int_uz2_ur2;
         res.I2 += sub_lint.int_szz2 / p.c33 + sub_lint.int_szr2 / p.c44 + k_sq * A_coeff * sub_lint.int_ur2;
@@ -4578,9 +4614,6 @@ Eigen::Matrix<T, Eigen::Dynamic, 1> computeVariationalGradientRayleigh_T(
     bool useAnalytical = false,
     bool useAdaptiveSplit = true
 ) {
-    if ((hasLiquidLayer(layers) || isLiquidLayer(halfSpace)) && useAnalytical) {
-        throw std::runtime_error("Analytical Rayleigh variational gradients are not implemented for fluid layers; use trapezoidal integrals.");
-    }
     RayleighEnergyResult<T> energy;
     if (useAnalytical) {
         // Propagate with nsub=1 (boundary states only) + analytical integrals

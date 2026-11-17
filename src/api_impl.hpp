@@ -232,9 +232,19 @@ inline std::vector<Material> parameter_materials(const Model& model) {
 inline std::string entity(const Model& m,int i) {
     return m.data().kind=="grid" ? "node" : (i==static_cast<int>(m.data().materials.size())?"halfspace":"layer");
 }
+// Fluid layers are supported by the analytical integrals only as a contiguous
+// stack at the top of the model above a solid halfspace (Rayleigh only).
+inline bool fluid_top_only(const Model& m) {
+    const auto& d=m.data();
+    if(fluid(d.halfspace)) return false;
+    size_t i=0;
+    while(i<d.materials.size() && fluid(d.materials[i])) ++i;
+    return std::none_of(d.materials.begin()+i,d.materials.end(),fluid);
+}
 inline bool analytical(const Model& m,const Options& o) {
-    if(o.integration=="analytical" && has_fluid(m)) unsupported("Analytical integrals require solid media");
-    return o.integration=="analytical" || (o.integration=="auto" && !has_fluid(m));
+    // "auto" selects analytical integrals, including a top ocean stack; other
+    // fluid arrangements keep trapezoidal integrals.
+    return o.integration=="analytical" || (o.integration=="auto" && fluid_top_only(m));
 }
 inline std::string unit(const std::string& name) {
     if (name=="Rho" || name=="rho") return "g/cm^3";

@@ -123,6 +123,29 @@ void same_small(const CT& q,const CT& h,CT& cc,CT& cs,CT& ss) {
     ss=ad_const(zero,2.)*h*h*h*sinhc_tail(CT(four*q));
 }
 
+// Quadratic moments of the liquid state [U,Tzz] over a homogeneous layer,
+// integrated over local downward depth from the state at the layer top.
+// The coefficient matrix G=[[a,b],[c,-a]] is that of computeLayerMatrixLiquid;
+// G^2=delta^2 I, so the state at depth x is C*y0-x*S*(G*y0) with the entire
+// C,S of delta^2 x^2. No vertical-wavenumber root is formed.
+template<class T>
+void fluid_moments(const PhysicalParameters<T>& p,T h,T w,T k,
+    const typename ComplexType<T>::type& u,const typename ComplexType<T>::type& t,
+    typename ComplexType<T>::type& uu,typename ComplexType<T>::type& ut,
+    typename ComplexType<T>::type& tt) {
+    using CT=typename ComplexType<T>::type;
+    const T gravity=p.gravity*p.gravity_internal_scale;
+    const CT kc=toComplex(k), wc=toComplex(w), rho=toComplex(p.rho), g=toComplex(gravity);
+    const CT w2=wc*wc, ch=toComplex(h), two=ad_const(CT(ch-ch),2.), one=ad_const(CT(ch-ch),1.);
+    const CT phase=wc/kc, n=kc*kc*(one-phase*phase*rho/toComplex(p.c33));
+    const CT a=kc*kc*g/w2, b=-n/(rho*w2), c=-rho*w2+kc*kc*rho*g*g/w2;
+    CT cc,cs,ss;same_small(CT((a*a+b*c)*ch*ch),ch,cc,cs,ss);
+    const CT du=-(a*u+b*t), dt=-(c*u-a*t);
+    uu=u*u*cc+two*u*du*cs+du*du*ss;
+    ut=u*t*cc+(u*dt+du*t)*cs+du*dt*ss;
+    tt=t*t*cc+two*t*dt*cs+dt*dt*ss;
+}
+
 template<class T>
 bool love_moments(const PhysicalParameters<T>& p,T h,T w,T k,
     const typename ComplexType<T>::type& u,const typename ComplexType<T>::type& traction,

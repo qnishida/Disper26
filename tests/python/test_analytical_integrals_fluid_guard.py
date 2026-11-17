@@ -1,25 +1,21 @@
 #!/usr/bin/env python3
-"""The analytical Rayleigh energy integrals must refuse fluid models, not
-return NaN.
+"""The point-based analytical Rayleigh energy integrals must refuse fluid
+models, not return NaN.
 
-They assume a solid layer -- the form divides by c44 and uses the P-SV
-eigenfunction shape, and a water layer has c44 = 0.
+That overload assumes a solid layer -- the form divides by c44 and uses the
+P-SV eigenfunction shape, and a water layer has c44 = 0.
+compute_rayleigh_energy_integrals_analytical used to return (nan, nan, nan)
+with no indication of why. Silent NaN is the worst of the outcomes -- a smoke
+test that only checks the call succeeds will pass, and the value propagates
+into whatever consumes it. The guard sits inside the overload rather than at
+the entry point, so a future caller cannot route around it.
 
-compute_sensitivity_kernels_weakform(use_analytical=True) was already covered:
-the variational-gradient entry point has thrown for fluid since it was written.
-compute_rayleigh_energy_integrals_analytical was not, and returned (nan, nan,
-nan) with no indication of why. Silent NaN is the worst of the outcomes -- a
-smoke test that only checks the call succeeds will pass, and the value
-propagates into whatever consumes it.
-
-The guard now sits inside both computeRayleighEnergyIntegrals_Analytical
-overloads rather than at the entry points, so a future caller cannot route
-around it. This test covers both ways in, including the one that was already
-safe, so that neither regresses.
-
-Fluid models are not left without an option: the trapezoidal integrals and
-compute_sensitivity_kernels_full_ad both handle them. See
-docs/fluid_gravity_status.md for which path to use when.
+The boundary-state overload behind
+compute_sensitivity_kernels_weakform(use_analytical=True) handles top liquid
+layers with closed-form acoustic moments; its accuracy is covered by
+test_fluid_analytical_rayleigh_integrals.py. Here it only has to return finite
+kernels, alongside the trapezoidal integrals and
+compute_sensitivity_kernels_full_ad.
 """
 
 import math
@@ -62,10 +58,6 @@ def test_analytical_paths_reject_fluid():
         ("compute_rayleigh_energy_integrals_analytical",
          lambda: dp.compute_rayleigh_energy_integrals_analytical(
              efs, layers, thick, halfspace, OMEGA, c)),
-        ("compute_sensitivity_kernels_weakform(use_analytical=True)",
-         lambda: dp.compute_sensitivity_kernels_weakform(
-             layers, thick, halfspace, OMEGA, c, wave_type="Rayleigh",
-             sensitivity_mode="Isotropic", num_sub_layers=5, use_analytical=True)),
     ):
         try:
             call()
@@ -85,6 +77,10 @@ def test_fluid_still_has_working_paths():
     assert not has_nan(integrals), f"trapezoidal integrals gave NaN: {integrals}"
 
     for label, call in (
+        ("weakform analytical",
+         lambda: dp.compute_sensitivity_kernels_weakform(
+             layers, thick, halfspace, OMEGA, c, wave_type="Rayleigh",
+             sensitivity_mode="Isotropic", num_sub_layers=5, use_analytical=True)),
         ("weakform trapezoidal",
          lambda: dp.compute_sensitivity_kernels_weakform(
              layers, thick, halfspace, OMEGA, c, wave_type="Rayleigh",

@@ -85,13 +85,16 @@ EnergyIntegrals compute_energy_integrals(const ModeSolution& solution,
     const double root = detail::trace_roots(solution, level).at(level);
     const double omega = 2.0 * M_PI / data.period;
     const bool fluid = detail::related_has_fluid(stack);
+    std::size_t top_fluid = 0;
+    while (top_fluid < stack.layers.size() && isLiquidLayer(stack.layers[top_fluid])) ++top_fluid;
+    const bool fluid_top_only = !isLiquidLayer(stack.halfspace) &&
+        std::none_of(stack.layers.begin() + top_fluid, stack.layers.end(),
+            [](const PhysicalParameters<double>& p) { return isLiquidLayer(p); });
     const bool analytical = options.integration == "analytical" ||
-        (options.integration == "auto" && !fluid);
+        (options.integration == "auto" && fluid_top_only);
     if (options.integration != "auto" && options.integration != "analytical" &&
         options.integration != "trapezoidal")
         throw Error("invalid_argument", "integration must be auto, analytical or trapezoidal");
-    if (analytical && fluid)
-        detail::unsupported("Analytical energy integrals require solid materials.");
     EnergyIntegralResult<double> integral{};
     auto copy_integrals = [&](const EnergyIntegralResult<double>& result) {
         // Analytical results leave groupVelocity_Energy unset; copy only the
@@ -111,7 +114,15 @@ EnergyIntegrals compute_energy_integrals(const ModeSolution& solution,
     } else {
         const auto points = computeRayleighEigenfunctions(stack.layers,
             stack.thicknesses, stack.halfspace, omega, root, options.num_sub_layers);
-        if (analytical)
+        if (analytical && fluid) {
+            // The point-based analytical routine is solid-only; liquid layers
+            // use the boundary-state moments shared with the variational kernels.
+            const auto states = propagateRayleighEigenstates<double>(stack.layers,
+                stack.thicknesses, stack.halfspace, omega, root, 1, false);
+            const auto energy = computeRayleighEnergyIntegrals_Analytical<double>(states,
+                stack.layers, stack.thicknesses, stack.halfspace, omega, root, false);
+            integral.I1 = energy.I1; integral.I2 = energy.I2; integral.I3 = energy.I3;
+        } else if (analytical)
             copy_integrals(computeRayleighEnergyIntegrals_Analytical(points, stack.layers,
                 stack.thicknesses, stack.halfspace, omega, root));
         else

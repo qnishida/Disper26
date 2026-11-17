@@ -433,9 +433,6 @@ py::dict py_debugRayleighWeakformTrace(
 
     std::vector<RayleighStatePoint<double>> states;
     RayleighEnergyResult<double> energy;
-    if ((hasLiquidLayer(layers) || isLiquidLayer(halfSpaceParams)) && useAnalytical) {
-        throw std::runtime_error("Analytical Rayleigh weak-form trace is not implemented for fluid layers; use trapezoidal trace.");
-    }
     if (useAnalytical) {
         states = propagateRayleighEigenstates<double>(
             layers, thicknesses, halfSpaceParams, omega, phaseVelocity, 1);
