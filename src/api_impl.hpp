@@ -922,6 +922,9 @@ DerivativeResult compute_hessian_reduced(const ModeSolution& s,const std::vector
 DerivativeResult compute_interface_kernels(const ModeSolution& s,const Options& o) {
     detail::check_options(o);detail::derivative_wave(s);const auto& m=s.model();const auto& d=m.data();
     detail::require(o.method=="standard"||o.method=="variational","Interface kernels require variational method");
+    // The interface jump uses the solid spatial Hamiltonian (sigma_zr^2/L);
+    // it has no fluid form, and with fluid layers it returned nonfinite values.
+    if(detail::has_fluid(m)) detail::unsupported("Interface derivatives with fluid layers are not supported");
     DerivativeResult r;r.basis="interface_depth";r.diagnostics=detail::diagnostic("variational",o);
     r.gradients["phase_velocity"]={};
     r.diagnostics.availability["phase_velocity"]="computed";
@@ -946,6 +949,7 @@ DerivativeResult compute_interface_hessian_row(const ModeSolution& s,int interfa
     detail::check_options(o);detail::derivative_wave(s);const auto& d=s.model().data();
     detail::check_basis(s.model(),basis);
     detail::require(o.method=="standard"||o.method=="variational_ad","Interface Hessian requires variational_ad");
+    if(detail::has_fluid(s.model())) detail::unsupported("Interface derivatives with fluid layers are not supported");
     if(d.kind!="grid"||d.interpolation!="stiffness"||d.geometry.kind!="flat")detail::unsupported("Interface Hessian requires flat stiffness GRID");
     const int ndisc=static_cast<int>(std::count(d.discontinuities.begin(),d.discontinuities.end(),true));
     detail::require(interface_index>=0&&interface_index<ndisc,"Interface index out of range");
@@ -1035,9 +1039,10 @@ std::vector<Capability> get_capabilities(const Model& m,const std::string& wave)
     }
     add("hessian_reduced","linear_projection","variational_ad",first_reason(first_reason(base_reason,derivative_reason),
         !layer_cake && stiffness?grid_variational_reason:"Reduced Hessians require stiffness GRID"));
-    const auto interface_reason=first_reason(first_reason(base_reason,derivative_reason),
+    const auto interface_reason=first_reason(first_reason(first_reason(base_reason,derivative_reason),
         stiffness && d.geometry.kind=="flat"?std::string{}:
-            "Interface derivatives require flat stiffness GRID or flat Layer-cake");
+            "Interface derivatives require flat stiffness GRID or flat Layer-cake"),
+        detail::has_fluid(m)?"Interface derivatives with fluid layers are not supported":std::string{});
     add("interface_kernels","interface_depth","variational",interface_reason);
     for(const auto& basis:{"isotropic","stiffness","velocity_vti","log_velocity_vti"}) {
         std::string reason=first_reason(interface_reason,

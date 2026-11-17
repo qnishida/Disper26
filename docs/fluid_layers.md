@@ -111,6 +111,12 @@ trapezoidal integrals. Pass `integration="trapezoidal"` to use the
 trapezoidal integrals as a check. The point-based
 `compute_energy_integrals_analytical_rayleigh` remains solid-only.
 
+Interface-depth derivatives (`compute_interface_kernels`,
+`compute_interface_hessian_row`) are not available for models with fluid
+layers: the interface jump uses the solid spatial Hamiltonian, which contains
+$\sigma_{zr}^2/L$ and has no fluid form. Both entry points raise, and
+`get_capabilities` reports the reason.
+
 ### Grid/Romberg Rayleigh Weak-Form Hessian
 
 `compute_phase_velocity_hessian_weakform_rayleigh_grid` supports a top fluid
