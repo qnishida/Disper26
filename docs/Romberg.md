@@ -387,5 +387,5 @@ a wider search or a neighboring-root substitution.
 
 ## References
 
-- [Gradient-model convergence example](../examples/README.md#2-勾配モデルと収束診断)
+- [Gradient-model convergence example](../examples/README.md#2-gradient-model-and-convergence-diagnostics)
 - [Romberg convergence regression tests](../tests/python/test_romberg_convergence.py)

@@ -51,6 +51,9 @@ See also [installation](docs/install.md), [shared API](docs/public_api.md),
 Documented low-level deprecated aliases remain callable. Method-specific
 limitations and convergence diagnostics are part of the API contract.
 
+Japanese editions of the [API guide](docs_jp/public_api.md) and
+[practice examples](example_jp/README.md) are also available.
+
 ## Verification
 
 ```sh

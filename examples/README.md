@@ -1,87 +1,86 @@
-# Disper26 の練習例
+# Disper26 practice examples
 
-モデルを作り、分散を計算し、感度やHessianを使うまでを小さな例で試します。
-論文で扱う手法から日常の利用に役立つものを選んだ例で、全図の再現は目的にしていません。
-入力は各スクリプト内にあり、別の研究用リポジトリや論文ソースは不要です。
+These self-contained examples use small models to demonstrate dispersion,
+sensitivity kernels and Hessians. Each script includes its inputs.
+A [Japanese edition](../example_jp/README.md) is available.
 
-## 実行の準備
+## Setup
 
-[インストール手順](../docs/install.md)に従い、専用のPython環境へビルド・インストールします。
-以下は、このリポジトリのルートから、その環境のPythonで実行してください。
-必要なPython依存はNumPyです。テストにはpytestを追加します。
+Follow the [installation guide](../docs/install.md) to set up a dedicated
+Python environment. Run the commands below from the repository root using
+that environment. The examples require NumPy and the tests require pytest.
 
 ```sh
 python -m pip install '.[test]'
 ```
 
-開発中はソースの変更後に拡張モジュールを再ビルドします。
-開発時のビルド・回帰確認手順は [AGENTS.md](../AGENTS.md) に記載しています。
+Rebuild the extension after changing its source. See the [development
+instructions](../AGENTS.md) for build and regression commands.
 
-## 1. モデル作成と分散曲線
+## 1. Model construction and dispersion curves
 
 ```sh
 python -m examples.basic_dispersion
 ```
 
-計算開始周期、初期速度範囲、モード番号の確認頻度の指定例は
-`python -m examples.tracking_options` で実行できる。
-既定は最長周期から計算し、返却順は入力順を保つ。
-各設定の保証範囲は [共通API](../docs/public_api.md) を参照。
+[basic_dispersion.py](basic_dispersion.py) computes fundamental-mode
+(`mode=0`) Rayleigh and Love phase velocities for an isotropic layer over a
+half-space. The last depth marks the top of the half-space. Depth is in km,
+velocity in km/s, density in g/cm³ and period in s. Change the layer thickness
+or Vs and compare the short- and long-period ends of each curve.
 
-[basic_dispersion.py](basic_dispersion.py) は、一つの層と半無限層からなる等方モデルで
-Rayleigh波・Love波の基本モードの位相速度を計算します。
-深さはkm、速度はkm/s、密度はg/cm³、周期はsです。基本モードは `mode=0` です。
-最終の深度点から下が半無限層になります。
+Run `python -m examples.tracking_options` to set the starting period, initial
+velocity range and frequency of mode checks. The default starts at the longest
+period and returns results in input order. The [shared API guide](../docs/public_api.md)
+describes the checks for each setting.
 
-層厚やVsを変え、短周期と長周期で曲線がどう変わるかを確かめてください。
-
-## 2. 勾配モデルと収束診断
+## 2. Gradient model and convergence diagnostics
 
 ```sh
 python -m examples.gradient_convergence
 ```
 
-[gradient_convergence.py](gradient_convergence.py) は、深度ノード間で剛性を補間する
-GRIDモデルを作り、Rombergの最大レベルを変えた結果を表示します。
-速度を補間するモデルとは異なるため、`interpolation="stiffness"` を明示しています。
+[gradient_convergence.py](gradient_convergence.py) uses
+`interpolation="stiffness"` to interpolate stiffness between depth nodes.
+It varies the maximum Romberg level and prints phase velocity, the accepted
+level, estimated relative error and convergence status. The small level cap
+intentionally shows an unconverged result. The table reports the status, so
+the example suppresses duplicate `ConvergenceWarning` messages. The error
+estimate comes from extrapolation.
 
-位相速度に加え、採用レベル、推定相対誤差、収束状態を確認します。
-小さいレベル上限での未収束は意図したものです。表に状態を表示するため、この例では
-重複する `ConvergenceWarning` の表示を抑えています。
-推定誤差は独立な厳密解との差ではありません。
-
-## 3. 感度カーネルとHessian
+## 3. Sensitivity kernels and the Hessian
 
 ```sh
 python -m examples.kernels_hessian
 ```
 
-[kernels_hessian.py](kernels_hessian.py) は、`basis="isotropic"` の位相速度勾配と
-Hessianを計算します。返されたパラメータ軸から上側の層のVsを選び、Vpと密度を
-固定してVsだけを変えた場合の一次・二次Taylor近似を作ります。
-物性を変えて順計算し直した値と比較することで、微分結果の使い方を確認できます。
+[kernels_hessian.py](kernels_hessian.py) computes the phase-velocity gradient
+and Hessian with `basis="isotropic"`. It selects the upper layer's Vs from the
+returned parameter axis, holds Vp and density fixed, and compares first- and
+second-order Taylor predictions with a fresh forward calculation. The
+improvement shown here applies to small perturbations on the same mode.
+The Hessian diagnostics report `not_evaluated` when the method has no
+independent error estimate.
 
-二次近似が改善するのはこの例の小さな摂動で確認する性質です。大きな変更や異なる
-モードへの移動まで保証するものではありません。Hessianの独立した誤差推定がない
-場合は、診断を `not_evaluated` として表示します。
-
-## 例の検証
+## Check the examples
 
 ```sh
 python -m pytest -q tests/python/test_examples.py
 ```
 
-同じスクリプトの計算部分を実行し、速度の範囲、指定精度での収束、二次近似の改善を
-確認します。通常の `tests/python` 回帰テストにも含まれます。
-過去の固定データの再集計・図の再描画は [paper/README.md](../paper/README.md) を参照してください。
+These tests run the same calculations and check the velocity ranges, requested
+convergence and improvement in the second-order prediction. They also run in
+the full Python regression suite. For historical data and figure reproduction,
+see the [paper guide](../paper/README.md).
 
 <a id="advanced"></a>
 
-## 高度な利用
+## Advanced usage
 
-出力量、微分座標、対応範囲は [共通公開API](../docs/public_api.md)、計算法ごとの
-直接呼び出しは [低水準API](../docs/lowlevel_api.md) に記載しています。
-逆解析用の `disper26_inv.ForwardEngine` は共通APIとは別の用途別入口です。
-こちらはSciPyも使用するため、`python -m pip install '.[inversion]'`
-で依存を用意してください。実装は [engine.py](../inversion/disper26_inv/engine.py)、
-パラメータ化は [model.py](../inversion/disper26_inv/model.py) を参照できます。
+The [shared API guide](../docs/public_api.md) describes outputs, derivative
+coordinates and supported operations. The [low-level API guide](../docs/lowlevel_api.md)
+gives direct calls for individual methods. Inversion has a separate entry
+point, `disper26_inv.ForwardEngine`, which also uses SciPy. Install its
+dependencies with `python -m pip install '.[inversion]'`. See
+[engine.py](../inversion/disper26_inv/engine.py) for the implementation and
+[model.py](../inversion/disper26_inv/model.py) for parameterization.

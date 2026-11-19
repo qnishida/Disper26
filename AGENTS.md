@@ -16,6 +16,10 @@ External-program comparison tests, reference output, and comparison benchmarks
 belong in the separate research test repository, outside this public tree.
 Keep Disper26-only regression fixtures independent of those comparisons.
 
+Markdown in this public repository must be written in English, except for
+Japanese documentation under `docs_jp/` and Japanese example guides under
+`example_jp/`. Both directories are at the repository root.
+
 Preserve numerical formulas, units, signs, precision, defaults, reduction order,
 seeds, tolerances and documented deprecated aliases. Follow docs/naming_convention.md.
 Use a dedicated Conda environment with the dependencies in docs/install.md;

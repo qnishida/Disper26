@@ -1,6 +1,6 @@
 """disper26_inv: surrogate-driven multistart GMM inversion on top of disper26py.
 
-Public entry-point overview: examples/README.md, "高度な利用".
+Public entry-point overview: examples/README.md#advanced.
 Derivative implementation map: docs/sensitivity_implementation_map.md.
 All public APIs take periods in seconds and km / km/s / g/cm^3 model units;
 the omega/Hz inconsistencies of the raw bindings are hidden inside engine.py.

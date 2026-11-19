@@ -1,23 +1,19 @@
-# Grid Mode WF Hessian — Romberg 収束解析
+# Romberg convergence of the GRID weak-form Hessian
 
-## 概要
+[Japanese edition](../docs_jp/grid_wf_hessian_convergence.md)
 
-Grid Mode Weak-Form (WF) Hessian の Romberg 加速による収束特性を数値実験で確認した。
-比較対象は高精度有限差分 (中心差分, ε=0.01〜0.05) による参照値。
+This experiment compares extrapolated gradients and Hessians with central
+finite differences (ε = 0.01–0.05). It uses a two-node gradient model from
+0 to 20 km for Love waves at 3 Hz. Node 0 has Vs=200, Vp=400 and ρ=1800.
+Node 1, the half-space, has Vs=320, Vp=640 and ρ=2100.
 
-モデル: 2ノード勾配モデル（深さ 0〜20 km, Love 波, 周波数 3 Hz）
+## Gradient
 
-- ノード 0: Vs=200, Vp=400, ρ=1800
-- ノード 1 (半空間): Vs=320, Vp=640, ρ=2100
+The reference uses a central difference with ε=0.01 and
+`compute_dispersion_romberg` with `max_levels=8`.
 
----
-
-## 勾配の Romberg 収束
-
-参照値: 高精度有限差分 (ε=0.01, `compute_dispersion_romberg` max_levels=8)
-
-| Romberg Level | 勾配相対誤差 | 改善倍率 |
-|:---:|:---:|:---:|
+| Romberg level | Gradient relative error | Improvement factor |
+|---:|---:|---:|
 | 0 | 4.68e-02 | — |
 | 1 | 3.12e-03 | 15.0x |
 | 2 | 2.46e-04 | 12.7x |
@@ -26,17 +22,17 @@ Grid Mode Weak-Form (WF) Hessian の Romberg 加速による収束特性を数�
 | 5 | 2.06e-09 | 135.7x |
 | 6 | 1.40e-10 | 14.7x |
 
-**Level 5 で相対誤差 ~2e-9**, Level 6 で ~1e-10 まで改善される。
-デフォルト `max_levels=5` で実用上十分な精度（~2e-9）が得られる。
 
----
+The relative error is about 2e-9 at the default cap of level 5 and 1e-10 at
+level 6 for this model.
 
-## Hessian の Romberg 収束
+## Hessian
 
-参照値: Level=7 の高精度 WF 勾配から有限差分で構成した Hessian (ε=0.05)
+The reference is a finite difference of level-7 weak-form gradients with
+ε=0.05.
 
-| Romberg Level | Hessian 相対誤差 | 改善倍率 |
-|:---:|:---:|:---:|
+| Romberg level | Hessian relative error | Improvement factor |
+|---:|---:|---:|
 | 0 | 5.50e-01 | — |
 | 1 | 8.86e-02 | 6.2x |
 | 2 | 1.88e-02 | 4.7x |
@@ -45,45 +41,38 @@ Grid Mode Weak-Form (WF) Hessian の Romberg 加速による収束特性を数�
 | 5 | 2.16e-07 | 85.4x |
 | 6 | 5.85e-08 | 3.7x |
 
-**Level 5 で相対誤差 ~2e-7**, Level 6 で ~6e-8。
-Level 3 → 4 間に不規則な挙動があるが、Level 5 以降は安定して収束する。
 
----
+The relative error is about 2e-7 at level 5 and 6e-8 at level 6. The
+improvement from level 3 to 4 is smaller than the gain at level 5.
 
-## 当時の検証スクリプトとの比較
+## Comparison with the original checks
 
-当時のスクリプトは研究アーカイブに保持され、この公開版には含まれない。
-以下は当時の測定値である。現行版の検証は
-[練習例](../examples/README.md) と通常のPython回帰試験を使う。
+The historical scripts are held in the research archive. For checks in this
+release, use the [practice examples](../examples/README.md) and the Python
+regression suite. The original test used a coarser finite difference (ε=0.5).
 
-既存テストでは FD 参照のε=0.5 (粗い) を使用していたため、以下のように見えていた:
-
-| 量 | 報告誤差 | 実際の誤差 (精密 FD 参照) |
+| Quantity | Originally reported error | Reference comparison |
 |---|---|---|
-| 勾配 | ~1e-7 | ~1e-7 (Level 3, ε=0.5 FD の精度上限で律速) |
-| Hessian | ~3e-5 | ~2e-7 (Level 5) |
+| Gradient | ~1e-7 | ~1e-7 in the original level-3 check, limited by the ε=0.5 reference |
+| Hessian | ~3e-5 | ~2e-7 at level 5 with the finer reference |
 
-**→ 精度が低く見えていた主因は FD 参照 (ε=0.5) の精度不足**。  
-方法自体は Level 5 で勾配 ~2e-9, Hessian ~2e-7 の高精度を達成している。
+The coarse finite difference limited the earlier accuracy assessment. With
+the finer reference, level 5 gives about 2e-9 for the gradient and 2e-7 for
+the Hessian.
 
----
+## Parameter settings
 
-## デフォルトパラメータ推奨値
-
-| パラメータ | デフォルト | 推奨 (高精度) | 備考 |
+| Parameter | Default | High-accuracy setting in this experiment | Interpretation |
 |---|---|---|---|
-| `max_levels` | 5 | 5–6 | Level 5 で ~2e-9 (勾配) |
-| `tolerance` | 1e-6 | 1e-8 | 適応停止の閾値 |
+| `max_levels` | 5 | 5–6 | Level 5 gives ~2e-9 gradient error. |
+| `tolerance` | 1e-6 | 1e-8 | Threshold for adaptive stopping. |
 
-Level 6 以降は改善が鈍化し始めるため、`max_levels=6` が実用上の上限。
+The gains diminish by level 6, the practical cap in this comparison.
 
----
+## Interpretation
 
-## 収束パターンの考察
-
-収束が均一でない（特に Level 3→4, Level 4→5 間の大きな跳び）のは、
-Neville 外挿の多項式次数が上がるタイミングで偶数冪展開のキャンセルが
-急激に起きるためと考えられる。これは理論的に正常な挙動。
-
-台形積分を使うことで O(h²) の偶数冪展開が保たれ、
-Richardson 外挿の比率 4^j が正確に機能している。
+As the degree of the Neville extrapolation polynomial increases, successive
+even-power terms can cancel. This accounts for the uneven improvements,
+particularly from level 3 to 4 and from level 4 to 5. Trapezoidal integration
+preserves the even-power expansion starting at O(h²) in this analysis, with
+Richardson factors of 4^j.
