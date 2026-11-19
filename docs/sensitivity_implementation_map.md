@@ -131,7 +131,7 @@ AD パスの中で計算され、フラグは出力のゼロ埋めではなく�
 | ＋ `want_value_u=want_value_hv=False`（旧 `phase_only=True`） | 1.083 | 値 U, H/V — 0.1% |
 
 `c` と dc/dp はどの構成でもビット一致。`kernel_extrapolation` は別途約 2 倍を占める
-（`benchmark_heavy.py`: 外挿なし 0.1085 / あり 0.2020 s）が、dU の精度を
+（研究アーカイブでの計測値: 外挿なし 0.1085 / あり 0.2020 s）が、dU の精度を
 2e-4 → 1.6e-9 に上げているもの。
 
 2026-08-20以降、dU-onlyでは `variational_frequency_ad` が位相変分カーネル
@@ -172,7 +172,7 @@ $dU/dp=U^2 d(\omega K_p/c^2)/d\omega$ でwidth-1 AD微分するため、群速�
 O(L·N²)）、`_variational_love`（`_hybrid_love` への 8 行転送、実装を持たない
 別名）、`_variational_fd_love`（勾配の有限差分、参照用）の 4 名に実装 3 つが
 対応していた。`inversion/` からの使用がゼロで `tests/python/` の
-`diagnose_*` 5 本 + `verify_hessian_taylor_random.py` のみだったため、
+`diagnose_*` 5 本 + 研究アーカイブの `verify_hessian_taylor_random.py` のみだったため、
 `_hybrid_love` とその別名 `_variational_love`・内訳診断
 `debug_variational_love_hessian_breakdown` を削除し、7 本の呼び出し元を
 更新した。判断の根拠（`77e566d`→`1de506a`→`2cdf53b` の履歴、
@@ -253,7 +253,7 @@ AD 側のバグを直して解消した（下記「原因は AD 経路に紛れ�
 
 ### 決着までの実測
 
-`consistency` は 42 ラン 2805 点ぶんが `tests/inversion/**/phase1_*.npz` に保存済み。
+`consistency` は 42 ラン 2805 点ぶんが 研究アーカイブの実行結果に保存済み。
 
 | 分位 | consistency |
 |---|---:|
@@ -263,7 +263,7 @@ AD 側のバグを直して解消した（下記「原因は AD 経路に紛れ�
 | 最悪 | **4.0e+00** |
 
 p50 の 5.9e-08 は「両者が各自の精度限界まで一致」を意味する。AD 経路のカーネル自体の
-打ち切り誤差が 1.7e-08 (`benchmark_07042026.md:130`) なので、これ以上は良くならない。
+打ち切り誤差が 1.7e-08 （研究アーカイブの精度評価） なので、これ以上は良くならない。
 問題は裾だけ。
 
 外れ値の正体は、消去法で絞った:
@@ -345,7 +345,7 @@ dF/dc(計算値) ≈ s(c+ε)·F_c      dF_dp = s(c)·F_p   (同一 AD パス、�
 
 歴史的な注記: `compute_kernels_ad_grid`（旧 `compute_dispersion_romberg_with_kernels`）
 の kernel が単一レベルでしか計算されていなかったバグ (2026-07-05 `e5faa1d` で修正)
-が長く見つからなかったのは、Taylor 検証 (`verify_hessian_taylor_random.py`) が
+が長く見つからなかったのは、Taylor 検証 (研究アーカイブの `verify_hessian_taylor_random.py`) が
 variational 側の gradient を使っていて、バグのある AD 側を通っていなかったため。
 修正後は両者 ~1e-8 で一致する。
 
@@ -430,7 +430,7 @@ GRID の 1 階 `K_d`（界面深さ勾配 dc/dz、`compute_interface_gradient_va
 
 **検証**: 新テスト `test_phase1_weakform_jacobian.py` で `ad_kernel_every=1` と
 `0` で **J がビット一致**すること、`consistency` の分位が 2.8e-11 に収まることを
-確認。`verify_inv_phase1.py`（24 点、serial/pool 8 並列）で `consistency` 最大
+確認。研究アーカイブの `verify_inv_phase1.py`（24 点、serial/pool 8 並列）で `consistency` 最大
 6.33e-11（旧しきい値 1e-4 の 4 桁下）、pool と serial の J/H はビット一致。
 
 **踏んだ落とし穴**: `depth_gradient_variational` の呼び出しを最初

@@ -8,13 +8,10 @@ restart or squash that history when changing visibility for publication.
 Review staged files and source/wheel archives for credentials, local paths,
 unpublished research, reports, and unapproved binaries before every commit.
 
-The software is intended to accompany the manuscript. Development continues
-in the private GitHub repository. At manuscript submission, make that
-repository public, retain its history, and
-archive a versioned GitHub release with Zenodo. Public builds, documentation
-and selected practice examples must work from this
-repository alone. Reproducing all manuscript figures is not required. See
-docs/release_preparation.md and examples/README.md for scope and preparation.
+At manuscript submission, publish this software repository with its history
+and archive a versioned GitHub release with Zenodo. Its builds, documentation
+and selected practice examples must work independently. See examples/README.md
+for the examples included with the software.
 External-program comparison tests, reference output, and comparison benchmarks
 belong in the separate research test repository, outside this public tree.
 Keep Disper26-only regression fixtures independent of those comparisons.

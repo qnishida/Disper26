@@ -45,6 +45,7 @@ setup(
     version="0.1.104",
     author="Kiwamu Nishida",
     license="GPL-2.0-or-later",
+    options={"sdist": {"owner": "root", "group": "root"}},
     license_files=["LICENSE", "NOTICE"],
     description="Python bindings for Disper26 VTI Dispersion Engine via pybind11",
     ext_modules=[Extension("disper26py", sources=[])],

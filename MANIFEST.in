@@ -11,6 +11,7 @@ include README.md LICENSE NOTICE CITATION.cff AGENTS.md .gitmodules
 recursive-include docs *.md *.png
 recursive-include examples *.py *.md
 recursive-include tests *.py *.json *.csv *.txt
+include tests/diagnostics/README.md
 recursive-include paper *.py *.cpp *.hpp *.h *.cmake *.in *.md *.json *.npz *.csv *.txt CMakeLists.txt
 prune paper/results
 prune paper/Fig

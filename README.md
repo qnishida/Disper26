@@ -13,11 +13,9 @@ PREM provenance, its CC BY 4.0 terms, and dependency notices are recorded in
 [NOTICE](NOTICE); see [License and attribution](#license-and-attribution).
 No public release has been issued.
 
-The reviewed initial history has been synchronized to GitHub. At manuscript
-submission, the private repository will become public with its subsequent
-commit history preserved, followed by a
-versioned GitHub release archived by Zenodo. See the
-[release preparation checklist](docs/release_preparation.md).
+At manuscript submission, this software repository will become public with its
+development history preserved. A versioned GitHub release will be archived
+with Zenodo. The research comparison repository is maintained separately.
 
 ## Build and use
 

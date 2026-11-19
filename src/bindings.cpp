@@ -1382,7 +1382,7 @@ py::dict py_computePhaseVelocityHessianWeakFormLove_Grid(
 // computed by the Python caller (inversion/disper26_inv/derivatives.py
 // basis_node_jacobian) and seeds the AD directly, so the C++ side never
 // materializes the full node-space Hessian. See
-// docs/Weakform_AD_Hessian.md and computePhaseVelocityHessianWeakFormRayleigh_Grid_Reduced.
+// docs/sensitivity_implementation_map.md and computePhaseVelocityHessianWeakFormRayleigh_Grid_Reduced.
 py::dict py_computePhaseVelocityHessianWeakFormRayleigh_Grid_Reduced(
     const std::vector<double>& depths,
     const std::vector<PhysicalParameters<double>>& params,
@@ -2497,7 +2497,7 @@ PYBIND11_MODULE(disper26py, m) {
           "directly instead of node-VTI unit vectors, so the full (n_nodes*6)^2 Hessian is never "
           "materialized. Returns a dict with keys 'hessian_reduced' (P x P) and 'gradient_node' "
           "(n_nodes*6, unprojected, needed by the caller for any nonlinear-basis curvature "
-          "correction). See docs/Weakform_AD_Hessian.md.");
+          "correction). See docs/sensitivity_implementation_map.md.");
     m.def("compute_phase_velocity_hessian_weakform_rayleigh_grid_reduced",
           &py_computePhaseVelocityHessianWeakFormRayleigh_Grid_Reduced,
           py::arg("depths"), py::arg("params"), py::arg("is_discontinuity"),

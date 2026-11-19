@@ -387,5 +387,5 @@ a wider search or a neighboring-root substitution.
 
 ## References
 
-- _ai_Romberg_plan.md: Design details
-- tests/reference/python/Romberg.ipynb: Usage examples
+- [Gradient-model convergence example](../examples/README.md#2-勾配モデルと収束診断)
+- [Romberg convergence regression tests](../tests/python/test_romberg_convergence.py)
