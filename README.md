@@ -91,6 +91,11 @@ The public tests cover Disper26 and use bundled, self-contained inputs.
 External-program comparisons and their reference output are maintained
 separately. The tracking fixture contains model nodes only.
 
+The author used generative AI tools to help derive equations, design
+verification procedures, debug the research code, and review the software
+documentation. The author checked the derivations and numerical results and
+takes responsibility for the software.
+
 ## Citation
 
 If you use Disper26, please cite the software version you used. Machine-readable
