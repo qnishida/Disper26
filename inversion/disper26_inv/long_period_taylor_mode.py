@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from scipy.integrate import trapezoid
 from scipy.optimize import linear_sum_assignment
 
 
@@ -157,14 +158,14 @@ def compute_mode_shape_overlap(
         + np.interp(depth, right.depth_km, right.density)
     )
     inner_density = density[:, None]
-    inner = np.trapz(
+    inner = trapezoid(
         np.sum(np.conjugate(left_values) * right_values, axis=1) * density,
         depth,
     )
-    left_norm = np.trapz(
+    left_norm = trapezoid(
         np.sum(np.abs(left_values) ** 2 * inner_density, axis=1), depth
     )
-    right_norm = np.trapz(
+    right_norm = trapezoid(
         np.sum(np.abs(right_values) ** 2 * inner_density, axis=1), depth
     )
     denominator = float(np.sqrt(left_norm * right_norm))
@@ -187,7 +188,7 @@ def compute_mode_energy_metrics(
     if not np.isfinite(moho_depth_km) or moho_depth_km <= profile.depth_km[0]:
         raise ValueError("moho_depth_km must lie below the first sample")
     amplitude = profile.density * np.sum(np.abs(profile.displacement) ** 2, axis=1)
-    total = float(np.trapz(amplitude, profile.depth_km))
+    total = float(trapezoid(amplitude, profile.depth_km))
     if not np.isfinite(total) or total <= 1.0e-300:
         raise ValueError("mode energy is numerically singular")
     depth = profile.depth_km
@@ -202,8 +203,8 @@ def compute_mode_energy_metrics(
                 [np.interp(moho_depth_km, depth, amplitude)],
             )
         )
-        crustal = float(np.trapz(crustal_amplitude, crustal_depth))
-    centroid = float(np.trapz(depth * amplitude, depth) / total)
+        crustal = float(trapezoid(crustal_amplitude, crustal_depth))
+    centroid = float(trapezoid(depth * amplitude, depth) / total)
     return ModeEnergyMetrics(
         crustal_fraction=float(np.clip(crustal / total, 0.0, 1.0)),
         centroid_depth_km=centroid,

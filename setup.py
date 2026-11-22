@@ -53,8 +53,8 @@ setup(
     packages=find_packages(include=["disper26", "disper26.*"]) + ["disper26_inv"],
     package_dir={"disper26_inv": "inversion/disper26_inv"},
     extras_require={
-        "inversion": ["scipy"],
-        "paper": ["scipy", "matplotlib"],
+        "inversion": ["scipy>=1.6"],
+        "paper": ["scipy>=1.6", "matplotlib"],
         "test": ["pytest", "mpmath"],
     },
     package_data={"disper26": ["py.typed", "*.pyi"], "disper26.data": ["*.csv"]},
