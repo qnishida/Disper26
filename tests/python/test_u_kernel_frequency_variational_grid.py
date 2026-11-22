@@ -78,6 +78,29 @@ def test_solid_material_and_depth_kernels():
                       f"max scaled dU error={error:.3e}")
 
 
+def test_love_interface_depth_kernel_against_group_velocity_difference():
+    depths, params, disc = discontinuous_model()
+    result = dp.compute_kernels_ad_grid(
+        depths, params, disc, period=20.0, wave_type="Love", c_guess=3.0,
+        sensitivity_mode="Isotropic", max_steps=5, tolerance=1.0e-10,
+        want_kernel_u=True, want_kernel_hv=False)
+    depth_kernel, = [k for k in result[5] if k.parameter_name == "Depth"]
+
+    # Shift both nodes at the interface. Steps of 0.0001 to 0.001 km give
+    # stable centered differences on this model at the same refinement level.
+    step_km = 1.0e-4
+    group_velocities = []
+    for shift in (-step_km, step_km):
+        shifted = [depths[0], depths[1] + shift, depths[2] + shift, depths[3]]
+        _, group, _, level, _ = dp.compute_dispersion_romberg(
+            shifted, params, disc, 20.0, "Love", result[0], 5, 1.0e-10)
+        assert level == result[3]
+        group_velocities.append(group)
+    centered = (group_velocities[1] - group_velocities[0]) / (2.0 * step_km)
+    # The existing Romberg group-velocity finite-difference checks use 1e-6.
+    assert math.isclose(depth_kernel.d_U, centered, rel_tol=1e-6)
+
+
 def test_velocity_parameterizations():
     depths, _, disc = smooth_model()
     rhos = [2.4 + 0.01 * z for z in depths]

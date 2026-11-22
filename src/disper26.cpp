@@ -1473,8 +1473,10 @@ std::vector<LoveEigenfunctionPoint<T>> computeLoveEigenfunctions(
     if (numSubLayers < 1) numSubLayers = 1;
     
     T k = omega / phaseVelocity;
-    WaveVariables<T> wave; wave.omega = omega; wave.k = k;
-    wave.z = make_zero_like(omega);
+    const T zero = make_zero_like(omega);
+    // A scalar assignment to std::complex<T> default-constructs its imaginary
+    // part. For an AD scalar both the value and the derivatives need a zero.
+    const CT unit_displacement(zero + 1.0, zero);
 
     CT c44_c = toComplex(halfSpaceParams.c44);
     CT c66_c = toComplex(halfSpaceParams.c66);
@@ -1488,22 +1490,13 @@ std::vector<LoveEigenfunctionPoint<T>> computeLoveEigenfunctions(
     // boundary[0] = surface, boundary[N] = top of the halfspace.
     const int nLayers = static_cast<int>(layers.size());
     std::vector<Eigen::Matrix<CT, 2, 1>> boundary(nLayers + 1);
-    boundary[nLayers](0) = T(1.0);
+    boundary[nLayers](0) = unit_displacement;
     boundary[nLayers](1) = c44_c * nu;
 
     auto complex_magnitude = [](const CT& value) {
         return std::hypot(
             get_magnitude(value.real()), get_magnitude(value.imag()));
     };
-    auto normalize_boundary = [&](Eigen::Matrix<CT, 2, 1> state) {
-        double magnitude = std::max(
-            complex_magnitude(state(0)), complex_magnitude(state(1)));
-        if (!(magnitude > 0.0) || !std::isfinite(magnitude)) {
-            throw std::runtime_error("Love upward boundary state became non-finite");
-        }
-        return state / T(magnitude);
-    };
-
     // Stable upward pass. In an evanescent layer divide the transfer by
     // cosh(nu*h), as in DISPER80 LOVMRX; only the state ratio is needed for
     // matching the physical downward solution.
@@ -1543,7 +1536,14 @@ std::vector<LoveEigenfunctionPoint<T>> computeLoveEigenfunctions(
             next(0) = boundary[i + 1](0) + toComplex(a) * boundary[i + 1](1);
             next(1) = boundary[i + 1](1);
         }
-        boundary[i] = normalize_boundary(next);
+        const double magnitude = std::max(
+            complex_magnitude(next(0)), complex_magnitude(next(1)));
+        if (!(magnitude > 0.0) || !std::isfinite(magnitude)) {
+            throw std::runtime_error("Love upward boundary state became non-finite");
+        }
+        const T scale(magnitude);
+        boundary[i](0) = next(0) / scale;
+        boundary[i](1) = next(1) / scale;
     }
 
     // Downward pass A(-delta_depth) from the surface boundary condition.
@@ -1552,8 +1552,8 @@ std::vector<LoveEigenfunctionPoint<T>> computeLoveEigenfunctions(
     // layer boundary reset traction from the upward state ratio, suppressing
     // roundoff excitation of the non-physical growing solution.
     Eigen::Matrix<CT, 2, 1> state;
-    state(0) = T(1.0);
-    state(1) = T(0.0);
+    state(0) = unit_displacement;
+    state(1) = CT(zero, zero);
     T currentDepth = T(0.0);
     results.push_back({currentDepth, state(0), state(1)});
 
