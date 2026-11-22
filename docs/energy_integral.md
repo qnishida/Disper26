@@ -1,9 +1,20 @@
-# Definition of Energy integral
+# Energy integrals
 
-## Rayleigh wave
+The integrals use positive depth increments from the surface through the
+decaying half-space. Here $dz$ denotes that positive integration measure. The displacement and traction components use an upward
+vertical axis. For Rayleigh waves the reduced state is
+`[y1, y2, y3, y4] = [uz, szz, ur, szr]`. The horizontal displacement amplitude
+is $i y_3$ for the phase $e^{i(kx-\omega t)}$. For Love waves $y_1=W$ and
+$y_2=T$ as defined below. Here $k=\omega/c$ (rad/km), $\omega$ is in rad/s,
+density $\rho$ is in g/cm³, and $(A,C,F,L,N)=(c_{11},c_{33},c_{13},c_{44},c_{66})$
+are VTI stiffnesses in GPa.
+
+## Rayleigh wave in a solid
 - $I_1 = \int \rho (y_1^2+y_3^2) dz$
 - $I_2 = \int [y_2^2/C+y_4^2/L+k^2(A-F^2/C)y_3^2]dz$
 - $I_3 = \int [(A-F^2/C)y_3^2+(y_1*y_4-F/C*y_2*y_3)/k]dz$
+
+For a fluid layer the $I_2$ and $I_3$ integrands reduce to $y_2^2/C$ and $-y_2 y_3/k$, respectively.
 
 ## Love wave
 - $I_1 = \int \rho y_1^2 dz$
@@ -97,9 +108,12 @@ $$
 +\omega\frac{d\delta c}{d\omega}\right].
 $$
 
-The helper evaluates the frequency derivative with central differences.
-The correction is applied to the observations and does not enter the forward
-Jacobian or Hessian. Love corrections are zero in this implementation.
+Subtract `delta_u` from the observed group velocity before comparing it with
+the non-gravitating solution. For the frequency derivative, the helper samples
+two neighboring angular frequencies at a default relative offset of 0.005.
+The correction is applied to observations and does not enter the forward
+Jacobian or Hessian. Love waves have zero gravity correction here. The shared
+`compute_gravity_correction` function accepts only Rayleigh solutions.
 These conventions are implemented in
 [the gravity helper](../inversion/disper26_inv/gravity.py) and checked against
 the fluid Cowling solver in

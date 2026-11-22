@@ -71,7 +71,8 @@ that have no model-specific implementation.
 Use `_reduced` for basis reduction. Use `_extrapolated` only when there is
 also a non-extrapolated function with the same base name. GRID Hessians that
 always use Neville extrapolation need no suffix. The two variants of the
-interface Hessian row illustrate the paired naming.
+interface Hessian row are `compute_interface_hessian_row_variational_ad_grid`
+and `compute_interface_hessian_row_variational_ad_grid_extrapolated`.
 
 ## 4. Terms with multiple historical meanings
 

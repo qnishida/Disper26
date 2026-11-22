@@ -30,10 +30,13 @@ outside 3.4.x during configuration.
 Run these commands from the project root:
 
 ```bash
-cmake -S . -B build-gcc -DCMAKE_BUILD_TYPE=Release
-cmake --build build-gcc -j4
-ctest --test-dir build-gcc --output-on-failure
+cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release
+cmake --build build-native -j4
+(cd build-native && ctest --output-on-failure)
 ```
+
+To include the Fortran interface and its tests, install a Fortran compiler and
+add `-DDISPER26_BUILD_FORTRAN=ON` to the configure command.
 
 To omit the C++ tests, configure with `-DDISPER26_BUILD_TESTS=OFF`. To omit the
 optional Python module, use `-DDISPER26_BUILD_PYTHON=OFF`. The latter is otherwise
@@ -48,9 +51,9 @@ targets remain enabled; this exclusion is not a claim of numerical validation.
 CTest includes the following regression checks. They can also be run directly:
 
 ```bash
-./build-gcc/tests/test_brent_known_values
-./build-gcc/tests/test_romberg_root_trace
-./build-gcc/tests/verify_mode_count
+./build-native/tests/test_brent_known_values
+./build-native/tests/test_romberg_root_trace
+./build-native/tests/verify_mode_count
 ```
 
 Runtime assertions remain enabled for the C++ test targets in Release builds.
@@ -97,7 +100,12 @@ CMAKE_ARGS="-DCMAKE_CXX_COMPILER=/path/to/g++ -DEigen3_DIR=/path/to/eigen3/cmake
 ```
 
 For `python setup.py build_ext --inplace`, install the build dependencies into
-the active environment first; direct setup.py execution has no build isolation.
+the active environment first. From the project root run:
+
+```bash
+python -m pip install 'setuptools>=64' wheel 'cmake>=3.18' 'pybind11>=2.10'
+python setup.py build_ext --inplace
+```
 
 ## Dependency sources and validation
 
@@ -133,12 +141,12 @@ against `2*x` with absolute tolerance 1e-12.
 
 ## Verify the Python installation
 
-In the selected environment, install the test dependencies, including the
-numerical and plotting packages used by the full regression suite, and run:
+Install the test and paper extras to run the full suite, including the
+long-period mode diagnostics that use SciPy for trapezoidal integration.
 
 ```bash
 python -m pip install '.[test,paper]'
-python -c "import disper26py; print(disper26py.__file__)"
+python -c "import disper26, disper26py; print(disper26py.__file__)"
 python -m pytest -q tests/python/test_examples.py
 python -m pytest -q tests/python
 python tests/python/verify_integer_alignment.py

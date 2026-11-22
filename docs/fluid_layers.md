@@ -11,12 +11,12 @@ In fluid layers, the motion is described by a 2-component state vector:
 $$\mathbf{Z} = \begin{pmatrix} w \\ P \end{pmatrix}$$
 
 where:
-- $w$ = vertical displacement
+- $w=U$ = upward vertical displacement
 - $P=T_{zz}$ = Lagrangian normal traction
 
 ### Propagator Matrix
 
-The layer propagator is:
+For zero gravity, the propagator maps the bottom state to the top across a layer of positive thickness $H$:
 
 $$\mathbf{B} = \begin{pmatrix} 
 \cosh(\nu H) & -\frac{\nu}{\rho \omega^2} \sinh(\nu H) \\
@@ -29,13 +29,17 @@ where:
 - $\rho$ = density
 - $V_p = \sqrt{c_{33}/\rho}$ = P-wave velocity
 
+At $c=V_p$, $\nu^2=0$. The implementation evaluates the regular limit
+$\sinh(\nu H)/\nu=H$ at zero, so the diagonal entries are one and the
+off-diagonals are $0$ and $-\rho\omega^2 H$ (upper and lower, respectively).
+
 ### Solid-Liquid Transition
 
 At the solid-liquid interface, the 5D minor vector $\mathbf{Y}$ is reduced to the 2D state:
 
 $$Z_1 = Y(I_{14}), \quad Z_2 = Y(I_{24})$$
 
-At the liquid free surface, the secular condition is $P = 0$.
+At the liquid free surface, the default secular condition is $P = 0$.
 
 Here $P=T_{zz}$ is the Lagrangian normal traction, not the Eulerian pressure
 perturbation. The standard seabed conditions retain continuity of normal
@@ -46,7 +50,7 @@ equations remain non-gravitating.
 
 ### Rayleigh Eigenfunctions
 
-`compute_rayleigh_eigenfunctions` supports an ocean stack at the top of a solid
+`compute_eigenfunctions_rayleigh` supports an ocean stack at the top of a solid
 model. In fluid layers the returned Rayleigh fields use the same public keys as
 solid layers:
 
@@ -62,7 +66,10 @@ u_r =
 \left(\rho g_{\rm internal}U-T_{zz}\right).
 $$
 
-Here $T_{zz}$ is the Lagrangian traction, so the Eulerian pressure perturbation
+Here $g_{\rm internal}$ is `gravity * gravity_internal_scale` in km/s²
+(default `gravity=0`). The optional `gravity_surface_scale`, zero by default,
+controls the independent pressure correction at the free surface.
+$T_{zz}$ is the Lagrangian traction, so the Eulerian pressure perturbation
 is $p' = \rho g_{\rm internal} U - T_{zz}$ and horizontal momentum balance
 $\omega^2 \rho\, u_r = k\, p'$ gives the sign above.
 
@@ -106,8 +113,8 @@ stationary for its eigenfunctions.
 
 For Layer-cake models the public `integration="auto"` option selects these
 analytical integrals when the fluid layers form a contiguous stack at the top
-of the model above a solid halfspace; other fluid arrangements keep the
-trapezoidal integrals. Pass `integration="trapezoidal"` to use the
+of the model above a solid halfspace. Buried fluids and a fluid halfspace are outside
+the supported ocean geometry. Pass `integration="trapezoidal"` to use the
 trapezoidal integrals as a check. The point-based
 `compute_energy_integrals_analytical_rayleigh` remains solid-only.
 
@@ -119,7 +126,7 @@ $\sigma_{zr}^2/L$ and has no fluid form. Both entry points raise, and
 
 ### Grid/Romberg Rayleigh Weak-Form Hessian
 
-`compute_phase_velocity_hessian_weakform_rayleigh_grid` supports a top fluid
+`compute_hessian_variational_ad_rayleigh_grid` supports a top fluid
 stack as a fixed known medium. The Rayleigh wavefield and weak-form integrals
 include the fluid layers, but fluid grid nodes are not AD variables. Their
 gradient entries and Hessian rows/columns are returned as zero in both
@@ -134,44 +141,29 @@ nodes is rejected because it creates an artificial transition layer.
 
 ### C++ API
 
+Link against the `disper26::api` CMake target. This example prints the fundamental
+Rayleigh phase velocity in km/s at a period of 2 s.
+
 ```cpp
-#include "disper26.cpp"
+#include "api.hpp"
+#include <iostream>
 
-// Create fluid layer parameters
-template <typename T>
-PhysicalParameters<T> createFluidParameters(T vp, T rho) {
-    PhysicalParameters<T> p;
-    p.rho = rho;
-    p.c44 = rho * T(0.0);  // No shear
-    p.c11 = rho * vp * vp;
-    p.c33 = p.c11;
-    p.c13 = p.c11;
-    p.c66 = rho * T(0.0);
-    return p;
+int main() {
+    namespace d26 = disper26::api;
+    const auto ocean = d26::create_fluid_parameters(1.5, 1.0);
+    const auto sediment = d26::create_isotropic_parameters(0.5, 2.0, 1.8);
+    const auto basement = d26::create_isotropic_parameters(3.0, 5.0, 2.5);
+    const auto model = d26::create_layer_cake_model({ocean, sediment}, {2.0, 1.0}, basement);
+    const auto solution = d26::compute_dispersion(model, 2.0, "Rayleigh", 0);
+    std::cout << solution.phase_velocity() << '\n';
 }
-
-// Build model: Ocean -> Sediment -> Basement
-std::vector<PhysicalParameters<double>> layers;
-std::vector<double> thicknesses;
-
-// Ocean (liquid)
-layers.push_back(createFluidParameters(1.5, 1.0));  // Vp=1.5 km/s
-thicknesses.push_back(2.0);  // 2 km
-
-// Sediment (solid)
-layers.push_back(createIsotropicParameters(0.5, 2.0, 1.8));
-thicknesses.push_back(1.0);
-
-// Half-space
-PhysicalParameters<double> hs = createIsotropicParameters(3.0, 5.0, 2.5);
-
-// Calculate dispersion
-double omega = 2.0 * M_PI * 0.5;  // 0.5 Hz
-double c = 1.5;  // km/s
-auto result = calculateRayleighDispersion(layers, thicknesses, hs, omega, c);
 ```
 
 ### Python API
+
+The low-level scan below finds sign-changing Rayleigh roots between 1.6 and
+2.9 km/s. Its results are ordered within that interval. Use the shared API
+with `mode=0` to request the fundamental as in the C++ example.
 
 ```python
 import disper26py as d26
@@ -188,35 +180,24 @@ layers = [ocean, sediment]
 thicknesses = [2.0, 1.0]  # km
 
 omega = 2.0 * math.pi * 0.5
-roots = d26.search_roots(layers, thicknesses, halfspace, omega, 0.3, 3.0, 100)
+roots = d26.search_roots(layers, thicknesses, halfspace, omega, 1.6, 2.9, 100, "Rayleigh")
+print(roots)  # Phase velocities in km/s at 0.5 Hz
 ```
 
 ## Multi-Layer Ocean (SOFAR Channel)
 
-For depth-varying sound speed profiles:
-
-```cpp
-// SOFAR-like profile
-layers.push_back(createFluidParameters(1.52, 1.025));  // Surface
-thicknesses.push_back(0.2);
-
-layers.push_back(createFluidParameters(1.48, 1.025));  // Thermocline
-thicknesses.push_back(0.5);
-
-layers.push_back(createFluidParameters(1.46, 1.025));  // SOFAR axis
-thicknesses.push_back(0.5);
-
-layers.push_back(createFluidParameters(1.50, 1.025));  // Deep
-thicknesses.push_back(1.0);
-```
+To model a depth-varying sound speed, replace the single ocean material and
+thickness in the C++ example with four fluid layers above the sediment.
+In top-to-bottom order, their (Vp in km/s, density in g/cm³, thickness in km)
+are (1.52, 1.025, 0.2), (1.48, 1.025, 0.5), (1.46, 1.025, 0.5)
+and (1.50, 1.025, 1.0).
 
 ## Known Limitations
 
 | Issue | Description |
 |-------|-------------|
-| c = Vp singularity | Near-singularity handling via fallback (not exact limit) |
 | Liquid half-space | Not supported (ocean must be on top of solid) |
-| Liquid→Solid transition | Ocean below solid not supported |
+| Buried fluid | Fluid layers must form a contiguous stack at the top of the model |
 | Analytical Rayleigh weak-form integrals | Top fluid layers supported; a fluid half-space and the point-based energy-integral routine are not |
 | Grid/Romberg Rayleigh weak-form Hessian | Fluid nodes are treated as fixed; use a duplicate-depth seabed discontinuity |
 

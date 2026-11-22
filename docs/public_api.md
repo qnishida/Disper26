@@ -67,7 +67,9 @@ GRID requires `interpolation="stiffness"` or `"velocity"`. These choices
 define different models even for identical node values. A pair of nodes at
 the same depth represents the two sides of a discontinuity. The last node
 defines the half-space. The curve solver sorts and deduplicates periods
-internally and restores input order. At each period, `mode` indexes roots
+internally and restores input order. With this GRID and the default refinement
+limit, the examples can emit `ConvergenceWarning`. Inspect each solution’s
+`diagnostics` for the accepted level and estimated error. At each period, `mode` indexes roots
 in phase-velocity order. This ordering does not track eigenfunction identity.
 
 ### Mode selection and tracking
@@ -112,17 +114,19 @@ A mismatch neither triggers a search nor changes the solution's `mode`,
 `mode_verified` or `level_mode_verified`. The check applies to that one root.
 
 ```python
-curve = disper26.compute_dispersion_curve(
-    model, periods=periods,
-    options=disper26.Options(method="continuation", verify_mode=False, c_guess=3.0))
-last_mode = disper26.compute_mode_count(curve.solutions[-1])
-first_coarse_mode = disper26.compute_mode_count(curve.solutions[0], level=0)
+periods = [5.0, 5.2, 5.4]
+curve = d26.compute_dispersion_curve(
+    grid, periods=periods,
+    options=d26.Options(method="continuation", verify_mode=False, c_guess=3.0))
+last_mode = d26.compute_mode_count(curve.solutions[-1])
+first_coarse_mode = d26.compute_mode_count(curve.solutions[0], level=0)
 ```
 
 By default, internal tracking proceeds from longest to shortest period.
 `c_guess` therefore applies at the longest period. `Options(start="short")`
 selects the reverse direction. In the example, `[-1]` selects the last
-*input* period. Derivative calculations check stored roots separately.
+*input* period. Both counters in this example return `0`. Derivative
+calculations check stored roots separately.
 
 With verification, auto uses the coarser root at the same period from
 level 1 onward. At level 0, auto can compute U on its first step even for
@@ -147,7 +151,7 @@ Inspect `predictors`, `fallback_reasons`, `fallback_count` and
 counts AD used for auto startup and explicit group-velocity prediction,
 including evaluations shared with a requested U. Before computing kernels,
 a Hessian or frequency curvature from an unverified solution, the API checks
-each stored level root. A mismatch returns `mode_mismatch`. Successful checks
+each stored level root. A mismatch raises an error with code `mode_mismatch` in Python and C++. Successful checks
 are shared internally. Their status is reported on the derived result.
 
 Python and C++ expose tracking options directly. Fortran uses
@@ -171,10 +175,10 @@ below for workspace reuse across calls.
 | `on_violation` | `"fallback"` searches for the requested index, `"error"` raises, `"missing"` reports a missing value | `"fallback"` with explicit verification or range settings |
 
 ```python
-options = disper26.Options(
+options = d26.Options(
     start="long", c_range=(2.8, 4.2),
     verify="endpoints", on_violation="fallback")
-curve = disper26.compute_dispersion_curve(model, periods=[2., 5., 10., 20.], options=options)
+curve = d26.compute_dispersion_curve(model, periods=[2., 5., 10., 20.], options=options)
 ```
 
 This example computes 20, 10, 5 and 2 s and returns results at 2, 5, 10 and
@@ -210,7 +214,7 @@ and H/V are also missing. Unrequested quantities and Love H/V remain `None`.
 Tracking restarts after a gap and excludes missing points from the predictor
 history. Strict mode raises for missing results. Invalid input and unsupported
 conditions always raise. A mode count, kernel or Hessian requested for a
-missing solution returns `missing_solution`.
+missing solution reports the error code `missing_solution`.
 
 ### Model arrays
 
@@ -259,9 +263,43 @@ independent error estimate, including some Hessians, report
 The dispersion `relative_error` estimates phase-velocity extrapolation error.
 Check `convergence_by_quantity` for each observable. Requesting U or H/V leaves
 overall accuracy `not_evaluated` even if phase velocity converged, so strict
-mode fails. Supply options for each derived calculation. Root tracking uses
+mode fails. Derived calculations use their own default options unless you pass options for that call. Root tracking uses
 the mode and root tolerance stored in the solution and generates additional
 levels only as needed.
+
+### Signed Rayleigh ellipticity
+
+`hv_ratio` is the signed ratio epsilon = y3/y1, and `d_HV` and the
+`hv_ratio` gradient contain derivatives of that signed quantity. This is a
+semantic change from the former amplitude-only value; API names and shapes
+are unchanged, including deprecated aliases and the C/Fortran interfaces.
+With z upward, exp(i(k*x-omega*t)), u_z=y1*exp(...) and
+u_x=i*y3*exp(...), epsilon < 0 is retrograde and epsilon > 0 is prograde
+for propagation in positive x. The eigenfunction arrays `ur` and `uz`
+store y3 and y1, respectively; the horizontal phase factor i is implicit.
+
+Both layer-cake (`layer_cake`) and GRID models evaluate the solid free surface,
+or the solid side of the seabed when surface fluid layers are present.
+The common expression is -Y12/Y14, obtained from zero shear traction.
+This also corrects the former seabed amplitude, which used a free-surface
+normal-traction relation under fluid loading. GRID values and gradients are
+extrapolated while signed. A uniform layer perturbation corresponds to
+varying both endpoints of its constant GRID segment; sum their node
+sensitivities to compare with the layer sensitivity.
+
+For an amplitude observable use E = abs(epsilon). Away from epsilon=0,
+dE/dp = sign(epsilon)*d(epsilon)/dp, not abs(d(epsilon)/dp).
+Across a smooth zero crossing predict abs(epsilon + gradient @ delta_p).
+The signed ratio is differentiable at a horizontal-displacement zero;
+the amplitude and normalized sensitivity (p/epsilon)*d(epsilon)/dp are not
+regular there. A vertical-displacement zero is a pole of the ratio: values
+and sensitivities are undefined. A nonfinite requested dispersion value raises
+`numerical_failure` in the shared API.
+The existing Love-wave and unrequested-output availability rules still apply.
+
+The existing high-level restriction on material/interface derivatives with
+Cowling gravity remains in force. Low-level signed-ellipticity checks do not
+validate every derivative offered by that high-level interface.
 
 ## Derivative coordinates and supported operations
 
@@ -285,15 +323,17 @@ curvature and computes directly in the reduced basis.
 | Dispersion, curves, kernels | Layer-cake, stiffness GRID, velocity GRID |
 | Full Hessian | Layer-cake, stiffness GRID |
 | Reduced Hessian | Stiffness GRID |
-| Interface kernels | Layer-cake, flat stiffness GRID |
-| Interface Hessian row | Flat stiffness GRID |
-| Eigenfunctions, integrals, frequency curvature | Models with a stored solution. GRID wavefields and integrals use the accepted mesh. |
-| Gravity correction | Rayleigh in a flat, non-Cowling layer-cake model, with `region="fluid"`, `"solid"` or `"all"` |
+| `compute_interface_kernels` | All-solid layer-cake or flat stiffness GRID |
+| `compute_interface_hessian_row` | All-solid flat stiffness GRID |
+| `compute_eigenfunctions`, `compute_energy_integrals`, `compute_frequency_curvature` | Models with a stored solution. GRID wavefields and integrals use the accepted mesh. |
+| `compute_gravity_correction` | Rayleigh in a flat, non-Cowling layer-cake model, with `region="fluid"`, `"solid"` or `"all"` |
+
+For a contiguous surface fluid stack over solid material, `compute_energy_integrals` with Rayleigh `integration="auto"` uses analytical integrals. The low-level point-based `compute_energy_integrals_analytical_rayleigh` accepts solid models only.
 
 GRID frequency curvature has its own Romberg stopping criterion, so the phase
 velocity it returns may differ from that of the original solution. Love mode
 searches exclude models with fluid. `get_capabilities(model, wave=...)` reports
-support and its reasons. Unsupported operations return `Error(code="unsupported")`.
+support and its reasons. An unsupported operation raises an `Error` with code `unsupported` in Python and C++. C and Fortran report errors through status codes.
 The shared API rejects material and interface derivatives for Cowling-gravity
 models because the AD paths omit gravity terms. The usual workflow uses a
 non-gravitating solution and a separate Kg correction.
@@ -375,15 +415,13 @@ numerical implementation through their own adapters, parameterization and cache
 contracts. Full-AD Hessian work dimensions are thread-local. Parallel tests
 compare with serial results using the original formulas and operation order.
 
-Run these checks in the [dedicated environment](install.md). For native
-tests configure CMake with `DISPER26_BUILD_TESTS=ON` and
-`DISPER26_BUILD_FORTRAN=ON` and build the corresponding targets.
+First follow the [development and native verification steps](../README.md#verification) to install the build and test dependencies and build the Fortran-enabled targets in `build-native`. The API checks can then be run separately.
 
 ```bash
 python setup.py build_ext --inplace
 python -m unittest discover -s tests/python -p 'test_public_api*.py' -v
 python -m unittest discover -s tests/python -p test_model_arrays.py -v
-ctest --test-dir build -R 'public_api|fortran_' --output-on-failure
+(cd build-native && ctest -R 'public_api|fortran_' --output-on-failure)
 ```
 
 At introduction (2026-09-24), 26 public Python tests, seven native CTests,
@@ -422,36 +460,3 @@ The context retains capacity for each GRID level's layer arrays, interpolation
 arrays and Romberg tables. Destroy the context to release this memory after a
 large model. In C/C++, keep the context alive and in place while a call uses
 it. In Fortran, create contexts separately for independent workspaces.
-
-### Signed Rayleigh ellipticity
-
-`hv_ratio` is the signed ratio epsilon = y3/y1, and `d_HV` and the
-`hv_ratio` gradient contain derivatives of that signed quantity. This is a
-semantic change from the former amplitude-only value; API names and shapes
-are unchanged, including deprecated aliases and the C/Fortran interfaces.
-With z upward, exp(i(k*x-omega*t)), u_z=y1*exp(...) and
-u_x=i*y3*exp(...), epsilon < 0 is retrograde and epsilon > 0 is prograde
-for propagation in positive x. The eigenfunction arrays `ur` and `uz`
-store y3 and y1, respectively; the horizontal phase factor i is implicit.
-
-Both layer-cake (`layer_cake`) and GRID models evaluate the solid free surface,
-or the solid side of the seabed when surface fluid layers are present.
-The common expression is -Y12/Y14, obtained from zero shear traction.
-This also corrects the former seabed amplitude, which used a free-surface
-normal-traction relation under fluid loading. GRID values and gradients are
-extrapolated while signed. A uniform layer perturbation corresponds to
-varying both endpoints of its constant GRID segment; sum their node
-sensitivities to compare with the layer sensitivity.
-
-For an amplitude observable use E = abs(epsilon). Away from epsilon=0,
-dE/dp = sign(epsilon)*d(epsilon)/dp, not abs(d(epsilon)/dp).
-Across a smooth zero crossing predict abs(epsilon + gradient @ delta_p).
-The signed ratio is differentiable at a horizontal-displacement zero;
-the amplitude and normalized sensitivity (p/epsilon)*d(epsilon)/dp are not
-regular there. A vertical-displacement zero is a pole of the ratio: values
-and sensitivities are undefined (NaN), not clipped or replaced by zero.
-The existing Love-wave and unrequested-output availability rules still apply.
-
-The existing high-level restriction on material/interface derivatives with
-Cowling gravity remains in force. Low-level signed-ellipticity checks do not
-validate every derivative offered by that high-level interface.

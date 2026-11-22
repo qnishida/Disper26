@@ -19,7 +19,7 @@ with Zenodo. The research comparison repository is maintained separately.
 
 ## Build and use
 
-For a Git clone, initialize the pinned dependency with
+For a Git clone, initialize the pinned autodiff dependency with
 `git submodule update --init`. Source archives use the dependency selection
 described in [installation](docs/install.md). Requirements are C++17,
 CMake 3.18+, Eigen 3.4.x and, for Python, NumPy and pybind11.
@@ -37,15 +37,17 @@ python -m pip install '.[paper]'
 
 ```python
 import disper26 as d26
+
+# Layer tops in km, vs and vp in km/s, density in g/cm³, period in seconds.
 model = d26.create_model([0., 10.], kind="layer_cake",
                          vs=[3., 4.5], vp=[5.2, 8.], rho=[2.5, 3.3])
 solution = d26.compute_dispersion(model, period=5.)
-print(solution.phase_velocity)
+print(solution.phase_velocity)  # km/s
 ```
 
-Start with the [practice examples](examples/README.md): layered dispersion,
-gradient-model convergence, and kernels/Hessian predictions. They use small,
-self-contained inputs to introduce selected methods from the paper.
+The [practice examples](examples/README.md) cover layered dispersion, mode
+tracking, gradient-model convergence and predictions using kernels and Hessians.
+Each script supplies its own model and inputs.
 See also [installation](docs/install.md), [shared API](docs/public_api.md),
 [low-level API](docs/lowlevel_api.md), and [historical paper reproduction](paper/README.md).
 Documented low-level deprecated aliases remain callable. Method-specific
@@ -56,14 +58,33 @@ Japanese editions of the [API guide](docs_jp/public_api.md) and
 
 ## Verification
 
+Run these commands from the repository root in your dedicated environment.
+To run the four practice examples as tests, install the test extra:
+
 ```sh
-python setup.py build_ext --inplace
-# Run just the practice examples, or the full Python regression suite:
+python -m pip install '.[test]'
 python -m pytest -q tests/python/test_examples.py
+```
+
+For development and the full Python suite, install the build dependencies
+in the active environment before building the extension in place. The
+`paper` extra supplies SciPy and Matplotlib.
+
+```sh
+python -m pip install 'setuptools>=64' wheel 'cmake>=3.18' 'pybind11>=2.10'
+python -m pip install '.[test,paper]'
+python setup.py build_ext --inplace
 python -m pytest -q tests/python
-cmake -S . -B build -DDISPER26_BUILD_FORTRAN=ON
-cmake --build build --parallel 2
-ctest --test-dir build --output-on-failure
+```
+
+The native suite below includes the Fortran interface and requires a Fortran
+compiler such as gfortran.
+
+```sh
+cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release \
+  -DDISPER26_BUILD_FORTRAN=ON -DDISPER26_BUILD_PYTHON=OFF
+cmake --build build-native --parallel 2
+(cd build-native && ctest --output-on-failure)
 ```
 
 The public tests cover Disper26 and use bundled, self-contained inputs.

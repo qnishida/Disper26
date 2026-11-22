@@ -63,8 +63,12 @@ print(curve.periods)  # 入力の順番と重複を保持する
 GRIDは `interpolation="stiffness"` または `"velocity"` が必須。同じノード値でも
 補間する物理量が違えば異なるモデルであり、Hessianの都合で自動変換しない。
 重複する二つの深度は不連続面の上下を表す。最終ノードが半無限層となる。
-曲線は周期を内部で整列・重複除去して計算し、入力順に戻す。`mode` は各周期の
+曲線は周期を内部で整列・重複除去して計算し、入力順に戻す。このGRIDを既定の細分化上限で
+計算すると、例では `ConvergenceWarning` が出ることがある。各解の `diagnostics` で採用レベルと
+推定誤差を確認できる。`mode` は各周期の
 位相速度順の番号であり、固有関数によるモード同一性の追跡ではない。
+
+### モード選択と追跡
 
 分散計算の `Options.method` は次の方式を選べる。既定は `standard` のまま。
 
@@ -104,16 +108,17 @@ refinement levelは全言語で0始まり。
 一地点の確認は他の周期・レベルの番号保証ではない。保存されていないレベルはエラー。
 
 ```python
-curve = disper26.compute_dispersion_curve(
-    model, periods=periods,
-    options=disper26.Options(method="continuation", verify_mode=False, c_guess=3.0))
-last_mode = disper26.compute_mode_count(curve.solutions[-1])
-first_coarse_mode = disper26.compute_mode_count(curve.solutions[0], level=0)
+periods = [5.0, 5.2, 5.4]
+curve = d26.compute_dispersion_curve(
+    grid, periods=periods,
+    options=d26.Options(method="continuation", verify_mode=False, c_guess=3.0))
+last_mode = d26.compute_mode_count(curve.solutions[-1])
+first_coarse_mode = d26.compute_mode_count(curve.solutions[0], level=0)
 ```
 
 曲線は既定で最長周期から最短周期へ内部計算するため、`c_guess` は最長周期の初期推定となる。
 従来の計算方向を指定するには `Options(start="short")` を使う。
-返却順は入力順なので、上の `[-1]` は入力の最後の地点を意味する。
+返却順は入力順なので、上の `[-1]` は入力の最後の地点を意味する。この例の二つのカウンタはともに `0` を返す。
 kernel/Hessianなど微分計算が要求する保存根の番号確認は従来通り別途行う。
 確認付きautoのレベル1以降では、同一周期の粗い根を使う。群速度予測を利用し得るのは
 レベル0であり、cのみを要求したautoでも初回に群速度を計算する。群速度による一次予測は
@@ -134,7 +139,7 @@ kernel/Hessianなど微分計算が要求する保存根の番号確認は従来
 `predictor_ad_evaluations` はautoの開始時および明示的な群速度予測のAD評価数
 （予測用評価を出力Uと共用する分を含む）であり、群速度出力の全AD評価数ではない。
 未確認解から感度・Hessian・周波数曲率を求める前には保存済みの各レベル根を再確認する。
-不一致なら `mode_mismatch` を返し、解を別の根へ差し替えない。
+不一致の場合、PythonとC++ではコード `mode_mismatch` の例外が発生する。
 成功した確認は内部で共有し、公開の元の解・診断は変更せず、派生結果に確認状態を返す。
 
 これらの指定はPython/C++の型付き入口とFortranの `computation_options` で利用できる。
@@ -146,8 +151,6 @@ Cは既存の `d26_api_options` を維持し、追加の `d26_api_tracking_optio
 共通APIと低水準バッチは数値カーネルを共有するが、探索制御は同じではない。
 共通曲線は1回の呼び出し内でメッシュ・追跡状態を共有する。呼び出し間の作業領域再利用は
 後述の `DispersionContext` を使う。
-これらの追跡機能はmain統合済みで、統合判断と
-今後の最適化は別に記録する。
 
 ### 開始方向・初期速度範囲・確認頻度
 
@@ -159,10 +162,10 @@ Cは既存の `d26_api_options` を維持し、追加の `d26_api_tracking_optio
 | `on_violation` | `"fallback"`: 指定番号を再探索、`"error"`: 例外、`"missing"`: 欠損値 | 新しい確認・範囲設定では `"fallback"` |
 
 ```python
-options = disper26.Options(
+options = d26.Options(
     start="long", c_range=(2.8, 4.2),
     verify="endpoints", on_violation="fallback")
-curve = disper26.compute_dispersion_curve(model, periods=[2., 5., 10., 20.], options=options)
+curve = d26.compute_dispersion_curve(model, periods=[2., 5., 10., 20.], options=options)
 ```
 
 この例は20→10→5→2秒で計算し、結果は指定した2・5・10・20秒の順に返す。
@@ -191,8 +194,10 @@ curve = disper26.compute_dispersion_curve(model, periods=[2., 5., 10., 20.], opt
 要求した群速度・H/Vも欠損値となり、未要求量やLoveのH/Vは従来どおりNoneとなる。
 欠損を予測履歴へ入れず、欠損区間を越える追跡は初期化し直す。
 `strict=True` はこれらをエラーにする。入力不正や未対応条件は常にエラーとなる。
-欠損解のモード数・感度・ヘシアンなどの派生計算は `missing_solution` エラーを返す。
+欠損解のモード数・感度・ヘシアンなどの派生計算は エラーコード `missing_solution` で失敗する。
 
+
+### モデル配列
 
 `create_model` は両モデルで深度と物性の配列を受け取る。`kind` は必須で自動判定しない。
 LayerCakeの深度は層の上端で、物性は次の深度まで一定、最終点から下は半無限媒質となる。
@@ -241,6 +246,27 @@ Q 補正後も保持され、C++・C・Fortran でも同じ規則を使う。計
 派生計算のOptionsは各呼び出しの設定であり、解のOptionsを暗黙に継承しない。
 根の追跡には解に保存したモード・root toleranceを使い、必要な追加レベルのみ生成する。
 
+### 符号付きRayleigh楕円率
+
+`hv_ratio` は符号付きの比 ε = y3/y1 で、`d_HV` と `hv_ratio` の勾配はその微分です。
+従来の振幅比から意味が変わりました。C・Fortranと旧名を含め、同じ規約を使います。
+zを上向き、波の位相を exp(i(kx−ωt)) とすると、固有関数配列 `uz` と `ur` は
+それぞれ y1 と y3 を格納し、水平変位の複素振幅は i·y3 です。
+正のx方向に伝播するとき、ε < 0 は逆行、ε > 0 は順行を表します。
+
+Layer-cakeとGRIDでは、固体自由表面、または海底の固体側で評価します。
+せん断応力ゼロの条件から、固体側の小行列式を用いて ε = −Y12/Y14 と表せます。
+従来の海底振幅には自由表面の法線応力条件が使われていました。
+GRIDでは値と勾配を符号付きで外挿します。一定物性の区間を一様に摂動した場合の層感度は、
+その区間の両端ノードの感度を足して比較できます。
+
+振幅比 E = |ε| の微分は、ε ≠ 0 では sign(ε)·dε/dp です。
+水平変位がゼロを横切るときは |ε + 勾配 · Δp| から振幅を予測できます。
+滑らかなゼロ交差では符号付き比を微分できますが、振幅の微分と正規化感度
+(p/ε)·dε/dp は特異になります。鉛直変位がゼロの点は比の極で、値と感度は未定義です。 共通APIで要求した分散値が非有限なら `numerical_failure` になります。
+
+Cowling重力を含むモデルの物性・界面微分は共通APIの対応範囲外です。
+
 ## 微分の座標系と対応範囲
 
 `basis` は明示指定する。モデルの補間方式とは独立である。
@@ -262,17 +288,18 @@ Q 補正後も保持され、C++・C・Fortran でも同じ規則を使う。計
 | 分散、曲線、カーネル | Layer-cake、剛性GRID、速度GRID |
 | フルHessian | Layer-cake、剛性GRID |
 | 縮約Hessian | 剛性GRID |
-| 界面感度 | Layer-cake、flatの剛性GRID |
-| 界面Hessian行 | flatの剛性GRID |
-| 固有関数・積分・周波数曲率 | 解を保持する各モデル。GRIDの波動場と積分は採用メッシュ上の量 |
-| 重力補正 | 非Cowling、flat LayerCakeのRayleigh。`region="fluid"/"solid"/"all"` |
+| `compute_interface_kernels` | 固体のみのLayer-cakeまたはflatの剛性GRID |
+| `compute_interface_hessian_row` | 固体のみのflatの剛性GRID |
+| `compute_eigenfunctions`、`compute_energy_integrals`、`compute_frequency_curvature` | 解を保持する各モデル。GRIDの波動場と積分は採用メッシュ上の量 |
+| `compute_gravity_correction` | 非Cowling、flat LayerCakeのRayleigh。`region="fluid"/"solid"/"all"` |
+
+Rayleighの固体半無限層の上に表面流体層が連続する場合、`compute_energy_integrals` の `integration="auto"` は解析積分を選びます。低水準の点列版 `compute_energy_integrals_analytical_rayleigh` は固体専用です。
 
 GRIDの周波数曲率は固有のRomberg停止条件を使うため、戻り値の位相速度が元の
 解と異なる場合がある。固有関数・積分の採用メッシュ上の値とは区別する。
 
 流体を含むLoveのモード探索は対象外。実際のモデルについて
-`get_capabilities(model, wave=...)` が対応可否と理由を返す。非対応機能は
-`Error(code="unsupported")` とし、別のモデルへ置き換えない。
+`get_capabilities(model, wave=...)` が対応可否と理由を返す。非対応の操作では、PythonとC++はコード `unsupported` の `Error` 例外を送出する。CとFortranはステータスコードで通知する。
 Cowling重力を設定したモデルの物性・界面微分は、既存AD経路が重力項を保持しない
 ため共通APIでは拒否する。通常の用途では非重力の解と別途のKg補正を使う。
 
@@ -349,13 +376,13 @@ Full AD Hessianの作業次元はスレッドごとに保持し、異なるモ�
 干渉しないようにした。数式・演算順序は従来と同じで、並列テストは直列結果との
 一致を確認する。
 
-検証コマンド（[インストール手順](../docs/install.md)で用意した専用環境内で実行）:
+[READMEの検証手順](../README.md#verification)に従い、専用環境にビルド用・テスト用依存パッケージを入れ、Fortranを有効にしたターゲットを `build-native` にビルドする。以下でAPIの検証だけを実行できる。
 
 ```bash
 python setup.py build_ext --inplace
 python -m unittest discover -s tests/python -p 'test_public_api*.py' -v
 python -m unittest discover -s tests/python -p test_model_arrays.py -v
-ctest --test-dir build -R 'public_api|fortran_' --output-on-failure
+(cd build-native && ctest -R 'public_api|fortran_' --output-on-failure)
 ```
 
 ネイティブ検証にはCMakeで `DISPER26_BUILD_TESTS=ON`、
@@ -370,9 +397,7 @@ ctest --test-dir build -R 'public_api|fortran_' --output-on-failure
 
 2026-09-25の追跡統合時には、公開API・追跡・カーネル/Hessian・低水準曲線・根列再利用を
 含むPython 64件と、直近のC++曲線/C API/並列APIの3件が成功した。
-条件・精度差・ログを参照。
 この追加検証にはFortran再ビルドと大規模PREM性能試験は含まない。
-
 
 ## 容量再利用コンテキスト（2026-09-26）
 
@@ -392,44 +417,10 @@ Fortranは `dispersion_context` と省略可能な `context` 引数を使い、�
 context = d26.create_dispersion_context()
 first = d26.compute_dispersion_curve(model, periods=[8., 10.], context=context)
 second = d26.compute_dispersion_curve(model, periods=[12., 14.], context=context)
-# first remains usable after the second calculation or context destruction.
+# 2回目の計算後も、コンテキストを破棄した後も first を参照できる。
 ```
 
 保持するのは各GRIDレベルの層配列、補間用配列とRomberg作業表の容量である。
 大きなモデルを計算した後も容量を保持するため、不要になればcontextを破棄する。
 C/C++でも実行中のcontextの破棄やmoveは行わない。Fortranの代入によるコピーは
 同じcontextを共有し、独立した作業領域には別々の生成呼び出しを使う。
-
-
-### Signed Rayleigh ellipticity
-
-`hv_ratio` is the signed ratio epsilon = y3/y1, and `d_HV` and the
-`hv_ratio` gradient contain derivatives of that signed quantity. This is a
-semantic change from the former amplitude-only value; API names and shapes
-are unchanged, including deprecated aliases and the C/Fortran interfaces.
-With z upward, exp(i(k*x-omega*t)), u_z=y1*exp(...) and
-u_x=i*y3*exp(...), epsilon < 0 is retrograde and epsilon > 0 is prograde
-for propagation in positive x. The eigenfunction arrays `ur` and `uz`
-store y3 and y1, respectively; the horizontal phase factor i is implicit.
-
-Both layer-cake (`layer_cake`) and GRID models evaluate the solid free surface,
-or the solid side of the seabed when surface fluid layers are present.
-The common expression is -Y12/Y14, obtained from zero shear traction.
-This also corrects the former seabed amplitude, which used a free-surface
-normal-traction relation under fluid loading. GRID values and gradients are
-extrapolated while signed. A uniform layer perturbation corresponds to
-varying both endpoints of its constant GRID segment; sum their node
-sensitivities to compare with the layer sensitivity.
-
-For an amplitude observable use E = abs(epsilon). Away from epsilon=0,
-dE/dp = sign(epsilon)*d(epsilon)/dp, not abs(d(epsilon)/dp).
-Across a smooth zero crossing predict abs(epsilon + gradient @ delta_p).
-The signed ratio is differentiable at a horizontal-displacement zero;
-the amplitude and normalized sensitivity (p/epsilon)*d(epsilon)/dp are not
-regular there. A vertical-displacement zero is a pole of the ratio: values
-and sensitivities are undefined (NaN), not clipped or replaced by zero.
-The existing Love-wave and unrequested-output availability rules still apply.
-
-The existing high-level restriction on material/interface derivatives with
-Cowling gravity remains in force. Low-level signed-ellipticity checks do not
-validate every derivative offered by that high-level interface.

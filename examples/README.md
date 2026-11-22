@@ -6,9 +6,9 @@ A [Japanese edition](../example_jp/README.md) is available.
 
 ## Setup
 
-Follow the [installation guide](../docs/install.md) to set up a dedicated
-Python environment. Run the commands below from the repository root using
-that environment. The examples require NumPy and the tests require pytest.
+Prepare a dedicated Python environment and the native dependencies as described
+in the [installation guide](../docs/install.md). From the repository root,
+install Disper26 and the dependencies for testing the examples, including pytest:
 
 ```sh
 python -m pip install '.[test]'
@@ -29,8 +29,7 @@ half-space. The last depth marks the top of the half-space. Depth is in km,
 velocity in km/s, density in g/cm³ and period in s. Change the layer thickness
 or Vs and compare the short- and long-period ends of each curve.
 
-Run `python -m examples.tracking_options` to set the starting period, initial
-velocity range and frequency of mode checks. The default starts at the longest
+Run `python -m examples.tracking_options` for the [tracking example](tracking_options.py). It sets the starting period, initial velocity interval and endpoint checks, with `on_violation="fallback"`. The default starts at the longest
 period and returns results in input order. The [shared API guide](../docs/public_api.md)
 describes the checks for each setting.
 
@@ -41,12 +40,12 @@ python -m examples.gradient_convergence
 ```
 
 [gradient_convergence.py](gradient_convergence.py) uses
-`interpolation="stiffness"` to interpolate stiffness between depth nodes.
-It varies the maximum Romberg level and prints phase velocity, the accepted
+`kind="grid"` and `interpolation="stiffness"` to interpolate stiffness between depth nodes.
+It varies `Options.max_steps`, the maximum Romberg level, and prints phase velocity, the accepted
 level, estimated relative error and convergence status. The small level cap
 intentionally shows an unconverged result. The table reports the status, so
 the example suppresses duplicate `ConvergenceWarning` messages. The error
-estimate comes from extrapolation.
+estimate measures the change in extrapolated phase velocity. An independent reference solution would be needed to measure the actual error.
 
 ## 3. Sensitivity kernels and the Hessian
 

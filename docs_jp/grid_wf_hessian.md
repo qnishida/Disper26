@@ -49,16 +49,16 @@ WFの変分勾配は `g_i = c³/(2ω²I₃) · (∂I₂/∂pᵢ − ω²∂I₁/
 **過去の経験との対応**: エネルギー積分を解析解→台形に変更したところ
 Romberg収束が改善されたのは、この「近似の一貫性」が回復したためである。
 
-### 1.3 現行コードの積分パス
+### 1.3 設計時点の積分経路
 
 | 関数 | 積分手法 | 対応波動 | Romberg外挿との相性 |
 |------|---------|---------|-------------------|
 | `computeLoveAnalyticalIntegrals` | 解析 | Love | ❌ |
 | `computeRayleighEnergyIntegrals_Analytical` | 解析 | Rayleigh | ❌ |
 | `computeRayleighEnergyIntegrals_CT` (`useAnalytical=false`) | **台形** | Rayleigh | ✅ 既存 |
-| Love台形積分 | **台形** | Love | ✅ **未実装** |
+| Love台形積分 | **台形** | Love | 設計時は未実装 |
 
-`computeVariationalGradientRayleigh_T<T>` は `useAnalytical` フラグで分岐済み（L2405）。
+`computeVariationalGradientRayleigh_T<T>` は `useAnalytical` フラグで分岐済み。
 
 ---
 
@@ -66,7 +66,7 @@ Romberg収束が改善されたのは、この「近似の一貫性」が回復�
 
 ### 2.1 数学的構造（再整理）
 
-**現行WF Hessian（パンケーキモデル）:**
+**設計時のWF Hessian（パンケーキモデル）:**
 - パラメータ: 各均質層の物性 p₁,...,p_L（L = 層数）
 - Hessian行列サイズ: (L×npl)²
 
@@ -139,15 +139,15 @@ Phase 2: converged_levelの副層でWF Hessian（台形積分）を1回計算
 
 ### 3.1 Rayleigh波: 台形積分パスは既存
 
-`computeRayleighEnergyIntegrals_CT` (`useAnalytical=false`) が台形積分を実装済み（L2280）。
-`computeVariationalGradientRayleigh_T<T>` は `useAnalytical` フラグで切替可能（L2405）。
+`computeRayleighEnergyIntegrals_CT` (`useAnalytical=false`) が台形積分を実装済み。
+`computeVariationalGradientRayleigh_T<T>` は `useAnalytical` フラグで切替可能。
 
 **必要な変更**: WF Hessian関数 `computePhaseVelocityHessianWeakFormRayleigh` を
 ノードベースパラメータ対応に拡張するのみ。
 
-### 3.2 Love波: 台形積分パスが未実装
+### 3.2 Love波で設計時に必要だった台形積分
 
-現行は `computeLoveAnalyticalIntegrals`（解析積分）のみ。
+設計時には `computeLoveAnalyticalIntegrals`（解析積分）のみが利用できた。
 
 **必要な追加実装**:
 ```cpp
@@ -170,7 +170,7 @@ LoveEnergyResult<T> computeLoveEnergyIntegrals_Trap(
 
 ### 3.3 IFTのノードベース対応
 
-現行WF Hessianは層ベースの `g0[j] = ∂c/∂p_layer_j` をIFTのseedに使用。
+設計時のWF Hessianは層ベースの `g0[j] = ∂c/∂p_layer_j` をIFTのseedに使用。
 
 ノードベースでは `g0[j] = ∂c/∂q_node_j` が必要:
 ```cpp
@@ -193,7 +193,7 @@ Eigen::VectorXd g0_node = interpolation_transpose(g_layer, mesher, k);
 
 ### 3.5 ADフレームワーク統一
 
-| コンポーネント | 現行AD型 | Grid Hessianでの想定 |
+| コンポーネント | 設計時のAD型 | Grid Hessianでの想定 |
 |-------------|---------|-------------------|
 | Rombergカーネル（dc/dq） | `Eigen::AutoDiffScalar` | 変更なし |
 | WF Hessian | `autodiff::dual` | `autodiff::dual` で統一 |
@@ -203,17 +203,17 @@ Eigen::VectorXd g0_node = interpolation_transpose(g_layer, mesher, k);
 
 ## 4. 計算コスト比較（改訂版）
 
-**モデル仮定:** M=5ノード, npl=3（等方性）, 5セグメント
+設計時の表では、等方性の5ノードに各3個のパラメータ（計15個）を置き、細分する区間数を5として概算した。5ノードだけからなる連続GRIDの区間数は4なので、実際のモデルで見積もる際はその区間数を用いる。
 
 | 手法 | 積分 | Romberg | パラメータ数 | N-pass | 副層数/セグメント | 計算量の目安 |
 |------|------|---------|------------|-------|----------------|------------|
-| 現行WF layer_cake（10層） | 解析 | なし | 30 | 30 | — | 30×10=300 |
+| 設計時のWF layer_cake（10層） | 解析 | なし | 30 | 30 | — | 30×10=300 |
 | Grid Two-phase（案） | 解析/台形 | Phase1のみ | 15 | 15 | 16 (k=4) | 15×80=1200 |
-| Grid Romberg Hessian | **台形** | **Hessian** | 15 | 15×K | 1,2,4,8(K=3) | 15×75=1125 |
-| Grid Romberg Hessian | **台形** | **Hessian** | 15 | 15×K | 1,2,4,8,16(K=4) | 15×155=2325 |
+| Grid Romberg Hessian | **台形** | **Hessian** | 15 | 15×(K+1) | 1,2,4,8(K=3) | 15×75=1125 |
+| Grid Romberg Hessian | **台形** | **Hessian** | 15 | 15×(K+1) | 1,2,4,8,16(K=4) | 15×155=2325 |
 
-**注**: 「計算量」は N-pass × 副層合計の概算。K=3で外挿すると
-収束後のhigh-level単純計算（k=5-6）相当の精度を低コストで達成できる見込み。
+**注**: k=0,…,K のK+1レベルで、各レベルの15パス×そのレベルの副層数を合計した設計時の概算。K=3で外挿すると
+単一の高レベル計算（k=5–6）相当の精度を低コストで得られると設計時には見込んだ。
 
 ---
 
@@ -233,7 +233,7 @@ H_final = symmetrize(H_final)
 ```
 
 - 台形積分が O(h²) 収束を保証 → Richardson外挿が有効
-- K=2-3の低レベルから収束精度を達成
+- 設計時にはK=2–3で目標精度に達すると予想（実測は§6.3）
 - Adaptive stopping（H_kのノルム誤差増加で停止）で丸め誤差域を回避
 
 **代替案: Two-phase（シンプル版）**\
@@ -291,7 +291,7 @@ Romberg外挿をHessianに適用しない。converged_levelのみでWF Hessian�
 #### (2) 内部計算をVTI（弾性定数）パラメータ化で統一
 
 - **計画**: 等方性パラメータ（Vs, Vp, ρ）で直接N-passを実施することを暗黙的に想定。
-- **実際**: 内部計算はすべてVTI（弾性定数 ρ, A, C, F, L, N）で実施し、最後にJacobianaで等方性に変換する設計を採用。
+- **実際**: 内部計算はすべてVTI（弾性定数 ρ, A, C, F, L, N）で実施し、最後にヤコビアンを用いて等方性に変換する設計を採用。
 
   **変更の理由**: Mesherの線形補間が弾性定数に対して完全に線形だが、等方性パラメータ（特にVsやVp）に対しては非線形になる。VTI内部計算では補間のチェーンルール `g_node = J^T · g_sub` が**厳密に成立**する。
 
@@ -299,7 +299,7 @@ Romberg外挿をHessianに適用しない。converged_levelのみでWF Hessian�
   ```
   H_iso = J_ip^T · H_vti · J_ip + 2次微分補正項
   ```
-  ここで `J_ip`（VTI→等方性 Jacobian）の2次微分補正は対角ブロック（同ノード内）のみ非零。
+  `J_ip` の行は各ノードの (ρ, A, C, F, L, N)、列は (Vs, Vp, ρ) で、等方性パラメータからVTI剛性への写像のヤコビアンである。物性写像の2次微分補正は同一ノード内の対角ブロックだけに寄与する。
 
 #### (3) 独立ファイル `src/grid_hessian.hpp` の作成
 
@@ -315,8 +315,7 @@ Romberg外挿をHessianに適用しない。converged_levelのみでWF Hessian�
 
 ### 6.3 収束精度の実測（改訂版）
 
-精度検証は有限差分（ε=0.5）と比較していたため低精度に見えたが、
-高精度有限差分（ε=0.01〜0.05）との比較では以下の精度を確認:
+当時の中心差分（ε=0.01〜0.05）との比較で報告された相対誤差を示す。
 
 | Romberg Level | 勾配相対誤差 | Hessian相対誤差 |
 |:---:|:---:|:---:|
@@ -325,15 +324,5 @@ Romberg外挿をHessianに適用しない。converged_levelのみでWF Hessian�
 | **5** | **2.1e-9** | **2.2e-7** |
 | 6 | 1.4e-10 | 5.9e-8 |
 
-計画では「K=2-3レベルで収束精度を達成」と見込んでいたが、実測では**Level 5 で 2e-9**（勾配）
-が達成される。Level 3 での精度は ~1e-5 程度でやや低く、Level 4〜5 で急改善する挙動を示した。
-この飛躍的改善は Neville 外挿の多項式次数が上がるタイミングの偶数冪キャンセルによるもの。
-
-### 6.4 推奨設定（実測反映）
-
-| パラメータ | デフォルト | 推奨（高精度用途） |
-|---|---|---|
-| `max_levels` | 5 | 5〜6 |
-| `tolerance` | 1e-6 | 1e-8 |
-
-詳細は [GRID Hessian の収束解析](grid_wf_hessian_convergence.md) を参照。
+この比較では、勾配の相対誤差が約2e-9に達したのはレベル5だった。
+モデルと差分参照の記録、および結果を解釈する際の制約は[収束実験](grid_wf_hessian_convergence.md)に示す。

@@ -121,6 +121,7 @@ AD パスの中で計算され、フラグは出力のゼロ埋めではなく�
 | `kernel_extrapolation` | `True` | カーネルを全レベルで計算して Neville 外挿するか |
 | `adaptive_root_scan` | `True` | 根探索（P2、5.8x） |
 | `phase_velocity_roots` | `None` | direct Romberg が選んだ level root。指定時は各 level の独立 root 探索を禁止し、残差不一致を例外にする |
+| `phase_accepted_level` | `-1` | 根列を渡す場合は、同じ順計算が位相速度の外挿に採用した最終レベルを指定する。 |
 
 **`want_value_u`/`want_value_hv` と `want_kernel_u`/`want_kernel_hv` は別物。**
 律速しているのはカーネル側で、値の側ではない — 88 ノードの shallow grid での
@@ -218,7 +219,7 @@ Variational ADが安定するまでの実装確認ではFull ADとの比較に�
 GRID の dc/dp は 2 経路あり、**パイプラインは両方を計算して突き合わせている**
 (`pipeline.py:214-255`):
 
-```python
+```text
 G_hess = gradient_log(model0, res["g_a_variational"])
 J[i] = project_gradient(G_hess, basis)                      # 本番は variational 側
 if "g_a_ad" in res:
@@ -243,7 +244,7 @@ if "g_a_ad" in res:
 | Jacobian | AD 経路（dU/dp・dHV/dp off 後） | 733 |
 | Hessian 増分 | variational `_reduced`（`gradient_node` 込み） | 36 |
 
-**検算側のほうが本番側より桁で安い。** 精度差は 2026-08-11 に
+**この測定では、本番の変分法は36 ms、検算のADは733 msだった。** 精度差は 2026-08-11 に
 AD 側のバグを直して解消した（下記「原因は AD 経路に紛れ込んだ片側差分だった」）。
 両者とも FD に対して 1e-08 級で並ぶ。
 
@@ -341,9 +342,7 @@ dF/dc(計算値) ≈ s(c+ε)·F_c      dF_dp = s(c)·F_p   (同一 AD パス、�
 
 死んだコード: `computeNumericalDerivative` (`disper26.cpp:1953`) は呼び出し 0 件。
 
-未着手の確認: `Depth` カーネル (界面深さ列) は AD 側の `Depth` エントリから
-作られている (`depth_backend.gradient_row`)。variational の `gradient_node` に
-相当物があるかは未確認で、2 を実施するならここが要る。
+現在の既定経路では界面深さ列に `depth_gradient_variational` を使い、ADの `Depth` は独立した検算に使う。
 
 歴史的な注記: `compute_kernels_ad_grid`（旧 `compute_dispersion_romberg_with_kernels`）
 の kernel が単一レベルでしか計算されていなかったバグ (2026-07-05 `e5faa1d` で修正)
@@ -376,9 +375,9 @@ variational 側の gradient を使っていて、バグのある AD 側を通っ
 
 | 引数 | 既定 | 効果 |
 |---|---|---|
-| `ad_kernel_every` | `1`（全点で AD、旧挙動） | AD カーネルパスを何点に 1 回走らせるか。`J` は常に variational + K_d、AD は `consistency` のためだけ |
+| `ad_kernel_every` | `1`（全点で AD、旧挙動） | 0でAD検算を省略し、正のNで添字0、N、2N、…を検算する。`J` は常に variational + K_d、AD は `consistency` のためだけ |
 
-`Depth` 成分は `depth_backend.depth_gradient_variational`（既定の `variational`
+`Depth` 成分は `depth_backend.depth_gradient_variational`（既定の `variational_ad`
 バックエンドが持つ）から来る。持たないバックエンドを明示選択したまま
 `ad_kernel_every` で AD を間引くと `RuntimeError`。
 
@@ -403,7 +402,7 @@ GRID の 1 階 `K_d`（界面深さ勾配 dc/dz、`compute_interface_gradient_va
 ### 実用経路の切り替え（B1/B2/B3）— 完了 (2026-08-11)
 
 精度は 2026-08-11 の修正で両経路とも 1e-08 級に並んだので、残る理由はコスト
-(733 ms 対 30〜77 ms、**約 16〜20 倍**)。予定どおりの順で実施し完了した:
+(733 ms 対 30〜77 ms)。予定どおりの順で実施し完了した:
 
 1. **B2**（`cfa628a`）— AD と variational を突き合わせる比較オプション
    `ad_kernel_every`。既定 1（全点、旧挙動）。安全網を先に用意。

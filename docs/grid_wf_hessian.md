@@ -4,7 +4,7 @@
 
 This document records the design and measurements for the GRID variational
 Hessian. Sections 1–5 describe the original trapezoidal-quadrature proposal.
-Section 6 records what was implemented. For the quadrature used by each
+Section 6 records what was implemented. The current shared GRID Hessian uses trapezoidal integrals for Rayleigh and analytical integrals for Love. For the quadrature used by each
 observable and wave type today, see the [implementation map](sensitivity_implementation_map.md)
 and [shared API](public_api.md). The first design considered three analytical
 integration options (A/B/C). The revised design considered the convergence
@@ -178,15 +178,18 @@ with `Eigen::AutoDiffScalar`. The proposal called for a check with
 
 ## 4. Estimated cost
 
-The design estimate assumed M=5 nodes, npl=3 isotropic parameters and five
-segments. Work is estimated as AD passes times the total number of sublayers.
+The historical estimate counted 15 active parameters (five nodes with three
+isotropic parameters each) and five refined segments. A continuous GRID made
+from just those five nodes has four intervals. To apply the table to a given
+model, use its actual number of intervals. At each level from 0 to K,
+multiply the number of AD passes by the total sublayer count, then sum over levels.
 
 | Method | Quadrature | Romberg target | Parameters | Passes | Sublayers per segment | Work estimate |
 |---|---|---|---:|---|---|---|
 | Layer-cake weak form (10 layers) | Analytical | None | 30 | 30 | — | 30×10=300 |
 | Two-phase GRID | Analytical or trapezoidal | Phase 1 | 15 | 15 | 16 (k=4) | 15×80=1200 |
-| GRID Romberg Hessian | Trapezoidal | Hessian | 15 | 15×K | 1,2,4,8 (K=3) | 15×75=1125 |
-| GRID Romberg Hessian | Trapezoidal | Hessian | 15 | 15×K | 1,2,4,8,16 (K=4) | 15×155=2325 |
+| GRID Romberg Hessian | Trapezoidal | Hessian | 15 | 15×(K+1) | 1,2,4,8 (K=3) | 15×75=1125 |
+| GRID Romberg Hessian | Trapezoidal | Hessian | 15 | 15×(K+1) | 1,2,4,8,16 (K=4) | 15×155=2325 |
 
 The estimated saving at K=3 assumed accuracy comparable to a single
 high-level calculation at k=5–6.
@@ -239,7 +242,7 @@ The original scripts are held in the research archive.
 - All internal passes use VTI stiffness coordinates (ρ, A, C, F, L, N).
   Interpolation is linear in these coordinates. The code applies
   `g_node = J^T · g_sub` using the mesher's constant interpolation weights.
-  Vs and Vp enter the stiffness map nonlinearly. The isotropic Hessian
+  Vs and Vp enter the stiffness map nonlinearly. The Jacobian `J_ip` maps isotropic perturbations (Vs, Vp, ρ) to VTI stiffness perturbations (ρ, A, C, F, L, N) per node. The isotropic Hessian
   is `H_iso = J_ip^T · H_vti · J_ip` plus the second-derivative correction
   from the material map. Only same-node diagonal blocks receive that correction.
 - The GRID Hessians reside in `src/grid_hessian.hpp`, included after
@@ -263,12 +266,5 @@ The measured gradient error was of order 1e-5 at level 3 and reached 2e-9
 at level 5. The improvement at levels 4–5 was consistent with cancellation
 of even powers as the Neville polynomial degree increased.
 
-### 6.4 Settings for the measured model
-
-| Parameter | Default | High-accuracy setting |
-|---|---:|---:|
-| `max_levels` | 5 | 5–6 |
-| `tolerance` | 1e-6 | 1e-8 |
-
-See the [GRID Hessian convergence analysis](grid_wf_hessian_convergence.md)
-for the model, finite-difference references and errors at each level.
+The [historical convergence experiment](grid_wf_hessian_convergence.md)
+gives the recorded model, finite-difference references and limits of the comparison.

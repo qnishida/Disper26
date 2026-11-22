@@ -8,18 +8,17 @@
 <verb>_<quantity>[_<method>][_<wave>][_<model>][_<variant>…]
 ```
 
-現行の本番名 `compute_phase_velocity_hessian_weakform_rayleigh_grid_reduced` と
-**スロット順が一致**するので、語順の記憶を変えずトークン値だけが変わる。
+旧名 `compute_phase_velocity_hessian_weakform_rayleigh_grid_reduced` と同じ順序で各要素を並べる。
 
 ## 3. 統制語彙（各軸1語、同義語禁止）
 
 ### verb
 
-`compute` のみ。`calculate` は退役（`compute` と意味差なし、`disper26.cpp` が古いだけ）。
+数値を計算する新しい関数には `compute` を使う。旧名には `calculate` もある。
 `debug_` は診断専用の接頭辞として `compute` の代わりに文頭へ立つ
 （例: `debug_hessian_variational_ad_love_layer_cake`）。`create_*`、`search_roots`、
 `apply_*`、`earth_flattening_*`、`get_*`、`eval_*`、`propagate_*` など、量の微分経路の
-区別と無関係な慣用動詞は本文法の対象外とし、§7 で個別に 据置 と判定する。
+区別と無関係な慣用動詞は本文法の対象外とする。
 
 ### quantity
 
@@ -37,15 +36,15 @@
 | `interface_hessian_row` | interface_gradient をもう1階微分した Hessian の行（GRID、2階）。C++ 側の「row」に統一し、Python 側の「column」呼称を退役させる（§5） |
 | `eigenfunctions` / `energy_integrals` / `mode_count` / `continuous_mode_count` | そのまま |
 
-### method（今回の主眼。微分をどう取るか）
+### method（微分の計算法）
 
 | token | 意味 | AD段数 |
 |---|---|---|
 | `variational` | 変分原理の閉形式（変位凍結、δ_uL=0） | 0 |
-| `variational_ad` | 変分勾配（または K_d）を1階ADで微分 ← 現 `weakform` Hessian、`_row_variational_extrapolated` | 1 |
-| `variational_fd` | 変分勾配をFDで微分 ← 現 `_variational_fd_love` | — |
-| `ad` | 伝播子を AD で貫き IFT ← 現 `full_ad` | 1階なら1／2階なら2（nested） |
-| `fd` | c 自体の有限差分 ← 現 `_fd` | — |
+| `variational_ad` | 変分勾配または界面カーネル K_d を1階ADで微分する（従来の弱形式Hessian） | 1 |
+| `variational_fd` | 変分勾配を有限差分で微分する | — |
+| `ad` | 伝播子をADで微分し、根に陰関数定理を適用する | 1階なら1／2階なら2（nested） |
+| `fd` | 位相速度 c を有限差分で微分する | — |
 
 前半が「変分か否か」、後半が「AD段数」で、`sensitivity_implementation_map.md` が挙げる
 2軸そのもの。**規則: method は quantity が kernels/gradient/hessian/interface_* の
@@ -53,15 +52,12 @@
 dispersion/group_velocity/hv_ratio/eigenfunctions/energy_integrals/mode_count は
 微分を取らないので method 軸自体が無い。
 
-退役: `weakform` / `hybrid` / `full_ad` / `stable` / `reference`。`hybrid` は
-2軸のどちらにも収まらない過渡実装で、退役後の扱いは §7 の該当行で個別に判断する
-（後述、ユーザー確認が必要）。
+旧名には `weakform`、`hybrid`、`full_ad`、`stable`、`reference` がある。
+`hybrid` は過渡的な実装を指し、具体的な計算法は関数ごとに異なる。
 
 ### wave
 
-`rayleigh` | `love`。**省略は「引数で分岐する」を意味する**（現状3通りの分岐レベル
-—— 名前に焼き込む／`WaveType` 引数／`wave_type_str` 引数 —— が無規則に混在している
-点を規則化する）。
+`rayleigh` または `love` を使う。引数で波種を選ぶ関数ではこの要素を省略する。
 
 ### model
 
@@ -73,11 +69,9 @@ dispersion/group_velocity/hv_ratio/eigenfunctions/energy_integrals/mode_count �
 
 `_reduced`（基底縮約）/ `_extrapolated`（レベル外挿）。
 **規則: 同名の非外挿版が併存するときだけ `_extrapolated` を付ける。**
-現状 `*_Grid` 系の Hessian も内部で Neville 外挿しているのに付いていない
-不整合があるが、これらには非外挿の対になる名前が存在しないため、本規則の
-適用後もサフィックスを付けない（§7 の当該行に注記する）。逆に
-`compute_interface_hessian_row_variational`（非外挿）と
-`..._extrapolated`（外挿）は対で存在するため、外挿側だけがサフィックスを持つ。
+GRID Hessianのように常に外挿する関数ではこの接尾辞を省略する。
+`compute_interface_hessian_row_variational_ad_grid` と
+`compute_interface_hessian_row_variational_ad_grid_extrapolated` は両方の形式を持つ例である。
 
 ## 4. 衝突語の裁定（1トークン1意味）
 
@@ -94,29 +88,18 @@ dispersion/group_velocity/hv_ratio/eigenfunctions/energy_integrals/mode_count �
 
 ## 5. kwarg・辞書キー・フィールド名
 
-- **「値」と「カーネル」の区別を名前に出す**: `want_value_u` / `want_value_hv`（値、
-  現 `phase_only` の分解）と `want_kernel_u` / `want_kernel_hv`（カーネル、現
-  binding kwarg `compute_u`/`compute_hv`、`inversion/` 側 `want_u_kernel`/`want_hv_kernel`
-  の統合）。
-- `sensitivity_mode`（`bindings.cpp:3365`）/ `mode`（3283）/ `mode_str`（3484）/
-  `parameter_mode`（3251）の4綴り → `sensitivity_mode` に統一。`wave_type_str`（3484）
-  → `wave_type`（3283 に合わせる）。
-- **同一量 ∂c/∂p の4名**: `d_c`（LAYER_CAKE 層別分布、`SensitivityKernel`）/
-  `gradient` / `gradient_node`（組み上げたベクトル、`HessianResult` /
-  `GridHessianReducedResult`）と役割で分け、出所は method 語彙の接尾辞で示す。
-  Python 側の `g_a_kernel` / `g_a_hessian`（`inversion/disper26_inv/parallel.py:94,116`）
-  → `g_a_ad` / `g_a_variational`。同じ理由で `g_wf_depth`（parallel.py:110）→
-  `g_variational_depth`。
-- **Python `column` vs C++ `row`**（転置で同じ物）→ `interface_hessian_row` に統一し、
-  `depth_hessian.py` の `VariationalDepthHessianBackend.column()` を
-  `interface_hessian_row()` に改称する。
+- 値の要求には `want_value_u` / `want_value_hv`、カーネルの要求には `want_kernel_u` / `want_kernel_hv` を使う。
+- 低水準関数の微分座標を選ぶ引数は `sensitivity_mode`、波種は `wave_type` とする。
+- `SensitivityKernel.d_c` は層・ノード別の感度、`gradient` と `gradient_node` は組み上げた勾配ベクトルを表す。
+  出所を区別する場合は `g_a_ad`、`g_a_variational`、`g_variational_depth` のように計算法を添える。
+- 界面Hessianの行には `interface_hessian_row` を使う。旧 `column()` は転置した量を返した。
 - Romberg trace は `phase_velocity_roots`（level ごとの生 root）と
   `phase_accepted_level`（direct phase の外挿 prefix 終端）を必ず組で渡す。
   追加生成深さは `minimum_trace_level`、root solve tolerance は `root_tolerance` とし、
   phase Romberg の `tolerance` と名前を分ける。
-- **depth backend の三重命名**を1系統に統一する。
+- 深さHessianの登録キーと計算法名には同じ語を使う。
 
-  | 現行 registry key | 現行クラス名 | 現行 `method` 文字列 | 正 registry key = method 文字列 |
+  | 旧 registry key | 旧クラス名 | 旧 `method` 文字列 | 正 registry key = method 文字列 |
   |---|---|---|---|
   | `finite_difference` | `FiniteDifferenceDepthHessianBackend` | `central_fd_of_ad_gradient` | `fd` |
   | `nested_ad` | `AutoDiffDepthHessianBackend` | `nested_ad` | `ad` |
@@ -124,17 +107,8 @@ dispersion/group_velocity/hv_ratio/eigenfunctions/energy_integrals/mode_count �
 
   クラス名は `<Key>DepthHessianBackend` の形（`FdDepthHessianBackend` /
   `AdDepthHessianBackend` / `VariationalAdDepthHessianBackend`）に揃える。
-- `backend` 既定が層で違う（binding 既定 `"dual"` / `ForwardEngine` 既定 `"vector"`）
-  → 規約として「既定は1箇所（呼び出し側の最上位、ここでは `ForwardEngine`）で
-  定義し、C++ 側は明示指定を要求する」ことを明記する。C++ 側のデフォルト引数は
-  後方互換のため残してよいが、新規呼び出しは明示する。
-- **既知の陳腐化バグ**: `inversion/disper26_inv/pipeline.py:56-61` は Phase-1
-  キャッシュキーに `"depth_backend": "central_fd_of_ad_gradient"` を焼き込んでいるが、
-  既定バックエンドは `depth_hessian.py:513` の `DEFAULT_DEPTH_HESSIAN_BACKEND = "variational"`
-  へ 2026-08-11 以前に切り替わっている。文字列自体は「Phase-1 キャッシュ契約を
-  変えたら別ハッシュにする」ためのマーカーなので実害は当面ないが、
-  文字列が指す内容と実装が一致していない点は正名採用時に `"variational_ad"`
-  （新 method 語彙）へ直すべき、命名の別名化が誘発した典型例として記録する。
+- 深さHessianの既定キーは `"variational_ad"`。過去のPhase-1キャッシュ識別子には `"central_fd_of_ad_gradient"` も使われた。
+- 変分HessianのAD実装を選ぶ `backend` は別の設定で、低水準バインディングの既定は `"dual"`、`ForwardEngine.hessian_backend` の既定は `"vector"` である。
 
 ## 6. 旧名の扱い
 
@@ -162,12 +136,6 @@ dispersion/group_velocity/hv_ratio/eigenfunctions/energy_integrals/mode_count �
 
 ### 既存低水準名
 
-`bindings.cpp:3220-3221, 3238-3240, 3248` の先例どおり：
-
-- `m.def` を正名・旧名の2本登録し、旧名の docstring 冒頭に
-  `Deprecated alias. Use <正名>.` を付ける。
-- C++ コアは `inline` 転送関数として旧シグネチャを保つ。
-- **新規コードと文書は正名のみ**を使う。
-- `AGENTS.md` の「README 記載名を保存する」という既存の縛りは、README 記載名が
-  「呼び出し可能なまま残る」ことで満たされる（§B 参照）。README 自体は正名を
-  使うように書き直す。
+低水準Pythonでは正名と旧名を `m.def` に登録し、旧名のdocstringに
+`Deprecated alias. Use <canonical name>.` と明記する。C++の転送関数も旧シグネチャを保持する。
+新規コードとREADMEでは正名を使い、公開済みの旧名は同じ引数・既定値で呼び出せるようにする。

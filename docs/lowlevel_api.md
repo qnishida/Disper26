@@ -48,7 +48,7 @@ half_space = dp.create_isotropic_parameters(4.5, 8.0, 3.3)
 # Fluid layer: create_fluid_parameters(vp, rho)
 ocean_water = dp.create_fluid_parameters(1.5, 1.0)
 
-# A VTI layer defined by its top and bottom depths returns parameters and thickness.
+# Arguments: A, C, F, L, N (GPa), density (g/cm³), top and bottom depth (km).
 vti_layer, thick = dp.create_vti_layer_from_depth(
     20.0, 20.0, 8.0, 4.0, 4.0, 2.5, 0.0, 10.0
 )
@@ -181,6 +181,35 @@ I1, I2, I3, c_energy = dp.compute_energy_integrals_analytical_rayleigh(
 )
 ```
 
+### Signed Rayleigh ellipticity
+
+`hv_ratio` is the signed ratio epsilon = y3/y1, and `d_HV` and the
+`hv_ratio` gradient contain derivatives of that signed quantity. This is a
+semantic change from the former amplitude-only value; API names and shapes
+are unchanged, including deprecated aliases and the C/Fortran interfaces.
+With z upward, exp(i(k*x-omega*t)), u_z=y1*exp(...) and
+u_x=i*y3*exp(...), epsilon < 0 is retrograde and epsilon > 0 is prograde
+for propagation in positive x. The eigenfunction arrays `ur` and `uz`
+store y3 and y1, respectively; the horizontal phase factor i is implicit.
+
+Both layer-cake (`layer_cake`) and GRID models evaluate the solid free surface,
+or the solid side of the seabed when surface fluid layers are present.
+The common expression is -Y12/Y14, obtained from zero shear traction.
+This also corrects the former seabed amplitude, which used a free-surface
+normal-traction relation under fluid loading. GRID values and gradients are
+extrapolated while signed. A uniform layer perturbation corresponds to
+varying both endpoints of its constant GRID segment; sum their node
+sensitivities to compare with the layer sensitivity.
+
+For an amplitude observable use E = abs(epsilon). Away from epsilon=0,
+dE/dp = sign(epsilon)*d(epsilon)/dp, not abs(d(epsilon)/dp).
+Across a smooth zero crossing predict abs(epsilon + gradient @ delta_p).
+The signed ratio is differentiable at a horizontal-displacement zero;
+the amplitude and normalized sensitivity (p/epsilon)*d(epsilon)/dp are not
+regular there. A vertical-displacement zero is a pole of the ratio: values
+and sensitivities are undefined (NaN), not clipped or replaced by zero.
+The existing Love-wave and unrequested-output availability rules still apply.
+
 <a id="lowlevel-kernels"></a>
 
 ## 5. First-order sensitivity kernels for c, U and H/V
@@ -236,7 +265,9 @@ print("GRID c, level, rel_err:", c_grid, level, rel_err)
 For GRID, `layer_index` identifies a node. Results include discontinuity
 depth (`Depth`) as well as material sensitivities. The default `dU/dp` method
 is `variational_frequency_ad`. Unrequested sensitivities are filled with
-zeros. Consult the requested quantities when interpreting a zero.
+zeros. Consult the requested quantities when interpreting a zero. To check
+an interface-depth derivative by finite differences, move both coincident
+nodes together, as in the [Love group-velocity regression](../tests/python/test_u_kernel_frequency_variational_grid.py).
 
 `max_steps` and `max_levels` cap refinement. Inspect the returned `rel_err`
 and accepted level to assess accuracy. The five-level example demonstrates
@@ -259,7 +290,7 @@ check.
 res_rayleigh = dp.compute_hessian_variational_ad_rayleigh_layer_cake(
     layers, thicknesses, half_space, omega, c_rayleigh,
     sensitivity_mode="Isotropic",
-    use_analytical=True  # Solid layers. For an ocean layer use False (trapezoidal).
+    use_analytical=True  # Closed-form integrals, including contiguous surface fluid layers over solid.
 )
 H = res_rayleigh["hessian"]   # 2-D NumPy array
 g = res_rayleigh["gradient"]  # 1-D NumPy array
@@ -289,8 +320,9 @@ The material Hessian is 15×15 for these five isotropic nodes. Section 7
 treats interface depth separately. Use `parameter_names` and `layer_indices`
 to identify columns in each API.
 
-For a fluid surface layer, the Rayleigh layer-cake Hessian uses trapezoidal
-integration (`use_analytical=False`, also the Rayleigh default). The GRID
+For contiguous surface fluid layers over solid, the Rayleigh layer-cake weak-form
+Hessian supports analytical integration. Its low-level default, `use_analytical=False`,
+selects trapezoidal integration. The GRID
 Hessian includes the fluid in the wavefield and treats **fluid nodes as
 known and fixed**. Their gradient and Hessian entries are zero. Represent
 the seabed as a repeated-depth discontinuity.
@@ -372,33 +404,3 @@ Q correction also applies only to the supplied list. Apply
 the Q array length to the material list. Start from the original reference
 model at each target period. This corrects physical dispersion of real
 stiffnesses. To obtain corrected dispersion, solve again at that period.
-
-
-### Signed Rayleigh ellipticity
-
-`hv_ratio` is the signed ratio epsilon = y3/y1, and `d_HV` and the
-`hv_ratio` gradient contain derivatives of that signed quantity. This is a
-semantic change from the former amplitude-only value; API names and shapes
-are unchanged, including deprecated aliases and the C/Fortran interfaces.
-With z upward, exp(i(k*x-omega*t)), u_z=y1*exp(...) and
-u_x=i*y3*exp(...), epsilon < 0 is retrograde and epsilon > 0 is prograde
-for propagation in positive x. The eigenfunction arrays `ur` and `uz`
-store y3 and y1, respectively; the horizontal phase factor i is implicit.
-
-Both layer-cake (`layer_cake`) and GRID models evaluate the solid free surface,
-or the solid side of the seabed when surface fluid layers are present.
-The common expression is -Y12/Y14, obtained from zero shear traction.
-This also corrects the former seabed amplitude, which used a free-surface
-normal-traction relation under fluid loading. GRID values and gradients are
-extrapolated while signed. A uniform layer perturbation corresponds to
-varying both endpoints of its constant GRID segment; sum their node
-sensitivities to compare with the layer sensitivity.
-
-For an amplitude observable use E = abs(epsilon). Away from epsilon=0,
-dE/dp = sign(epsilon)*d(epsilon)/dp, not abs(d(epsilon)/dp).
-Across a smooth zero crossing predict abs(epsilon + gradient @ delta_p).
-The signed ratio is differentiable at a horizontal-displacement zero;
-the amplitude and normalized sensitivity (p/epsilon)*d(epsilon)/dp are not
-regular there. A vertical-displacement zero is a pole of the ratio: values
-and sensitivities are undefined (NaN), not clipped or replaced by zero.
-The existing Love-wave and unrequested-output availability rules still apply.

@@ -58,7 +58,7 @@ vti_layer, thick = dp.create_vti_layer_from_depth(
 layers = [layer_solid]
 thicknesses = [15.0]
 
-# GRIDの入力一式。共通APIの例と同じ数値を、低水準の形式で用意する
+# GRIDの入力一式。低水準の形式で用意する
 depth = [0.0, 10.0, 30.0, 30.0, 100.0]
 rho = [2.5, 2.7, 2.9, 3.3, 3.4]
 alpha_v = [5.5, 6.0, 6.5, 8.0, 8.1]
@@ -178,6 +178,25 @@ I1, I2, I3, c_energy = dp.compute_energy_integrals_analytical_rayleigh(
 
 ---
 
+### 符号付きRayleigh楕円率
+
+`hv_ratio` は符号付きの比 ε = y3/y1 で、`d_HV` と `hv_ratio` の勾配はその微分です。
+従来の振幅比から意味が変わりました。C・Fortranと旧名を含め、同じ規約を使います。
+zを上向き、波の位相を exp(i(kx−ωt)) とすると、固有関数配列 `uz` と `ur` は
+それぞれ y1 と y3 を格納し、水平変位の複素振幅は i·y3 です。
+正のx方向に伝播するとき、ε < 0 は逆行、ε > 0 は順行を表します。
+
+Layer-cakeとGRIDでは、固体自由表面、または海底の固体側で評価します。
+せん断応力ゼロの条件から、固体側の小行列式を用いて ε = −Y12/Y14 と表せます。
+従来の海底振幅には自由表面の法線応力条件が使われていました。
+GRIDでは値と勾配を符号付きで外挿します。一定物性の区間を一様に摂動した場合の層感度は、
+その区間の両端ノードの感度を足して比較できます。
+
+振幅比 E = |ε| の微分は、ε ≠ 0 では sign(ε)·dε/dp です。
+水平変位がゼロを横切るときは |ε + 勾配 · Δp| から振幅を予測できます。
+滑らかなゼロ交差では符号付き比を微分できますが、振幅の微分と正規化感度
+(p/ε)·dε/dp は特異になります。鉛直変位がゼロの点は比の極で、値と感度は未定義です。 低水準の比はこの極で NaN を返します。
+
 <a id="lowlevel-kernels"></a>
 
 ## 5. 感度カーネル (1階微分: dc/dp, dU/dp, d(H/V)/dp)
@@ -225,6 +244,7 @@ print("GRID c, level, rel_err:", c_grid, level, rel_err)
 ```
 
 GRIDの `layer_index` はノード番号です。物性感度のほか、不連続面深さの `Depth` 成分が含まれます。`dU/dp` の既定経路は `variational_frequency_ad` です。要求しなかった感度成分はゼロなので、ゼロを必ずしも物理的な無感度と解釈しないでください。
+界面深さ感度を有限差分で確認する際は、同じ深さにある上下のノードを一緒に動かします。[Love波の群速度の回帰テスト](../tests/python/test_u_kernel_frequency_variational_grid.py)に例があります。
 
 `max_steps` / `max_levels` は細分化の上限です。返された `rel_err` とレベルを確認し、要求精度を満たすか判断してください。この5レベル例は実行方法を示すもので、すべての量が指定許容値まで収束したという保証ではありません。
 
@@ -234,7 +254,7 @@ GRIDの `layer_index` はノード番号です。物性感度のほか、不連�
 
 ## 6. 位相速度ヘシアン (2階微分: d²c/dp²)
 
-主要経路は**変分法 + 1階AD**です。速度と精度はモデル・積分法・バックエンドに依存します。検証済みの比較条件 と [実装マップ](sensitivity_implementation_map.md) を参照してください。Full ADの `compute_hessian_ad_layer_cake` は独立した検算に利用できます。
+主要経路は**変分法 + 1階AD**です。速度と精度はモデル・積分法・バックエンドに依存します。比較条件は[実装マップ](sensitivity_implementation_map.md) を参照してください。Full ADの `compute_hessian_ad_layer_cake` は独立した検算に利用できます。
 
 ### 1. Layer-cake モデルのヘシアン
 
@@ -243,7 +263,7 @@ GRIDの `layer_index` はノード番号です。物性感度のほか、不連�
 res_rayleigh = dp.compute_hessian_variational_ad_rayleigh_layer_cake(
     layers, thicknesses, half_space, omega, c_rayleigh,
     sensitivity_mode="Isotropic",
-    use_analytical=True  # 解析的エネルギー積分 (固体のみ)。海洋層がある場合は False (台形積分)
+    use_analytical=True  # 閉形式の積分。固体上の連続した表面流体層にも対応
 )
 H = res_rayleigh["hessian"]   # 2次元 numpy array
 g = res_rayleigh["gradient"]  # 1次元 numpy array
@@ -271,7 +291,7 @@ print("GRID Hessian:", H_grid.shape, parameter_labels)
 
 この5ノード・等方性例の物性ヘシアンは15×15です。界面深さは含まれず、§7で別に扱います。配列の対応には必ず `parameter_names` と `layer_indices` を使ってください。API間で同じ列順とは限りません。
 
-Rayleighの最上部に流体層がある場合、LayerCakeヘシアンは `use_analytical=False` の台形積分経路を使います (Rayleighの既定値も `False`)。GRIDヘシアンでは流体を波動場に含めますが、**流体ノードは既知・固定**とし、対応する勾配・ヘシアン行列要素はゼロです。海底は重複深さの不連続面として指定します。
+固体媒質上に流体層が連続している場合、Rayleigh波のLayer-cake弱形式では解析積分も使えます。低水準の既定値 `use_analytical=False` は台形積分です。GRIDヘシアンでは流体を波動場に含めますが、**流体ノードは既知・固定**とし、対応する勾配・ヘシアン行列要素はゼロです。海底は重複深さの不連続面として指定します。
 
 ---
 
@@ -304,7 +324,7 @@ row_z = dp.compute_interface_hessian_row_variational_ad_grid_extrapolated(
 )
 ```
 
-この例の `row_z` は、各ノードの `(Vs,Vp,Rho)` 順の15成分と、不連続面深さの1成分からなる16要素です。最後は $d^2c/dz^2$ です。物性ヘシアンとは出力形状が異なります。定義は 界面深さ感度 を参照してください。
+この例の `row_z` は、各ノードの `(Vs,Vp,Rho)` 順の15成分と、不連続面深さの1成分からなる16要素です。最後は $d^2c/dz^2$ です。物性ヘシアンとは出力形状が異なります。
 
 ---
 
@@ -312,7 +332,7 @@ row_z = dp.compute_interface_hessian_row_variational_ad_grid_extrapolated(
 
 ## 8. 地球平坦化変換 (EFT) と Mineos 減衰 Q 補正
 
-以下は**変換方法の独立した例**です。同じ数値を球面モデルの入力例として扱い、§1–5.7の平面モデルやその根は上書きしません。
+以下は**変換方法の独立した例**です。同じ数値を球面モデルの入力例として扱い、§1–7の平面モデルやその根は上書きしません。
 
 ```python
 r_earth = 6371.0
@@ -335,38 +355,8 @@ corrected_layers = dp.apply_mineos_physical_dispersion_model(
 
 LayerCakeの平坦化関数は渡した有限層だけを変換し、`half_space` を自動変換しません。上の出力だけでは半無限媒質まで平坦化した一式にはなりません。GRID関数は最深ノードも変換します。
 
-GRIDのノードを先に平坦化して `grid_policy="flat"` で補間するモデルと、球面ノードを渡して `grid_policy="spherical_ba97"` で細分点ごとに補間・変換するモデルは異なります。後者では事前のノード平坦化を重ねないでください。モデル空間の扱いは EFT方針 と [実装マップ](sensitivity_implementation_map.md) を参照してください。
+GRIDのノードを先に平坦化して `grid_policy="flat"` で補間するモデルと、球面ノードを渡して `grid_policy="spherical_ba97"` で細分点ごとに補間・変換するモデルは異なります。後者では事前のノード平坦化を重ねないでください。モデル空間の扱いは [実装マップ](sensitivity_implementation_map.md) を参照してください。
 
 Q補正も渡したリストのみが対象です。半無限媒質には `apply_mineos_physical_dispersion` を別途適用します。Qのリスト長は物性リストに合わせ、各対象周期の補正は元の参照周期モデルから行います。この補正は実弾性定数の物理分散で、複素減衰波動場の計算ではありません。補正後の分散を求める場合は、その対象周期で根を計算し直します。
 
 ---
-
-
-### Signed Rayleigh ellipticity
-
-`hv_ratio` is the signed ratio epsilon = y3/y1, and `d_HV` and the
-`hv_ratio` gradient contain derivatives of that signed quantity. This is a
-semantic change from the former amplitude-only value; API names and shapes
-are unchanged, including deprecated aliases and the C/Fortran interfaces.
-With z upward, exp(i(k*x-omega*t)), u_z=y1*exp(...) and
-u_x=i*y3*exp(...), epsilon < 0 is retrograde and epsilon > 0 is prograde
-for propagation in positive x. The eigenfunction arrays `ur` and `uz`
-store y3 and y1, respectively; the horizontal phase factor i is implicit.
-
-Both layer-cake (`layer_cake`) and GRID models evaluate the solid free surface,
-or the solid side of the seabed when surface fluid layers are present.
-The common expression is -Y12/Y14, obtained from zero shear traction.
-This also corrects the former seabed amplitude, which used a free-surface
-normal-traction relation under fluid loading. GRID values and gradients are
-extrapolated while signed. A uniform layer perturbation corresponds to
-varying both endpoints of its constant GRID segment; sum their node
-sensitivities to compare with the layer sensitivity.
-
-For an amplitude observable use E = abs(epsilon). Away from epsilon=0,
-dE/dp = sign(epsilon)*d(epsilon)/dp, not abs(d(epsilon)/dp).
-Across a smooth zero crossing predict abs(epsilon + gradient @ delta_p).
-The signed ratio is differentiable at a horizontal-displacement zero;
-the amplitude and normalized sensitivity (p/epsilon)*d(epsilon)/dp are not
-regular there. A vertical-displacement zero is a pole of the ratio: values
-and sensitivities are undefined (NaN), not clipped or replaced by zero.
-The existing Love-wave and unrequested-output availability rules still apply.

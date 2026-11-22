@@ -110,6 +110,7 @@ calculation. Its switches gate the work for each requested quantity.
 | `kernel_extrapolation` | `True` | Compute kernels at all levels and extrapolate with Neville's algorithm. |
 | `adaptive_root_scan` | `True` | Adaptive root search (5.8× speedup in the historical P2 measurement). |
 | `phase_velocity_roots` | `None` | Use the roots selected by direct Romberg dispersion. A residual mismatch raises an exception. |
+| `phase_accepted_level` | `-1` | When passing roots, supply the last level accepted for phase extrapolation by the same direct solve. |
 
 An 88-node shallow GRID run (2026-08-11) distinguished the cost of derivatives
 from that of scalar outputs.
@@ -312,7 +313,8 @@ period, and its current observables do not use `d_U` or `d_HV`.
 
 `map_over_data` and `run_phase1` expose `ad_kernel_every` in `parallel.py`
 and `pipeline.py`. The default of 1 runs AD at every point for
-`consistency`. The production Jacobian always uses the variational gradient
+`consistency`. A value of 0 skips this comparison, and a positive N checks
+indices 0, N, 2N, and so on. The production Jacobian always uses the variational gradient
 and K_d. When AD is skipped, the depth backend must implement
 `depth_gradient_variational` if depth is requested. Otherwise the call
 raises `RuntimeError`.
@@ -327,7 +329,7 @@ value switches, and exposed `compute_kernels_variational_grid`. The detailed
 audit is held in the research archive.
 
 After the accuracy correction, the measured costs were 733 ms for AD and
-30–77 ms for the variational path (roughly 16–20× in the reported comparisons).
+30–77 ms for the variational path.
 The production switch on 2026-08-11 proceeded in three steps.
 
 1. B2 (`cfa628a`) added `ad_kernel_every` for independent comparisons,

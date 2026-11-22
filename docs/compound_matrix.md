@@ -11,7 +11,7 @@ The calculation is based on the method described by Ikeda & Matsuoka, using a 5x
 *   $c_{11}, c_{13}, c_{33}, c_{44}$: Elastic moduli
     *   For isotropic media: $c_{11} = c_{33} = \rho V_p^2$, $c_{44} = \rho V_s^2$, $c_{13} = c_{33} - 2c_{44}$.
 *   $\omega$: Angular frequency
-*   $k$: Horizontal wavenumber
+*   $k$: Horizontal wavenumber, with phase velocity $c=\omega/k$
 *   $z$: Layer thickness
 
 ### 1.2 Eigenvalue Problem (Vertical Wavenumbers)
@@ -38,7 +38,11 @@ The displacement-stress eigenvectors are characterized by the parameters $\epsil
 $$
 \epsilon_i = \frac{(c_{13} + c_{44})k \nu_i}{(c_{11}k^2 - \rho\omega^2) - c_{44}\nu_i^2} \quad (i=1,3)
 $$
-(Note: Special handling is applied when the denominator approaches zero, i.e., at $c \approx V_p$).
+These modal expressions have removable singularities at critical speeds.
+The [finite-layer implementation](../src/dispersion_rayleigh.hpp) cancels
+vertical-wavenumber factors before evaluation. For degenerate roots or an
+unusable denominator it forms the reduced matrix directly from the regular
+four-component state propagator.
 
 ### 1.4 Intermediate Constants ($d_1 \dots d_6$)
 
@@ -64,7 +68,11 @@ $$
 
 ### 1.5 Layer Matrix Elements (5x5)
 
-The 5x5 Reduced Delta Matrix $B$ relates the compound state vector at the top of the layer to the bottom. The indices correspond to the minors:
+For positive layer thickness, $B$ propagates the bottom minor vector upward to
+the top. The reduced solid state is `[uz, szz, ur, szr]` with upward vertical
+coordinate. Each $I_{ij}$ is the two-by-two determinant formed from rows $i,j$
+of two independent solutions. The identity $I_{34}=-I_{12}$ leaves five
+stored components. The indices correspond to the minors:
 *   $I_{12}$ (1st)
 *   $I_{13}$ (2nd)
 *   $I_{14}$ (3rd)
@@ -182,7 +190,7 @@ $$
 
 ## 2. Liquid Layer Formulation
 
-For a liquid layer (where $c_{44} \to 0$), the acoustic wave propagation is described by a 2x2 matrix for the state vector $[w, P]^T$ (vertical displacement, pressure).
+For a liquid layer (where $c_{44} \to 0$), the acoustic wave propagation is described by a 2x2 matrix for the state vector $[w, P]^T$ (upward displacement and Lagrangian normal traction $P=T_{zz}$). The matrix below propagates upward at zero gravity. At the seabed, $w=I_{14}$ and $P=I_{24}$ on the solid side. See [fluid layers](fluid_layers.md) for the boundary conditions.
 
 ### 2.1 Parameters
 *   $V_p = \sqrt{c_{33} / \rho}$ (P-wave velocity)

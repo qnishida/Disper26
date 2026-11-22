@@ -12,12 +12,20 @@ The older phase-accumulation counter is still available as a legacy diagnostic.
 
 ### Primary Counter
 
-In Python, `compute_mode_count(...)` is the integer mode label
-(`docs/naming_convention.md` #4/#5/#9; `calculate_mode_count` is the same
-function kept callable as a deprecated alias):
+In Python, `compute_mode_count(...)` returns the integer mode label. The
+deprecated alias `calculate_mode_count` calls the same function. See the
+[naming convention](naming_convention.md).
 
 ```python
+import math
 import disper26py
+
+layers = [disper26py.create_isotropic_parameters(3.0, 5.2, 2.5)]
+thicknesses = [10.0]  # km
+half_space = disper26py.create_isotropic_parameters(4.5, 8.0, 3.3)
+omega = 2 * math.pi / 5.0  # rad/s at a period of 5 s
+c = disper26py.search_roots(layers, thicknesses, half_space, omega,
+                            2.6, 3.0, 400, "Rayleigh")[0]
 
 n = disper26py.compute_mode_count(
     layers, thicknesses, half_space, omega, c, "Rayleigh")
@@ -47,9 +55,9 @@ the original mode-order search. Failed certificates are recorded as
 its existing semantics. Checked Love keeps the original count search because
 candidate-first searching was slower with its cheaper counter.
 
-See implementation and measurements. A
-certificate relies on the existing integer counter and does not extend its
-supported model domain or remove its near-degeneracy limitations.
+The [tracking implementation](../src/dispersion_tracking.hpp) sizes the velocity
+interval from the search cap and root tolerance. The certificate inherits the
+integer counter’s supported domain and near-degeneracy limitations.
 
 ### Legacy continuous diagnostic
 
@@ -413,7 +421,7 @@ python -m pytest -q \
 # 36 passed
 python tests/python/verify_integer_alignment.py
 # 10/10 root labels, SUCCESS
-ctest --test-dir build -R '^(public_api_|fortran_)' --output-on-failure
+(cd build && ctest -R '^(public_api_|fortran_)' --output-on-failure)
 # 7 passed, after rebuilding the C++, C and Fortran targets
 ```
 
@@ -443,8 +451,9 @@ above. No compilation or tests ran concurrently with the timing.
 The sub-Rayleigh cases benefit from removal of the virtual segment. The
 supra-Rayleigh cases have comparable cost; differences of a few percent
 should not be interpreted as a guaranteed speedup. To reproduce the workload
-from the repository root (preimport a preserved old extension before the
-fixture module to measure the baseline):
+from the repository root, install the test and inversion extras for the fixture
+and PREM loader (`python -m pip install '.[test,inversion]'`). The timing
+loop measures the currently imported extension:
 
 ```python
 import math, statistics, sys, timeit
@@ -547,7 +556,7 @@ The Lagrangian normal traction is continuous at the seabed; no separate
 density-contrast gravity jump is applied before liquid propagation.
 
 For ocean Rayleigh models, the final integer label combines per-regime signed
-sums, `|signed_solid| + |signed_liquid|`, rather than the raw signed total or
+sums, `|initial_signed_count + solid_crossings| + |liquid_crossings − surface_endpoint_contribution|`, rather than the raw signed total or
 an unsigned crossing tally.  The raw cross-regime total is unusable because
 the solid and liquid crossing orientations can have opposite signs and cancel
 even when the branch order is increasing correctly; a fully unsigned tally, on
@@ -718,16 +727,9 @@ itself loses and gains phase; the missing seed is a symptom of the branch never
 having been calibrated, not the defect.  A real repair means reworking the Love
 phase accumulation, which is a different and much larger job than `2774ab7`.
 
-So this stays recorded rather than repaired.  Nothing in production depends on
-it: `inversion/disper26_inv/engine.py:159` labels branches with
-`dp.calculate_mode_count(...)`, which is the same AD-z/Bran counter as
-`calculate_bran_mode_count()` (`bindings.cpp:121` dispatches both aliases to
-`calculateAdModeCount`), and the legacy integer is opt-in behind a name that
-says legacy.  Use the AD-z or Bran integer for Love. (An earlier version of
-this paragraph named `calculate_bran_mode_count()` specifically, which was
-itself an alias-induced slip of the kind `docs/naming_convention.md`
-addresses -- `engine.py` calls a different one of the three interchangeable
-names.)
+Use `compute_mode_count` for the production Love integer. The names
+`calculate_bran_mode_count` and `calculate_mode_count` are aliases of this
+same counter. Only the continuous diagnostic remains from the legacy phase method.
 
 The scans behind both tables use 40000 points, for the reason given in
 [Comparing a counter against root indices](#comparing-a-counter-against-root-indices)
@@ -790,11 +792,12 @@ harder than it looks, all of them learned the expensive way -- the first survey
 of the Love counters produced two wrong verdicts in a row before these were
 accounted for.
 
-**Evaluate at the root, not around it.**  At a root `c_n` the counters return
-`n`, and the value is stable across at least `c_n * (1 +/- 1e-9)`.  It is
-tempting to assume the count is a step at each root, `n` just below and `n + 1`
-just above, and to assert that instead; it is not, and doing so makes correct
-counters look broken on nearly every root.
+**Choose the evaluation point for the check.** At a resolved root the target
+label is its zero-based index `n`. In the Love survey, offsets as small as
+`c_n * 1e-9` could still give `n` on both sides. A checked Rayleigh root
+uses a finite velocity bracket: its endpoints must enclose a single count
+jump from `n` to `n+1` and satisfy the secular sign check. The free-surface
+endpoint tolerance applies to depth in km, while this bracket is in km/s.
 
 **Skip roots that sit on top of a layer velocity.**  Where `c` is within about
 5e-3 relative of some layer `Vs`, the secular function changes sign within

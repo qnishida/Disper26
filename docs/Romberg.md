@@ -4,19 +4,27 @@ Richardson Extrapolation (Romberg Acceleration) for high-precision dispersion cu
 
 ## Overview
 
-For continuous structures (linear interpolation models), this feature achieves O(h²) convergence and high-precision calculations by recursively subdividing layer segments by $2^n$ and applying Richardson extrapolation.
+For continuous structures (linear interpolation models), midpoint layer discretization gives a leading O(h²) error on each refinement mesh. Halving the spacing reduces that term by a factor of four. Richardson extrapolation cancels successive even-power terms when the sequence follows this expansion.
 
 ## Python API
+
+Run the Python blocks below in order. Depths are in km, velocities in km/s and densities in g/cm³.
 
 ### Dispersion Only
 
 ```python
 import disper26py as dp
 
+depths = [0., 10., 20., 30.]
+vss = [3., 3.3, 3.6, 4.5]
+vps = [5.2, 5.8, 6.4, 8.]
+rhos = [2.5, 2.7, 2.9, 3.3]
+params = [dp.create_isotropic_parameters(vs, vp, rho)
+          for vs, vp, rho in zip(vss, vps, rhos)]
+is_discontinuity = [False] * len(depths)
+
 c, U, HV, level, rel_err = dp.compute_dispersion_romberg(
-    depths=[0, 10, 20, 30],  # km
-    params=[p0, p1, p2, p3],  # PhysicalParameters
-    is_discontinuity=[False, False, False, False],
+    depths, params, is_discontinuity,
     period=20.0,  # seconds
     wave_type="Rayleigh",
     c_guess=3.0,
@@ -35,9 +43,9 @@ convergence control depend only on the phase velocity table, so `c`, `level`, an
 `rel_err` are bit-identical to the default path. Intended for phase-velocity-only
 sweeps (mode search, MCMC).
 
-For the `*_with_kernels` variants, `phase_only=True` requires
-`compute_u=False` and `compute_hv=False` (otherwise `ValueError`); `compute_c`
-kernels are still computed at the converged level.
+For `compute_kernels_ad_grid`, `phase_only=True` requires
+`want_kernel_u=False` and `want_kernel_hv=False` (otherwise `ValueError`); `compute_c`
+controls the phase-velocity kernel. With the default `kernel_extrapolation=True`, the requested kernels are extrapolated across levels.
 
 ### Batched Phase-Velocity Curves
 
@@ -45,6 +53,7 @@ For phase velocity at many periods, use one of the C++ batch entry points
 instead of a Python loop:
 
 ```python
+layers, thicknesses, half_space = [params[0]], [10.0], params[-1]
 layer_cake = dp.compute_dispersion_curve_layer_cake(
     layers, thicknesses, half_space,
     periods=[5.0, 6.0, 7.0, 8.0, 10.0],
@@ -54,6 +63,10 @@ layer_cake = dp.compute_dispersion_curve_layer_cake(
     c_max=4.5,
 )
 
+# Express the isotropic nodes in the velocity-VTI coordinates of this binding.
+vphs, vpvs = vps, vps
+vshs, vsvs = vss, vss
+etas = [1.0] * len(depths)
 grid = dp.compute_dispersion_curve_romberg_grid_velocity_vti(
     depths, rhos, vphs, vpvs, vshs, vsvs, etas,
     is_discontinuity,
@@ -244,9 +257,7 @@ historical research records; their benchmark scripts are not bundled here.
 
 ```python
 c, U, HV, level, rel_err, kernels = dp.compute_kernels_ad_grid(
-    depths=[0, 10, 20, 30],
-    params=[p0, p1, p2, p3],
-    is_discontinuity=[False, False, False, False],
+    depths, params, is_discontinuity,
     period=20.0,
     wave_type="Rayleigh",
     c_guess=3.0,
@@ -273,7 +284,7 @@ c, U, HV, level, rel_err = dp.compute_dispersion_romberg_velocity_iso(
     tolerance=1e-10
 )
 
-c, U, HV, level, rel_err, kernels = dp.compute_dispersion_romberg_velocity_vti_with_kernels(
+c, U, HV, level, rel_err, kernels = dp.compute_kernels_ad_grid_velocity_vti(
     depths, rhos, vphs, vpvs, vshs, vsvs, etas, is_discontinuity,
     period=20.0,
     wave_type="Rayleigh",
@@ -288,7 +299,7 @@ Velocity parameter sets:
 - ISO: `rho, vp, vs`
 - VTI: `rho, Vph, Vpv, Vsh, Vsv, eta`
 
-The VTI conversion is `A=rho*Vph^2`, `C=rho*Vpv^2`, `L=rho*Vsv^2`, `N=rho*Vsh^2`, and `F=eta*(A-2L)`. Velocity-basis first-order kernels return these velocity parameter names. Velocity-basis Hessian support is intentionally deferred until second-derivative conversion terms are implemented and finite-difference checked.
+The VTI conversion is `A=rho*Vph^2`, `C=rho*Vpv^2`, `L=rho*Vsv^2`, `N=rho*Vsh^2`, and `F=eta*(A-2L)`. Velocity-basis first-order kernels return these velocity parameter names. Full Hessians require a layer-cake model or stiffness interpolation on a GRID. For those models the shared API supports velocity-coordinate Hessians, including the second derivatives of the material map.
 
 ## Handling Discontinuities
 
@@ -311,7 +322,7 @@ AD variables are defined only at grid node positions. Sublayer values are comput
 
 ### Convergence Verification
 
-Both phase velocity and kernels have confirmed O(h²) convergence (ratio ≈ 4.0):
+The reported ratios of successive mesh differences for phase velocity and kernels are consistent with O(h²) error before extrapolation:
 
 | Level Transition | Phase Velocity Ratio | Kernel Ratio |
 |-----------|---------------|---------------|
@@ -358,13 +369,13 @@ The saved documentation images are preserved during both kinds of execution.
 
 ## Adaptive Stopping
 
-To prevent precision degradation from double-precision arithmetic errors at excessive refinement levels, the calculation automatically stops if the relative error begins to increase, returning the best result from the previous step. The stopping tests are disabled at the lowest refinement levels because the Richardson/Neville diagonal can look artificially stable before the sequence reaches its asymptotic regime.
-
-- **Minimum Stop Level**: `min_stop_level = min(4, max_steps)`.
-- **Convergence Trigger**: `k >= min_stop_level && rel_error < tolerance`.
-- **Degradation Trigger**: `k > min_stop_level && rel_error > prev_rel_error`.
-- **Degradation Action**: Discard result from level $k$, adopt result from level $k-1$ as final.
-- **Benefit**: Even if `max_steps` is set high (e.g., 8–10), it automatically stops at the optimal Refinement Level (usually 5–6) to ensure best precision ($\sim 10^{-9}$).
+The phase solver considers levels 0 through `max_steps` inclusive. With the
+default start level, it can accept an estimate below `tolerance` from
+`min(4, max_steps)` onward. If the relative estimate worsens after
+`min(4, max_steps - 1)`, it can return the preceding level. With a nonzero
+extrapolation start, these decisions require at least three and four included
+points, respectively. At the cap the low-level call returns the accepted
+estimate, level and `rel_err`. Compare `rel_err` with the requested tolerance.
 
 ## Mode-order fallback
 

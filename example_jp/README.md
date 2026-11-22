@@ -8,9 +8,8 @@
 
 ## 実行の準備
 
-[インストール手順](../docs/install.md)に従い、専用のPython環境へビルド・インストールします。
-以下は、このリポジトリのルートから、その環境のPythonで実行してください。
-必要なPython依存はNumPyです。テストにはpytestを追加します。
+[インストール手順](../docs/install.md)に従い、専用のPython環境とビルドに必要なライブラリを準備します。
+その環境でリポジトリのルートから次のコマンドを実行し、Disper26と練習例のテストに使うpytestなどをインストールします。
 
 ```sh
 python -m pip install '.[test]'
@@ -25,17 +24,16 @@ python -m pip install '.[test]'
 python -m examples.basic_dispersion
 ```
 
-計算開始周期、初期速度範囲、モード番号の確認頻度の指定例は
-`python -m examples.tracking_options` で実行できる。
-既定は最長周期から計算し、返却順は入力順を保つ。
-各設定の保証範囲は [共通API](../docs_jp/public_api.md) を参照。
-
 [basic_dispersion.py](../examples/basic_dispersion.py) は、一つの層と半無限層からなる等方モデルで
 Rayleigh波・Love波の基本モードの位相速度を計算します。
 深さはkm、速度はkm/s、密度はg/cm³、周期はsです。基本モードは `mode=0` です。
 最終の深度点から下が半無限層になります。
 
 層厚やVsを変え、短周期と長周期で曲線がどう変わるかを確かめてください。
+
+`python -m examples.tracking_options` で[追跡の例](../examples/tracking_options.py)を実行できます。
+開始周期、初期速度範囲、両端でのモード番号の確認を指定し、違反時には `on_violation="fallback"` で再探索します。
+既定では最長周期から計算し、入力順に結果を返します。[共通API](../docs_jp/public_api.md)
 
 ## 2. 勾配モデルと収束診断
 
@@ -44,13 +42,13 @@ python -m examples.gradient_convergence
 ```
 
 [gradient_convergence.py](../examples/gradient_convergence.py) は、深度ノード間で剛性を補間する
-GRIDモデルを作り、Rombergの最大レベルを変えた結果を表示します。
+GRIDモデル（`kind="grid"`）を作り、Rombergの最大レベル `Options.max_steps`を変えた結果を表示します。
 速度を補間するモデルとは異なるため、`interpolation="stiffness"` を明示しています。
 
 位相速度に加え、採用レベル、推定相対誤差、収束状態を確認します。
 小さいレベル上限での未収束は意図したものです。表に状態を表示するため、この例では
 重複する `ConvergenceWarning` の表示を抑えています。
-推定誤差は独立な厳密解との差ではありません。
+推定相対誤差は外挿した位相速度の変化から求めます。実際の誤差を測るには独立した参照解が必要です。
 
 ## 3. 感度カーネルとHessian
 
