@@ -495,6 +495,7 @@ inline std::tuple<std::vector<double>, std::vector<PhysicalParameters<double>>, 
     if (depths_spherical.size() != params_spherical.size() || depths_spherical.size() != is_discontinuity.size()) {
         throw std::runtime_error("Size mismatch: depths, params, and is_discontinuity must have the same length.");
     }
+    validate_grid_interfaces(depths_spherical, is_discontinuity);
     if (depths_spherical.empty()) {
         return std::make_tuple(std::vector<double>{}, std::vector<PhysicalParameters<double>>{}, std::vector<bool>{});
     }
@@ -532,6 +533,7 @@ inline std::tuple<std::vector<double>, std::vector<PhysicalParameters<double>>, 
     if (depths_spherical.size() != params_spherical.size() || depths_spherical.size() != is_discontinuity.size()) {
         throw std::runtime_error("Size mismatch: depths, params, and is_discontinuity must have the same length.");
     }
+    validate_grid_interfaces(depths_spherical, is_discontinuity);
     if (depths_spherical.empty()) {
         return std::make_tuple(std::vector<double>{}, std::vector<PhysicalParameters<double>>{}, std::vector<bool>{});
     }
@@ -780,9 +782,7 @@ inline std::tuple<double, double, double, int, double> py_computeDispersionRombe
     model.refinement_policy = make_grid_refinement_policy(
         grid_policy, planet_radius, flattening_exponent);
 
-    if (!model.validate()) {
-        throw std::runtime_error("Invalid GridModel: validation failed.");
-    }
+    model.require_valid();
 
     Mesher mesher(model);
     auto refiner = [&mesher](int k) {
@@ -1989,9 +1989,7 @@ py_computeDispersionRombergWithKernels(
     model.refinement_policy = make_grid_refinement_policy(
         grid_policy, planet_radius, flattening_exponent);
 
-    if (!model.validate()) {
-        throw std::runtime_error("Invalid GridModel: validation failed.");
-    }
+    model.require_valid();
 
     Mesher mesher(model);
     auto refiner_double = [&mesher](int k) {
@@ -2348,9 +2346,7 @@ py_computeDepthHessianColumnGrid(
     model.depths = depths;
     model.params = params;
     model.is_discontinuity = is_discontinuity;
-    if (!model.validate()) {
-        throw std::runtime_error("Invalid GridModel: validation failed.");
-    }
+    model.require_valid();
 
     Mesher mesher(model);
     const double omega = 2.0 * M_PI / period;
@@ -2565,7 +2561,7 @@ inline std::vector<double> py_computeInterfaceHessianRowVariational(
     model.depths = depths;
     model.params = params;
     model.is_discontinuity = is_discontinuity;
-    if (!model.validate()) throw std::runtime_error("Invalid GridModel");
+    model.require_valid();
 
     Mesher mesher(model);
     const double omega = 2.0 * M_PI / period;
@@ -2737,7 +2733,7 @@ inline std::vector<double> py_computeInterfaceHessianRowVariationalExtrapolated(
     model.depths = depths;
     model.params = params;
     model.is_discontinuity = is_discontinuity;
-    if (!model.validate()) throw std::runtime_error("Invalid GridModel");
+    model.require_valid();
 
     Mesher mesher(model);
     const double omega = 2.0 * M_PI / period;
@@ -2912,7 +2908,7 @@ inline double py_computeInterfaceGradientVariationalExtrapolated(
     model.depths = depths;
     model.params = params;
     model.is_discontinuity = is_discontinuity;
-    if (!model.validate()) throw std::runtime_error("Invalid GridModel");
+    model.require_valid();
 
     Mesher mesher(model);
     const double omega = 2.0 * M_PI / period;

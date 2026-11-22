@@ -288,6 +288,16 @@ Model apply_mineos_physical_dispersion(const Model& reference_model,
             detail::unpack(out.halfspace), qkappa.back(), qmu.back(), reference_period, period));
     else
         out.halfspace = out.materials.back();
+    // Recompute eta where Q changes the elastic ratios. At a persistent
+    // 0/0 node the supplied eta still represents the corrected stiffness.
+    for(size_t i=0;i<out.velocity_eta.size();++i) {
+        const auto& p=i<out.materials.size()?out.materials[i]:out.halfspace;
+        const auto& old=i<out.materials.size()?reference_model.data().materials[i]:reference_model.data().halfspace;
+        if(p.A==old.A && p.L==old.L && p.F==old.F) continue;
+        if(p.A!=2*p.L) out.velocity_eta[i]=p.F/(p.A-2*p.L);
+        else if(p.F!=0 || old.A!=2*old.L || old.F!=0)
+            out.velocity_eta[i]=missing_value;
+    }
     out.q_period = period;
     out.q_reference_period = reference_period;
     for (const auto& material : out.materials) detail::check_material(material);

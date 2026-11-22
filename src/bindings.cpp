@@ -152,9 +152,7 @@ py::dict py_computeFrequencyCurvatureAdGrid(
     model.is_discontinuity = is_discontinuity;
     model.refinement_policy = make_grid_refinement_policy(
         grid_policy, planet_radius, flattening_exponent);
-    if (!model.validate()) {
-        throw std::runtime_error("Invalid GridModel: validation failed.");
-    }
+    model.require_valid();
 
     Mesher mesher(model);
     auto refiner = [&mesher](int level) {
@@ -247,9 +245,7 @@ py::dict py_computeDispersionRombergLevels(
     model.is_discontinuity = is_discontinuity;
     model.refinement_policy = make_grid_refinement_policy(
         grid_policy, planet_radius, flattening_exponent);
-    if (!model.validate()) {
-        throw std::runtime_error("Invalid GridModel: validation failed.");
-    }
+    model.require_valid();
 
     Mesher mesher(model);
     auto refiner = [&mesher](int k) {
@@ -888,7 +884,7 @@ py::dict py_computePhaseVelocityHessianGridFullAD(
     model.is_discontinuity = is_discontinuity;
     model.refinement_policy = make_grid_refinement_policy(
         grid_policy, planet_radius, flattening_exponent);
-    if (!model.validate()) throw std::runtime_error("Invalid GridModel");
+    model.require_valid();
     if (!model.refinement_policy.is_flat()) {
         throw std::invalid_argument(
             "compute_hessian_ad_grid is a flat-policy validation path; "
@@ -973,9 +969,7 @@ py::dict py_debugGetRefinedGridLayers(
     model.params = params;
     model.is_discontinuity = is_discontinuity;
     model.refinement_policy = make_grid_refinement_policy(grid_policy, planet_radius, flattening_exponent);
-    if (!model.validate()) {
-        throw std::runtime_error("Invalid GridModel");
-    }
+    model.require_valid();
 
     Mesher mesher(model);
     auto [layers, thicknesses] = mesher.get_refined_layers(level);
@@ -1006,9 +1000,7 @@ py::dict py_debugGridLoveLevelGradientPieces(
     model.params = params;
     model.is_discontinuity = is_discontinuity;
     model.refinement_policy = make_grid_refinement_policy(grid_policy, planet_radius, flattening_exponent);
-    if (!model.validate()) {
-        throw std::runtime_error("Invalid GridModel");
-    }
+    model.require_valid();
 
     Mesher mesher(model);
     auto [layers, thicknesses] = mesher.get_refined_layers(level);
@@ -1312,7 +1304,7 @@ py::dict py_computePhaseVelocityHessianWeakFormRayleigh_Grid(
     model.params = params;
     model.is_discontinuity = is_discontinuity;
     model.refinement_policy = make_grid_refinement_policy(grid_policy, planet_radius, flattening_exponent);
-    if (!model.validate()) throw std::runtime_error("Invalid GridModel");
+    model.require_valid();
 
     SensitivityMode mode = (mode_str == "VTI" || mode_str == "vti") ?
         SensitivityMode::VTI : SensitivityMode::Isotropic;
@@ -1355,7 +1347,7 @@ py::dict py_computePhaseVelocityHessianWeakFormLove_Grid(
     model.params = params;
     model.is_discontinuity = is_discontinuity;
     model.refinement_policy = make_grid_refinement_policy(grid_policy, planet_radius, flattening_exponent);
-    if (!model.validate()) throw std::runtime_error("Invalid GridModel");
+    model.require_valid();
 
     SensitivityMode mode = (mode_str == "VTI" || mode_str == "vti") ?
         SensitivityMode::VTI : SensitivityMode::Isotropic;
@@ -1403,7 +1395,7 @@ py::dict py_computePhaseVelocityHessianWeakFormRayleigh_Grid_Reduced(
     model.params = params;
     model.is_discontinuity = is_discontinuity;
     model.refinement_policy = make_grid_refinement_policy(grid_policy, planet_radius, flattening_exponent);
-    if (!model.validate()) throw std::runtime_error("Invalid GridModel");
+    model.require_valid();
     if (phase_velocity_roots) {
         (void)validate_trace_phase_identity(
             *phase_velocity_roots, phase_accepted_level, c_guess);
@@ -1441,7 +1433,7 @@ py::dict py_computePhaseVelocityHessianWeakFormLove_Grid_Reduced(
     model.params = params;
     model.is_discontinuity = is_discontinuity;
     model.refinement_policy = make_grid_refinement_policy(grid_policy, planet_radius, flattening_exponent);
-    if (!model.validate()) throw std::runtime_error("Invalid GridModel");
+    model.require_valid();
     if (phase_velocity_roots) {
         (void)validate_trace_phase_identity(
             *phase_velocity_roots, phase_accepted_level, c_guess);
@@ -1488,7 +1480,7 @@ py::dict py_computeKernelsVariationalGrid(
     model.params = params;
     model.is_discontinuity = is_discontinuity;
     model.refinement_policy = make_grid_refinement_policy(grid_policy, planet_radius, flattening_exponent);
-    if (!model.validate()) throw std::runtime_error("Invalid GridModel");
+    model.require_valid();
     if (phase_velocity_roots) {
         (void)validate_trace_phase_identity(
             *phase_velocity_roots, phase_accepted_level, c_guess);
@@ -1531,7 +1523,7 @@ py::dict py_debugPhaseVelocityHessianWeakFormLove_Grid(
     model.params = params;
     model.is_discontinuity = is_discontinuity;
     model.refinement_policy = make_grid_refinement_policy(grid_policy, planet_radius, flattening_exponent);
-    if (!model.validate()) throw std::runtime_error("Invalid GridModel");
+    model.require_valid();
 
     SensitivityMode mode = (mode_str == "VTI" || mode_str == "vti") ?
         SensitivityMode::VTI : SensitivityMode::Isotropic;

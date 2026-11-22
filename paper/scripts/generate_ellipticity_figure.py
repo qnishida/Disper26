@@ -2,7 +2,7 @@
 """Generate and verify the manuscript's Rayleigh ellipticity node sensitivities.
 
 Uses the current solver, not a historical reference snapshot. Numerical outputs
-are separate from frozen inputs; plotting is performed by the manuscript repo.
+are separate from frozen inputs; plot with plot_depth_sensitivities.py.
 """
 import argparse
 import hashlib

@@ -56,7 +56,7 @@ GRIDモデル（`kind="grid"`）を作り、Rombergの最大レベル `Options.m
 python -m examples.kernels_hessian
 ```
 
-[kernels_hessian.py](../examples/kernels_hessian.py) は、`basis="isotropic"` の位相速度勾配と
+[kernels_hessian.py](../examples/kernels_hessian.py) は、`basis="velocity_iso"` の位相速度勾配と
 Hessianを計算します。返されたパラメータ軸から上側の層のVsを選び、Vpと密度を
 固定してVsだけを変えた場合の一次・二次Taylor近似を作ります。
 物性を変えて順計算し直した値と比較することで、微分結果の使い方を確認できます。

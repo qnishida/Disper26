@@ -135,7 +135,8 @@ def create_grid_model(depths: Sequence[float], materials: Optional[Sequence[Mate
         arrays = [np.asarray(value, dtype=float) for value in (vs, vp, rho)]
         if any(a.ndim != 1 or len(a) != len(depths) for a in arrays):
             raise ValueError("vs, vp, and rho must be 1D arrays matching depths")
-        materials = [create_isotropic_parameters(s, p, d) for s, p, d in zip(*arrays)]
+        return create_model(depths, kind="grid", vs=vs, vp=vp, rho=rho,
+                            interpolation=interpolation, geometry=geometry, name=name)
     return _api.create_grid_model(depths, materials, interpolation, geometry or Geometry(), name)
 
 
@@ -199,9 +200,11 @@ def compute_kernels(solution: ModeSolution, *, basis: str,
                     options: Optional[Options] = None) -> DerivativeResult:
     """Compute gradients on the solution model; parameters describe every axis.
 
-    Basis is stiffness, isotropic, velocity_vti or log_velocity_vti, where
-    supported. Options use per-call defaults; root settings remain attached to
-    the solution. Check get_capabilities before selecting a specialized method.
+    The isotropic bases are velocity_iso (Vs, Vp, Rho) and stiffness_iso
+    (Lambda, Mu, Rho). VTI bases are velocity_vti, log_velocity_vti and
+    stiffness_vti. The aliases isotropic and stiffness select velocity_iso and
+    stiffness_vti, respectively. Derivative options use per-call defaults,
+    and the solution retains its root settings. Check get_capabilities for the operations supported by the model.
     """
     return _checked(_api.compute_kernels(solution, basis, outputs, _options(options)))
 

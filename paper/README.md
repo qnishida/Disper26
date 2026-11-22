@@ -14,6 +14,48 @@ the assumption that an old private commit can be checked out in this repository.
 Historical commit identifiers retained inside scientific artifacts identify
 their original provenance; they are not commits in this public history.
 
+## Current manuscript figures
+
+Run these commands from the public repository root in the paper environment
+with the current public extension built. The long-period experiment uses the
+archived `plan_l_v2` solver, with Rayleigh modulus exponent 0 and Love exponent 3.
+Verify the snapshot before building it from inside its directory.
+
+```sh
+python -c "from paper.provenance import verify_reference; verify_reference('plan_l_v2', 'paper/reference_sources/plan_l_v2')"
+(cd paper/reference_sources/plan_l_v2 && python setup.py build_ext --inplace)
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python paper/scripts/recompute_plan_l_eft.py all --output-dir paper/results/manuscript/eft
+python paper/scripts/plot_results.py --plan-l-data paper/results/manuscript/eft
+```
+
+For the combined depth-sensitivity figure, both waves use modulus exponent 2.
+The archived group-velocity kernels are bundled. Recompute the signed
+ellipticity sensitivities with the current public solver and plot the six panels.
+
+```sh
+python paper/scripts/generate_ellipticity_figure.py --disper26-root . \
+  --model paper/data/results/prem_like_kernel_model.json --output-dir paper/results/manuscript/ellipticity
+python paper/scripts/plot_depth_sensitivities.py
+```
+
+To recompute the group-velocity kernels as well, build the archived extension
+and its quadrature diagnostic. Set the Eigen include path for your installation.
+
+```sh
+snapshot=paper/reference_sources/kernel_figures
+python -c "from paper.provenance import verify_reference; verify_reference('kernel_figures', 'paper/reference_sources/kernel_figures')"
+(cd "$snapshot" && python setup.py build_ext --inplace)
+mkdir -p paper/results/manuscript/kernels
+g++ -std=c++17 -O2 -DNDEBUG -I"$snapshot/src" -I"$snapshot/third_party/autodiff" -I/usr/include/eigen3 \
+  paper/scripts/continuous_group_kernel.cpp -o paper/results/manuscript/kernels/diagnostic
+python paper/scripts/generate_kernel_figures.py --only kernels --disper26-root "$snapshot" \
+  --diagnostic paper/results/manuscript/kernels/diagnostic --output-dir paper/results/manuscript/kernels
+python paper/scripts/plot_depth_sensitivities.py --kernel-data paper/results/manuscript/kernels
+```
+
+The four figures are written as PDF and PNG under `paper/Fig/`. The runtime
+figure uses timings from the machine running the benchmark.
+
 ## Fixed statistics and plots
 
 From the repository root, with NumPy, SciPy and Matplotlib available:

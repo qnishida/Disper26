@@ -54,7 +54,7 @@ python -m examples.kernels_hessian
 ```
 
 [kernels_hessian.py](kernels_hessian.py) computes the phase-velocity gradient
-and Hessian with `basis="isotropic"`. It selects the upper layer's Vs from the
+and Hessian with `basis="velocity_iso"`. It selects the upper layer's Vs from the
 returned parameter axis, holds Vp and density fixed, and compares first- and
 second-order Taylor predictions with a fresh forward calculation. The
 improvement shown here applies to small perturbations on the same mode.

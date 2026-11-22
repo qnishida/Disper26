@@ -106,6 +106,11 @@ class ForwardGridModel:
             raise ValueError("grid model needs at least two nodes")
         if np.any(np.diff(self.depths) < -1e-12):
             raise ValueError("depths must be non-decreasing")
+        paired = np.r_[self.depths[:-1] == self.depths[1:], False]
+        invalid = (self.is_discontinuity != paired) | (paired & np.r_[False, paired[:-1]])
+        if np.any(invalid):
+            i = int(np.flatnonzero(invalid)[0])
+            raise ValueError(f"Expected a flagged two-node discontinuity at node {i}, depth {self.depths[i]:g} km")
         for name in ("rho", "vph", "vpv", "vsh", "vsv", "eta"):
             if np.any(getattr(self, name) <= 0.0):
                 raise ValueError(f"{name} must be strictly positive (solid VTI stack only)")

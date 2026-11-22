@@ -10,17 +10,16 @@ def profile_velocity(a,key,level):
     return p[:,1],g.velocity_basis(p[:,8:14],materials)
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--disper26-root',type=Path,required=True);p.add_argument('--output-dir',type=Path,default=g.PAPER/'results/kernel_verification');args=p.parse_args()
-    import sys
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-    from paper.provenance import validate_output
+    p=argparse.ArgumentParser();p.add_argument('--disper26-root',type=Path,required=True);p.add_argument('--output-dir',type=Path,default=g.PAPER/'results/kernel_verification');p.add_argument('--kernel-data',type=Path,default=g.DATA)
+    args=p.parse_args()
+    sys.path.insert(0, str(g.PAPER.parent))
+    from paper.provenance import load_reference_extension, validate_output, verify_reference
     args.output_dir = validate_output(args.output_dir)
     args.output_dir.mkdir(parents=True,exist_ok=True)
-    sys.path.insert(0,str(g.PAPER.parent))
-    from paper.provenance import reference_for_root
-    reference_for_root(args.disper26_root)
-    sys.path.insert(0,str(args.disper26_root));import disper26py as dp
+    provenance = verify_reference("kernel_figures", args.disper26_root)
+    dp = load_reference_extension(args.disper26_root)
     g.dp=dp
+    g.DATA=args.kernel_data
     model=json.loads((g.DATA/'prem_like_kernel_model.json').read_text());a=np.load(g.DATA/'prem_group_kernels_updated.npz');report={}
     def value(m,period,wave):
         vals=[];half=np.array(m['materials'][-1])
@@ -57,7 +56,7 @@ def main():
                 sc=np.max(abs(ref[:,i]));errors_profile.append(float(np.max(abs(diff[:,i]))/sc) if sc>0 else 0.)
             report[key]={'node':node,'parameter':'Vsv' if wave=='Rayleigh' else 'Vsh','relative_steps':[1e-4,5e-5],'fd_values':slopes,'full_ad':target,'fd_normalized_errors':errors,'profile_l7_l8_component_normalized_errors':errors_profile,'profile_note':'Fixed-depth comparison of fine piecewise-constant reconstructions; not an extrapolation of pointwise values.'}
             print(key,report[key],flush=True)
-    r={'cases':report,'kernel_data_sha256':g.sha(g.DATA/'prem_group_kernels_updated.npz'),'script_sha256':g.sha(__file__),'profile_display_tolerance':.005,'profile_display_tolerance_rationale':'0.5% of each component peak resolves the plotted shape; this is separate from the 1e-5 nodal-derivative criterion.'}
+    r={'source':provenance,'extension_sha256':g.sha(dp.__file__),'cases':report,'kernel_data_sha256':g.sha(g.DATA/'prem_group_kernels_updated.npz'),'script_sha256':g.sha(__file__),'profile_display_tolerance':.005,'profile_display_tolerance_rationale':'0.5% of each component peak resolves the plotted shape; this is separate from the 1e-5 nodal-derivative criterion.'}
     (args.output_dir/'prem_group_kernels_verification.json').write_text(json.dumps(r,indent=2)+'\n')
     assert all(max(v['fd_normalized_errors'])<1e-5 for v in report.values())
     assert all(max(v['profile_l7_l8_component_normalized_errors'])<.005 for v in report.values())

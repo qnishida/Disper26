@@ -11,8 +11,8 @@ def model(vs_layer=3.0):
 
 def run():
     solution = d26.compute_dispersion(model(), period=5.0, mode=0)
-    kernels = d26.compute_kernels(solution, basis="isotropic")
-    hessian = d26.compute_hessian(solution, basis="isotropic")
+    kernels = d26.compute_kernels(solution, basis="velocity_iso")
+    hessian = d26.compute_hessian(solution, basis="velocity_iso")
     # Select the physical coordinate from the returned axis metadata.
     axis = next(i for i, parameter in enumerate(kernels.parameters)
                 if (parameter.entity, parameter.index, parameter.name) == ("layer", 0, "Vs"))
@@ -29,6 +29,10 @@ def main():
     solution, kernels, hessian, rows = run()
     print(f"Reference phase velocity: {solution.phase_velocity:.9f} km/s")
     print("Gradient axes:", [(p.entity, p.index, p.name) for p in kernels.parameters])
+    vti = d26.compute_kernels(solution, basis="velocity_vti")
+    shear = {p.name: value for p, value in zip(vti.parameters, vti.gradient)
+             if p.entity == "layer" and p.index == 0 and p.name in ("vsh", "vsv")}
+    print("Upper-layer shear derivatives at the same reference model:", shear)
     print("Hessian shape:", hessian.hessian.shape)
     print("Delta Vs  Recomputed c  Linear error  Quadratic error (km/s)")
     for delta_vs, exact, linear, quadratic in rows:

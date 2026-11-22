@@ -135,12 +135,19 @@ inline ::GridModel grid(const Model& m) {
     return g;
 }
 struct VelocityFields { std::vector<double> rho,ph,pv,sh,sv,eta; };
+inline double node_eta(const Model& m, size_t i, const Material& p) {
+    require(p.A!=2*p.L || p.F==0, "No finite VTI eta represents stiffness with A=2L and nonzero F");
+    const auto& eta=m.data().velocity_eta;
+    if(!eta.empty() && std::isfinite(eta.at(i))) return eta[i];
+    require(p.A!=2*p.L, "VTI eta is undefined at A=2L for stiffness input; supply velocity arrays with eta");
+    return p.F/(p.A-2*p.L);
+}
 inline VelocityFields velocities(const Model& m) {
     VelocityFields f;
     for (const auto& p:m.data().materials) {
-        require(p.A-2*p.L != 0, "Velocity-VTI representation is undefined when A - 2 L = 0");
+        const double eta=node_eta(m,f.eta.size(),p);
         f.rho.push_back(p.rho); f.ph.push_back(std::sqrt(p.A/p.rho)); f.pv.push_back(std::sqrt(p.C/p.rho));
-        f.sh.push_back(std::sqrt(p.N/p.rho)); f.sv.push_back(std::sqrt(p.L/p.rho)); f.eta.push_back(p.F/(p.A-2*p.L));
+        f.sh.push_back(std::sqrt(p.N/p.rho)); f.sv.push_back(std::sqrt(p.L/p.rho)); f.eta.push_back(eta);
     }
     return f;
 }
@@ -256,10 +263,20 @@ inline std::string unit(const std::string& name) {
 inline const std::vector<std::string>& stiffness_names() {
     static const std::vector<std::string> n={"A","C","F","L","N","Rho"}; return n;
 }
+inline bool iso_velocity(const std::string& basis) {
+    return basis=="velocity_iso" || basis=="isotropic";
+}
+inline bool iso_basis(const std::string& basis) {
+    return iso_velocity(basis) || basis=="stiffness_iso";
+}
+inline bool vti_stiffness(const std::string& basis) {
+    return basis=="stiffness_vti" || basis=="stiffness";
+}
 inline std::vector<Parameter> axes(const Model& m,const std::string& basis,bool fixed_fluid=false) {
     std::vector<std::string> n;
-    if(basis=="stiffness") n=stiffness_names();
-    else if(basis=="isotropic") n={"Vs","Vp","Rho"};
+    if(vti_stiffness(basis)) n=stiffness_names();
+    else if(basis=="stiffness_iso") n={"Lambda","Mu","Rho"};
+    else if(iso_velocity(basis)) n={"Vs","Vp","Rho"};
     else if(basis=="velocity_vti" || basis=="log_velocity_vti") n={"rho","vph","vpv","vsh","vsv","eta"};
     else throw Error("invalid_argument","Unknown derivative basis: "+basis);
     std::vector<Parameter> out; const auto p=parameter_materials(m);
@@ -270,10 +287,31 @@ inline std::vector<Parameter> axes(const Model& m,const std::string& basis,bool 
 }
 // Exact material-coordinate map. Stiffness output order A,C,F,L,N,Rho.
 struct BasisMap {Eigen::MatrixXd J; std::vector<Eigen::MatrixXd> K;};
-inline BasisMap basis_map(const Material& p,const std::string& basis) {
-    if(basis=="stiffness") return {Eigen::MatrixXd::Identity(6,6),std::vector<Eigen::MatrixXd>(6,Eigen::MatrixXd::Zero(6,6))};
-    require(p.A-2*p.L != 0,"Velocity basis is undefined when A-2L=0");
-    const double r=p.rho,ph=std::sqrt(p.A/r),pv=std::sqrt(p.C/r),sh=std::sqrt(p.N/r),sv=std::sqrt(p.L/r),e=p.F/(p.A-2*p.L);
+inline BasisMap basis_map(const Model& m,size_t i,const Material& p,const std::string& basis) {
+    if(vti_stiffness(basis)) return {Eigen::MatrixXd::Identity(6,6),std::vector<Eigen::MatrixXd>(6,Eigen::MatrixXd::Zero(6,6))};
+    if(iso_basis(basis)) {
+        // Check using the same roundoff scale as a material constructed via rho*v^2.
+        const double scale=std::max({1.0,std::abs(p.A),std::abs(p.C),std::abs(p.F),std::abs(p.L),std::abs(p.N)});
+        const double eps=64*std::numeric_limits<double>::epsilon()*scale;
+        require(std::abs(p.A-p.C)<=eps && std::abs(p.L-p.N)<=eps && std::abs(p.F-(p.A-2*p.L))<=eps,
+            "isotropic basis requires an isotropic model; use velocity_vti or stiffness_vti");
+        BasisMap b{Eigen::MatrixXd::Zero(6,3),std::vector<Eigen::MatrixXd>(6,Eigen::MatrixXd::Zero(3,3))};
+        b.J(5,2)=1;
+        if(basis=="stiffness_iso") {
+            b.J.row(0)<<1,2,0; b.J.row(1)=b.J.row(0); b.J(2,0)=1;
+            b.J(3,1)=b.J(4,1)=1;
+        } else {
+            const double vs=std::sqrt(p.L/p.rho), vp=std::sqrt(p.C/p.rho);
+            b.J.row(0)<<0,2*p.rho*vp,vp*vp; b.J.row(1)=b.J.row(0);
+            b.J.row(3)<<2*p.rho*vs,0,vs*vs; b.J.row(4)=b.J.row(3);
+            b.J.row(2)=b.J.row(0)-2*b.J.row(3);
+            b.K[0](1,1)=2*p.rho; b.K[0](1,2)=b.K[0](2,1)=2*vp;
+            b.K[3](0,0)=2*p.rho; b.K[3](0,2)=b.K[3](2,0)=2*vs;
+            b.K[1]=b.K[0]; b.K[4]=b.K[3]; b.K[2]=b.K[0]-2*b.K[3];
+        }
+        return b;
+    }
+    const double r=p.rho,ph=std::sqrt(p.A/r),pv=std::sqrt(p.C/r),sh=std::sqrt(p.N/r),sv=std::sqrt(p.L/r),e=node_eta(m,i,p);
     BasisMap b{Eigen::MatrixXd::Zero(6,6),std::vector<Eigen::MatrixXd>(6,Eigen::MatrixXd::Zero(6,6))};
     auto quadratic=[&](int row,int col,double v) {
         b.J(row,0)=v*v; b.J(row,col)=2*r*v;
@@ -284,15 +322,7 @@ inline BasisMap basis_map(const Material& p,const std::string& basis) {
     b.K[2]=e*(b.K[0]-2*b.K[3]);
     for(int j=0;j<5;++j) b.K[2](j,5)=b.K[2](5,j)=b.J(0,j)-2*b.J(3,j);
     b.J(5,0)=1;
-    if(basis=="isotropic") {
-        // Check using the same roundoff scale as a material constructed via rho*v^2.
-        const double scale=std::max({1.0,std::abs(p.A),std::abs(p.C),std::abs(p.F),std::abs(p.L),std::abs(p.N)});
-        const double eps=64*std::numeric_limits<double>::epsilon()*scale;
-        require(std::abs(p.A-p.C)<=eps && std::abs(p.L-p.N)<=eps && std::abs(p.F-(p.A-2*p.L))<=eps,
-            "isotropic basis requires an isotropic model; use velocity_vti or stiffness");
-        Eigen::MatrixXd P=Eigen::MatrixXd::Zero(6,3); P(0,2)=1; P(1,1)=P(2,1)=1; P(3,0)=P(4,0)=1;
-        b.J=(b.J*P).eval(); for(auto& k:b.K) k=(P.transpose()*k*P).eval();
-    } else if(basis=="log_velocity_vti") {
+    if(basis=="log_velocity_vti") {
         Eigen::VectorXd x(6); x<<r,ph,pv,sh,sv,e;
         require((x.array()>0).all(),"log_velocity_vti requires strictly positive solid velocity coordinates");
         for(int k=0;k<6;++k) {
@@ -305,17 +335,28 @@ inline BasisMap basis_map(const Material& p,const std::string& basis) {
 }
 inline void check_basis(const Model& model,const std::string& basis) {
     (void)axes(model,basis);
-    for(const auto& p:parameter_materials(model))
-        if(model.data().kind!="grid" || !fluid(p)) (void)basis_map(p,basis);
+    const auto ps=parameter_materials(model);
+    for(size_t i=0;i<ps.size();++i) {
+        const auto& p=ps[i];
+        if(model.data().kind=="grid" && fluid(p)) continue;
+        if(model.data().interpolation=="velocity") {
+            if(vti_stiffness(basis))
+                require(p.A!=2*p.L,"Independent VTI stiffness perturbations require an invertible velocity map at every active node");
+            if(iso_basis(basis))
+                require(std::abs(node_eta(model,i,p)-1)<=64*std::numeric_limits<double>::epsilon(),
+                    "Isotropic perturbations require isotropic velocity interpolation (eta=1)");
+        }
+        (void)basis_map(model,i,p,basis);
+    }
 }
 inline void transform(DerivativeResult& r,const Model& model,const std::string& basis,bool fixed_fluid=false) {
     const auto ps=parameter_materials(model); const int nn=static_cast<int>(ps.size());
-    const int q=basis=="isotropic"?3:6;
+    const int q=detail::iso_basis(basis)?3:6;
     Eigen::MatrixXd J=Eigen::MatrixXd::Zero(nn*6,nn*q);
     std::vector<BasisMap> maps;
     for(int i=0;i<nn;++i) {
         if(fixed_fluid && fluid(ps[i])) maps.push_back({Eigen::MatrixXd::Zero(6,q),std::vector<Eigen::MatrixXd>(6,Eigen::MatrixXd::Zero(q,q))});
-        else maps.push_back(basis_map(ps[i],basis));
+        else maps.push_back(basis_map(model,i,ps[i],basis));
         J.block(i*6,i*q,6,q)=maps.back().J;
     }
     if(!r.hessian.empty()) {
@@ -384,14 +425,7 @@ struct DispersionContextData {
             mesher.fill_refined_layers(level,out.layers,out.thicknesses,geometry,fluids);
             out.halfspace=mesher.get_halfspace();
         } else {
-            if(fields.rho.empty()) {
-                for(const auto& p:d.materials) {
-                    detail::require(p.A-2*p.L!=0,"Velocity-VTI representation is undefined when A - 2 L = 0");
-                    fields.rho.push_back(p.rho); fields.ph.push_back(std::sqrt(p.A/p.rho));
-                    fields.pv.push_back(std::sqrt(p.C/p.rho)); fields.sh.push_back(std::sqrt(p.N/p.rho));
-                    fields.sv.push_back(std::sqrt(p.L/p.rho)); fields.eta.push_back(p.F/(p.A-2*p.L));
-                }
-            }
+            if(fields.rho.empty()) fields=detail::velocities(model);
             fill_velocity_grid_vti_values(d.depths,fields.rho,fields.ph,fields.pv,fields.sh,fields.sv,
                 fields.eta,d.discontinuities,level,
                 make_grid_refinement_policy(d.geometry.kind,d.geometry.planet_radius,d.geometry.flattening_exponent),
@@ -434,7 +468,7 @@ Material create_velocity_vti_parameters(double rho,double ph,double pv,double sh
     Material p; p.rho=rho;p.A=rho*ph*ph;p.C=rho*pv*pv;p.L=rho*sv*sv;p.N=rho*sh*sh;p.F=eta*(p.A-2*p.L);
     detail::check_material(p); return p;
 }
-static Model create_layer_cake_model_impl(const std::vector<Material>& layers,const std::vector<double>& h,const Material& hs,const Geometry& geo,const std::string& name,const std::string& kind) {
+static Model create_layer_cake_model_impl(const std::vector<Material>& layers,const std::vector<double>& h,const Material& hs,const Geometry& geo,const std::string& name,const std::string& kind,std::vector<double> eta={}) {
     detail::check_geometry(geo);
     detail::require(layers.size()==h.size(),"layers and thicknesses differ in length");
     detail::check_material(hs); for(const auto& p:layers) detail::check_material(p);
@@ -443,6 +477,7 @@ static Model create_layer_cake_model_impl(const std::vector<Material>& layers,co
     if(geo.kind!="flat") detail::require(std::accumulate(h.begin(),h.end(),0.0)<geo.planet_radius,
         "Layer-cake extends to planet centre");
     ModelData d;d.kind=kind;d.interpolation="constant";d.materials=layers;d.thicknesses=h;d.halfspace=hs;d.geometry=geo;d.name=name;
+    d.velocity_eta=std::move(eta);
     return Access::model(std::move(d));
 }
 Model create_layer_cake_model(const std::vector<Material>& layers,const std::vector<double>& h,const Material& hs,const Geometry& geo,const std::string& name) {
@@ -452,14 +487,14 @@ Model create_layer_cake_model(const std::vector<Material>& layers,const std::vec
 Model create_pancake_model(const std::vector<Material>& layers,const std::vector<double>& h,const Material& hs,const Geometry& geo,const std::string& name) {
     return create_layer_cake_model_impl(layers,h,hs,geo,name,"pancake");
 }
-Model create_grid_model(const std::vector<double>& z,const std::vector<Material>& ps,const std::string& interpolation,const Geometry& geo,const std::string& name) {
+static Model create_grid_model_impl(const std::vector<double>& z,const std::vector<Material>& ps,const std::string& interpolation,const Geometry& geo,const std::string& name,std::vector<double> eta) {
     detail::require(z.size()==ps.size() && z.size()>=2,"Grid needs equally sized depth/material arrays with at least two nodes");
     detail::require(interpolation=="stiffness" || interpolation=="velocity","Specify interpolation='stiffness' or 'velocity'");
     std::vector<bool> flags(z.size(),false);
     for(size_t i=0;i<z.size();++i) {
         detail::require(std::isfinite(z[i])&&z[i]>=0,"Depths must be finite and nonnegative"); detail::check_material(ps[i]);
         if(i) {detail::require(z[i]>=z[i-1],"Depths must be nondecreasing"); if(z[i]==z[i-1]) {
-            detail::require(i<2 || z[i-2]!=z[i],"An interface must have exactly two nodes"); flags[i-1]=true;
+            detail::require(i<2 || z[i-2]!=z[i],"An interface must have exactly two nodes: node "+std::to_string(i)+", depth "+std::to_string(z[i])+" km"); flags[i-1]=true;
         }}
     }
     detail::require(z.front()==0,"Grid surface depth must be zero");
@@ -467,9 +502,14 @@ Model create_grid_model(const std::vector<double>& z,const std::vector<Material>
     (void)make_grid_refinement_policy(geo.kind,geo.planet_radius,geo.flattening_exponent);
     if(geo.kind!="flat") detail::require(z.back()<geo.planet_radius,"Grid extends to planet centre");
     ModelData d;d.kind="grid";d.interpolation=interpolation;d.materials=ps;d.depths=z;d.discontinuities=flags;d.halfspace=ps.back();d.geometry=geo;d.name=name;
+    d.velocity_eta=std::move(eta);
     auto model=Access::model(std::move(d));
     if(interpolation=="velocity") (void)detail::velocities(model);
     return model;
+}
+
+Model create_grid_model(const std::vector<double>& z,const std::vector<Material>& ps,const std::string& interpolation,const Geometry& geo,const std::string& name) {
+    return create_grid_model_impl(z,ps,interpolation,geo,name,{});
 }
 
 Model create_model(const std::vector<double>& depths,const std::string& kind,
@@ -508,11 +548,14 @@ Model create_model(const std::vector<double>& depths,const std::string& kind,
         else m={(*p.rho)[i],(*p.A)[i],(*p.C)[i],(*p.F)[i],(*p.L)[i],(*p.N)[i]};
         detail::check_material(m);materials.push_back(m);
     }
-    if(kind=="grid") return create_grid_model(depths,materials,*interpolation,geometry,name);
+    std::vector<double> eta;
+    if(iso) eta.assign(depths.size(),1.0);
+    else if(velocity) eta=*p.eta;
+    if(kind=="grid") return create_grid_model_impl(depths,materials,*interpolation,geometry,name,std::move(eta));
     std::vector<double> thicknesses;
     for(size_t i=1;i<depths.size();++i) thicknesses.push_back(depths[i]-depths[i-1]);
-    const auto halfspace=materials.back();materials.pop_back();
-    return create_layer_cake_model_impl(materials,thicknesses,halfspace,geometry,name,kind);
+    const auto halfspace=materials.back(); materials.pop_back();
+    return create_layer_cake_model_impl(materials,thicknesses,halfspace,geometry,name,kind,std::move(eta));
 }
 
 namespace detail {
@@ -839,23 +882,39 @@ DerivativeResult compute_kernels(const ModeSolution& s,const std::string& basis,
             if(ch)r.gradients["hv_ratio"][i*6+j]=k.d_HVRatio;
         }
         detail::require(std::all_of(seen.begin(),seen.end(),[](bool v){return v;}),"Incomplete kernel metadata");
-        if(velocity) {
-            // Pull velocity-interpolation derivatives back to node stiffness,
-            // then through the requested map. This never changes interpolation.
-            for(int i=0;i<nn;++i) {
-                auto map=detail::basis_map(d.materials[i],"velocity_vti");
-                if(detail::fluid(d.materials[i])) {
-                    for(auto& kv:r.gradients)std::fill(kv.second.begin()+i*6,kv.second.begin()+(i+1)*6,0);
-                    continue;
-                }
-                for(auto& kv:r.gradients) {
-                    Eigen::Map<Eigen::VectorXd> g(kv.second.data()+i*6,6);
-                    Eigen::VectorXd stiffness=map.J.transpose().fullPivLu().solve(g);g=stiffness;
-                }
+    }
+    if(d.interpolation=="velocity") {
+        const int q=detail::iso_basis(basis)?3:6;
+        std::map<std::string,std::vector<double>> gradients;
+        for(const auto& entry:r.gradients) gradients[entry.first].resize(nn*q);
+        for(int i=0;i<nn;++i) {
+            const auto& p=d.materials[i];
+            if(detail::fluid(p)) continue; // GRID fluid parameters are fixed.
+            for(const auto& entry:r.gradients) {
+                Eigen::Map<const Eigen::VectorXd> g(entry.second.data()+i*6,6);
+                Eigen::Map<Eigen::VectorXd> out(gradients[entry.first].data()+i*q,q);
+                if(detail::iso_basis(basis)) {
+                    const double gs=g(3)+g(4), gp=g(1)+g(2);
+                    if(detail::iso_velocity(basis)) out<<gs,gp,g(0);
+                    else {
+                        const double vs=std::sqrt(p.L/p.rho),vp=std::sqrt(p.C/p.rho);
+                        out<<gp/(2*p.rho*vp),gp/(p.rho*vp)+gs/(2*p.rho*vs),
+                             g(0)-(vs*gs+vp*gp)/(2*p.rho);
+                    }
+                } else if(detail::vti_stiffness(basis)) {
+                    auto map=detail::basis_map(m,i,p,"velocity_vti");
+                    out=map.J.transpose().fullPivLu().solve(g);
+                } else if(basis=="log_velocity_vti") {
+                    Eigen::VectorXd x(6);
+                    x<<p.rho,std::sqrt(p.A/p.rho),std::sqrt(p.C/p.rho),std::sqrt(p.N/p.rho),
+                       std::sqrt(p.L/p.rho),detail::node_eta(m,i,p);
+                    out=g.cwiseProduct(x);
+                } else out=g;
             }
         }
-    }
-    detail::transform(r,m,basis,d.kind=="grid");r.diagnostics.mode_verified=true;detail::ensure_finite(r);detail::finish(r.diagnostics,o.strict);return r;
+        r.gradients=std::move(gradients); r.parameters=detail::axes(m,basis,true); r.basis=basis;
+    } else detail::transform(r,m,basis,d.kind=="grid");
+    r.diagnostics.mode_verified=true;detail::ensure_finite(r);detail::finish(r.diagnostics,o.strict);return r;
 }
 
 DerivativeResult compute_hessian(const ModeSolution& s,const std::string& basis,const Options& o) {
@@ -953,15 +1012,14 @@ DerivativeResult compute_interface_hessian_row(const ModeSolution& s,int interfa
     if(d.kind!="grid"||d.interpolation!="stiffness"||d.geometry.kind!="flat")detail::unsupported("Interface Hessian requires flat stiffness GRID");
     const int ndisc=static_cast<int>(std::count(d.discontinuities.begin(),d.discontinuities.end(),true));
     detail::require(interface_index>=0&&interface_index<ndisc,"Interface index out of range");
-    detail::require(basis=="stiffness"||basis=="isotropic"||basis=="velocity_vti"||basis=="log_velocity_vti","Unknown derivative basis");
     auto roots=detail::trace_roots(s,o.max_levels);
     auto raw=py_computeInterfaceHessianRowVariationalExtrapolated(d.depths,detail::unpack(d.materials),d.discontinuities,s.period(),s.wave(),s.phase_velocity(),interface_index,o.max_levels,"VTI",roots,s.diagnostics().accepted_level);
-    const int nn=static_cast<int>(d.materials.size()),q=basis=="isotropic"?3:6;
+    const int nn=static_cast<int>(d.materials.size()),q=detail::iso_basis(basis)?3:6;
     DerivativeResult r;r.basis=basis;r.rows=1;r.cols=nn*q+ndisc;r.hessian.assign(r.cols,0);r.parameters=detail::axes(s.model(),basis,true);
     // Interface wrapper VTI rows are A,C,F,L,N,Rho, followed by depths.
     for(int i=0;i<nn;++i) {
         if(detail::fluid(d.materials[i]))continue;
-        auto map=detail::basis_map(d.materials[i],basis);
+        auto map=detail::basis_map(s.model(),i,d.materials[i],basis);
         Eigen::Map<const Eigen::VectorXd> row(raw.data()+i*6,6);Eigen::VectorXd transformed=map.J.transpose()*row;
         std::copy(transformed.data(),transformed.data()+q,r.hessian.begin()+i*q);
     }
@@ -1012,7 +1070,7 @@ std::vector<Capability> get_capabilities(const Model& m,const std::string& wave)
     add("dispersion_curve","","continuation",base_reason);
     add("dispersion","","continuation_recover",base_reason);
     add("dispersion_curve","","continuation_recover",base_reason);
-    for(const auto& basis:{"isotropic","stiffness","velocity_vti","log_velocity_vti"}) {
+    for(const auto& basis:{"velocity_iso","stiffness_iso","velocity_vti","stiffness_vti","log_velocity_vti","isotropic","stiffness"}) {
         std::string basis_reason;
         try {detail::check_basis(m,basis);}
         catch(const std::exception& error) {basis_reason=error.what();}
@@ -1044,7 +1102,7 @@ std::vector<Capability> get_capabilities(const Model& m,const std::string& wave)
             "Interface derivatives require flat stiffness GRID or flat Layer-cake"),
         detail::has_fluid(m)?"Interface derivatives with fluid layers are not supported":std::string{});
     add("interface_kernels","interface_depth","variational",interface_reason);
-    for(const auto& basis:{"isotropic","stiffness","velocity_vti","log_velocity_vti"}) {
+    for(const auto& basis:{"velocity_iso","stiffness_iso","velocity_vti","stiffness_vti","log_velocity_vti","isotropic","stiffness"}) {
         std::string reason=first_reason(interface_reason,
             layer_cake?"Interface Hessian rows require stiffness GRID":std::string{});
         try {detail::check_basis(m,basis);}

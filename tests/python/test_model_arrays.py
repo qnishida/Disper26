@@ -39,10 +39,19 @@ class ModelArrays(unittest.TestCase):
                         for wave in ('Rayleigh', 'Love'):
                             a = dp.compute_dispersion(new, period=10., wave=wave, options=options)
                             b = dp.compute_dispersion(old, period=10., wave=wave, options=options)
-                            self.assertEqual(a.phase_velocity, b.phase_velocity)
+                            # The array constructor retains explicit eta. A stiffness-only
+                            # Material recovers F/(A-2L), which can differ by one ulp.
+                            rounded_eta = fields is velocity and interpolation == "velocity"
+                            if rounded_eta:
+                                np.testing.assert_allclose(a.phase_velocity, b.phase_velocity, rtol=1e-12)
+                            else:
+                                self.assertEqual(a.phase_velocity, b.phase_velocity)
                             ga = dp.compute_kernels(a, basis='stiffness', options=options)
                             gb = dp.compute_kernels(b, basis='stiffness', options=options)
-                            np.testing.assert_array_equal(ga.gradient, gb.gradient)
+                            if rounded_eta:
+                                np.testing.assert_allclose(ga.gradient, gb.gradient, rtol=1e-12, atol=1e-12)
+                            else:
+                                np.testing.assert_array_equal(ga.gradient, gb.gradient)
                             if interpolation != 'velocity':
                                 ha = dp.compute_hessian(a, basis='stiffness', options=options)
                                 hb = dp.compute_hessian(b, basis='stiffness', options=options)

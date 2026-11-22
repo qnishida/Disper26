@@ -310,6 +310,11 @@ program test_api_fortran
   call selected%group_velocity(u,status)
   if(status%ok().or..not.ieee_is_nan(u)) error stop 'unrequested observable must be absent'
 
+  call compute_kernels(solution,'stiffness_iso',derivatives,status)
+  call success()
+  call derivatives%parameter(1,parameter,status)
+  call success()
+  if(parameter%name/='Lambda') error stop 'incorrect isotropic stiffness axis'
   call compute_kernels(solution,'isotropic',derivatives,status)
   call success()
   call derivatives%vector('gradient.phase_velocity',values,status)

@@ -46,6 +46,8 @@ struct ModelData {
     bool flattened = false;
     std::string flattening_policy;
     std::optional<double> q_period, q_reference_period;
+    // One entry per parameter node, including the halfspace, for velocity-array input.
+    std::vector<double> velocity_eta;
 };
 struct Access;
 // Exactly one complete material representation; absent and empty are distinct.

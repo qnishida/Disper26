@@ -54,3 +54,25 @@ def test_hessian_diagnostic_rejects_fixed_output(tmp_path, output):
     with pytest.raises(ValueError, match='immutable scientific inputs'):
         parse_args(['--disper26-root', str(tmp_path), '--plan-l-dir', str(tmp_path),
                     '--output-dir', str(PAPER / output)])
+
+
+def test_replay_rejects_frozen_output_and_symlink(tmp_path):
+    from paper.reproduce_statistics import reproduce
+    target = PAPER / "data/plan_l_v2/holdout_report.json"
+    before = target.read_bytes()
+    link = tmp_path / "replay.json"
+    link.symlink_to(target)
+    for path in (target, link, PAPER / "reference_sources/other.json"):
+        with pytest.raises(ValueError, match="immutable"):
+            reproduce(path)
+    assert target.read_bytes() == before
+
+
+def test_snapshot_extension_must_come_from_the_selected_build(tmp_path, monkeypatch):
+    import sys
+    from types import SimpleNamespace
+    from paper.provenance import load_reference_extension
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.setitem(sys.modules, "disper26py", SimpleNamespace(__file__="/other/disper26py.so"))
+    with pytest.raises(ValueError, match="build_ext --inplace"):
+        load_reference_extension(tmp_path)

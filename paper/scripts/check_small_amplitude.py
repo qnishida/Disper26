@@ -20,8 +20,14 @@ TIGHT = dict(BASE, max_steps=8, tolerance=1e-12, root_tolerance=1e-13)
 def sha(p):
     return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 
-def setup(root):
-    sys.path[:0] = [str(root), str(Path(root) / 'inversion')]
+def setup(root, expected_hash=None):
+    from paper.provenance import load_reference_extension, verify_reference
+    if expected_hash is not None:
+        verify_reference("plan_l_v2", root)
+    extension = load_reference_extension(root)
+    if expected_hash is not None and sha(extension.__file__) != expected_hash:
+        raise ValueError("Worker and parent loaded different snapshot extensions")
+    sys.path.insert(0, str(Path(root) / "inversion"))
     global basis, ForwardEngine
     from disper26_inv.engine import ForwardEngine
     from disper26_inv.long_period_taylor_reference import build_plan_l_objects
@@ -66,13 +72,10 @@ def main():
     p.add_argument('--processes', type=int, default=8)
     p.add_argument('--output-dir', type=Path, default=Path(__file__).resolve().parents[1] / 'results/small_amplitude')
     args = p.parse_args()
-    import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-    from paper.provenance import validate_output
+    from paper.provenance import validate_output, verify_reference
     args.output_dir = validate_output(args.output_dir)
     OUT = args.output_dir
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-    from paper.provenance import verify_reference
     source_provenance = verify_reference('plan_l_v2', args.disper26_root, args.plan_l_dir / 'long_period_mixed_response_v2.npz')
     setup(args.disper26_root)
     from disper26_inv.long_period_taylor_manifest import (
@@ -85,13 +88,14 @@ def main():
     operator = compute_shear_log_operator(basis)
     arrays, report = {}, {'role': 'post-holdout small-amplitude convergence diagnostic',
         'base_settings': BASE, 'tight_settings': TIGHT, 'minimum_trace_level': 5,
+        'reference_id': source_provenance['reference_id'],
         'source_tree_sha256': source_provenance['source_tree_sha256'],
         'extension_sha256': sha(disper26py.__file__), 'artifact_sha256': sha(artifact),
         'source_files_sha256': {str(p.relative_to(args.disper26_root)): sha(p)
             for p in sorted((args.disper26_root / 'inversion/disper26_inv').glob('*.py'))},
         'sources': {}, 'curves': {}}
     with ProcessPoolExecutor(args.processes, initializer=setup,
-                             initargs=(args.disper26_root,)) as pool:
+                             initargs=(args.disper26_root, report['extension_sha256'])) as pool:
         for wi, wave in enumerate(('rayleigh','love')):
             src = args.plan_l_dir / 'holdout' / ('split_'+wave+'.npz')
             s = np.load(src)

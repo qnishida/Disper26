@@ -41,11 +41,7 @@ inline void validate_velocity_grid_sizes(
             throw std::runtime_error("Velocity grid depths must be monotonically non-decreasing.");
         }
     }
-    for (size_t i = 0; i < is_discontinuity.size(); ++i) {
-        if (is_discontinuity[i] && (i + 1 >= depths.size() || std::abs(depths[i] - depths[i + 1]) > 1e-10)) {
-            throw std::runtime_error("Velocity grid discontinuity flags require duplicated depths.");
-        }
-    }
+    validate_grid_interfaces(depths, is_discontinuity);
 }
 
 template <typename T>

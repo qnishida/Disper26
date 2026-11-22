@@ -57,12 +57,13 @@ def test_eft_default_ba97_exponent():
 
 def test_grid_eft_matches_node_scaling():
     radius = 6371.0
-    depths = [0.0, 20.0]
+    depths = [0.0, 20.0, 20.0]
     params = [
         dp.create_isotropic_parameters(3.2, 5.8, 2.6),
         dp.create_isotropic_parameters(4.5, 8.1, 3.4),
+        dp.create_isotropic_parameters(4.7, 8.3, 3.5),
     ]
-    is_disc = [False, True]
+    is_disc = [False, True, False]
     flat_depths, flat_params, flat_disc = dp.earth_flattening_transformation_grid(
         depths, params, is_disc, radius, -2.0
     )
@@ -74,6 +75,8 @@ def test_grid_eft_matches_node_scaling():
     close(flat_depths[1], expected_depth)
     close(flat_params[1].rho / params[1].rho, scale_rho)
     close(flat_params[1].c44 / params[1].c44, scale_elastic)
+    close(flat_depths[2], expected_depth)
+    close(flat_params[2].c44 / params[2].c44, scale_elastic)
     assert flat_disc == is_disc
     assert not hasattr(dp, "earth_flattening_transformation")
     assert hasattr(dp, "earth_flattening_transformation_grid_experimental_density")

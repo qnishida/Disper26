@@ -2,11 +2,13 @@
 import argparse
 import json
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 import numpy as np
-from paper.provenance import PAPER, file_sha256, verify_reference
+from paper.provenance import PAPER, file_sha256, validate_output, verify_reference
 
 
 def reproduce(output):
+    output = validate_output(output)
     data = PAPER / 'data/plan_l_v2'
     artifact = data / 'long_period_mixed_response_v2.npz'
     source = PAPER / 'reference_sources/plan_l_v2'
@@ -55,7 +57,18 @@ def reproduce(output):
     result = dict(role='replay_of_previously_opened_holdout', provenance=provenance,
                   artifact_sha256=file_sha256(artifact), cases=rows)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(result, indent=2) + '\n')
+    # Replace the directory entry so that an existing hard link never writes
+    # through to a frozen input, and readers always see a complete report.
+    contents = json.dumps(result, indent=2) + '\n'
+    with NamedTemporaryFile(dir=output.parent, mode='w', encoding='utf-8', delete=False) as stream:
+        temporary = Path(stream.name)
+        try:
+            stream.write(contents)
+            stream.close()
+            temporary.replace(output)
+        finally:
+            if temporary.exists():
+                temporary.unlink()
     return result
 
 

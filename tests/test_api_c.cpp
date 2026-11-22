@@ -328,6 +328,14 @@ int main() {
     check(text(info,"parameter.0.name")==reference_kernels.parameters.at(0).name,"Derivative axis missing");
     check(numeric(info,"parameter.active").size()==reference_kernels.parameters.size(),"Active mask missing");
     d26_api_result_release(info);
+    for(const char* basis:{"velocity_iso","stiffness_iso","stiffness_vti"}) {
+        success(d26_api_compute_kernels(solution,basis,nullptr,nullptr,&info,message,sizeof message));
+        const auto expected=api::compute_kernels(reference,basis);
+        check(numeric(info,"gradient.phase_velocity")==expected.gradients.at("phase_velocity"),
+              "C and C++ derivative coordinates differ");
+        check(text(info,"basis")==basis,"Requested derivative basis missing");
+        d26_api_result_release(info);
+    }
     success(d26_api_compute_eigenfunctions(solution,4,&info,message,sizeof message));
     const auto reference_eigen=api::compute_eigenfunctions(reference,4);
     check(numeric(info,"depth")==reference_eigen.depth,"Eigenfunction depths differ");

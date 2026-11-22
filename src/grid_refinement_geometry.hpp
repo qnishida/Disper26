@@ -102,6 +102,18 @@ inline void grid_fill_flattening_scales(
     }
 }
 
+inline void validate_grid_interfaces(const std::vector<double>& depths,
+                                     const std::vector<bool>& flags) {
+    if (depths.size() != flags.size())
+        throw std::invalid_argument("Grid depth and discontinuity counts differ");
+    for (size_t i = 0; i < depths.size(); ++i) {
+        const bool paired = i+1 < depths.size() && depths[i] == depths[i+1];
+        if (flags[i] != paired || (paired && i && depths[i-1] == depths[i]))
+            throw std::invalid_argument("Expected a flagged two-node discontinuity at node "
+                + std::to_string(i) + ", depth " + std::to_string(depths[i]) + " km");
+    }
+}
+
 inline void fill_grid_sublayer_geometry(
     const std::vector<double>& depths,
     const std::vector<bool>& is_discontinuity,
@@ -134,6 +146,7 @@ inline void fill_grid_sublayer_geometry(
         }
     }
 
+    validate_grid_interfaces(depths, is_discontinuity);
     const int nsub = 1 << refinement_level;
     out.clear();
     for (size_t i = 0; i + 1 < depths.size(); ++i) {

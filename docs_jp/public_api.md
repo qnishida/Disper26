@@ -35,8 +35,8 @@ solution = d26.compute_dispersion(
     model, period=5.0, wave="Rayleigh", mode=0,
     outputs=("phase_velocity", "group_velocity", "hv_ratio"),
 )
-kernels = d26.compute_kernels(solution, basis="isotropic")
-hessian = d26.compute_hessian(solution, basis="isotropic")
+kernels = d26.compute_kernels(solution, basis="velocity_iso")
+hessian = d26.compute_hessian(solution, basis="velocity_iso")
 print(solution.phase_velocity, solution.group_velocity)
 print([(p.entity, p.index, p.name, p.active) for p in kernels.parameters])
 print(kernels.gradient, hessian.hessian.shape)
@@ -273,10 +273,23 @@ Cowling重力を含むモデルの物性・界面微分は共通APIの対応範�
 
 | basis | 各層・ノードの軸順 |
 |---|---|
-| `stiffness` | A, C, F, L, N, Rho |
-| `isotropic` | Vs, Vp, Rho（等方モデルに限定） |
+| `stiffness_vti` | A, C, F, L, N, Rho |
+| `stiffness_iso` | Lambda, Mu, Rho |
+| `velocity_iso` | Vs, Vp, Rho（等方モデルに限定） |
 | `velocity_vti` | rho, vph, vpv, vsh, vsv, eta |
 | `log_velocity_vti` | 上記6量の自然対数（能動座標は正値に限定） |
+
+両方の `_iso` 基底は等方な基準媒質に対して等方性を保つ摂動を扱います。
+`stiffness_iso` の独立な弾性定数はラメ定数（GPa）です。密度微分では両ラメ定数を固定し、
+`velocity_iso` の密度微分では両波速度を固定します。同じ等方解に対し、
+`compute_kernels(solution, basis="velocity_iso")` は Vs と Vp を、
+`basis="velocity_vti"` は水平・鉛直方向の速度を独立に摂動します。
+`isotropic` と `stiffness` もそれぞれ `velocity_iso` と `stiffness_vti` の別名として使えます。
+結果の基底名には指定時の表記を返します。
+
+A = 2L で VTI 速度座標を選ぶには、eta を含む VTI 速度配列を与えます。
+等方速度配列では eta = 1 です。この点では剛性だけから eta を復元できません。
+速度補間 GRID の独立な VTI 剛性感度には、速度への逆変換が一意に定まることが必要です。
 
 半無限層は `entity="halfspace"` で区別する。速度・対数座標のHessianには
 `Jᵀ H J` に加え、物性写像の2階微分と勾配の項も含める。
@@ -323,7 +336,8 @@ LayerCakeの半無限層は、その上端深度で物性を平坦化した均�
 
 `load_prem_spherical` / `load_prem_flat` はパッケージ同梱データを使用し、逆解析や
 SciPyをimportしない。海水層は地殻物性で置き換える `crust_fill` に固定し、
-打切り深度・最大間隔・平坦化指数は引数で指定できる。
+打切り深度・最大間隔・平坦化指数は引数で指定できる。同梱PREMでは深さ2,891 kmまで指定でき、
+境界上ではマントル側の物性を半無限層に使う。それより深い指定では `ValueError` が発生する。
 
 重力補正は既存の採用済み摂動式を使う。既定は層内40分割、角周波数の相対差分幅
 0.005で、これらの値を変える場合は対象モデルで収束を確認する。結果は元の解を
@@ -345,7 +359,7 @@ int main() {
     parameters.rho = std::vector<double>{2.5, 3.3};
     auto model = d26::create_model({0.0, 10.0}, "layer_cake", parameters);
     auto solution = d26::compute_dispersion(model, 5.0);
-    auto kernels = d26::compute_kernels(solution, "isotropic");
+    auto kernels = d26::compute_kernels(solution, "velocity_iso");
     return kernels.parameters.empty();
 }
 ```

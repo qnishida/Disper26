@@ -15,6 +15,34 @@ from typing import Optional, Union
 from disper26py import _api
 
 
+def mantle_records(stream, max_depth_km, *, seafloor_origin=False):
+    """Read solid mantle records in increasing depth, stopping at the first internal fluid."""
+    records = []
+    for record in csv.reader(stream):
+        if not record:
+            continue
+        try:
+            radius = float(record[0]) / 1000.0
+        except ValueError:
+            continue
+        records.append((6371.0 - radius, record))
+    # PREM gives the deep side first at a repeated radius.
+    records.reverse()
+    records.sort(key=lambda entry: entry[0])
+    mantle = []
+    for depth, record in records:
+        if float(record[3]) <= 0:
+            if not mantle:
+                continue  # Surface ocean
+            origin = mantle[0][0] if seafloor_origin else 0.0
+            limit = depth - origin
+            if max_depth_km > limit:
+                raise ValueError(f"Requested depth exceeds the solid mantle limit of {limit:g} km")
+            break
+        mantle.append((depth, record))
+    return mantle
+
+
 def load_prem_spherical(*, interpolation: str = "stiffness", max_depth_km: float = 500.0,
                         max_spacing_km: Optional[float] = 10.0,
                         density_exponent: float = -2.275,
@@ -25,6 +53,7 @@ def load_prem_spherical(*, interpolation: str = "stiffness", max_depth_km: float
     Interpolate raw radial velocity fields to max_spacing_km before constructing
     the model. The final retained source node at or above max_depth_km supplies
     the halfspace; the function does not interpolate an extra bottom node.
+    Depths beyond the top of the outer core (2891 km for bundled PREM) raise ValueError.
     density_exponent selects the spherical refinement/EFT convention explicitly.
     The default CSV is an installed package resource, independent of cwd.
     """
@@ -39,21 +68,10 @@ def load_prem_spherical(*, interpolation: str = "stiffness", max_depth_km: float
     stream = (Path(csv_path).open(encoding="utf-8") if csv_path is not None
               else resources.open_text("disper26.data", "model_PREM_aniso.csv", encoding="utf-8"))
     with stream:
-        for record in csv.reader(stream):
-            if not record:
-                continue
-            try:
-                radius = float(record[0]) / 1000.0
-            except ValueError:
-                continue
-            vsv = float(record[3]) / 1000.0
-            if vsv <= 0:
-                continue
-            rows.append((6371.0 - radius, float(record[1]) / 1000.0,
+        for depth, record in mantle_records(stream, max_depth_km):
+            rows.append((depth, float(record[1]) / 1000.0,
                          float(record[6]) / 1000.0, float(record[2]) / 1000.0,
-                         float(record[7]) / 1000.0, vsv, float(record[8])))
-    rows.reverse()  # Shallow side precedes deep side at duplicate depths.
-    rows.sort(key=lambda row: row[0])
+                         float(record[7]) / 1000.0, float(record[3]) / 1000.0, float(record[8])))
     if not rows:
         raise ValueError("PREM source contains no solid nodes")
     if rows[0][0] > 0:
@@ -71,9 +89,10 @@ def load_prem_spherical(*, interpolation: str = "stiffness", max_depth_km: float
                 refined.append(tuple((1.0 - t) * x + t * y for x, y in zip(a, b)))
         refined.append(rows[-1])
         rows = refined
-    return _api.create_grid_model(
-        [row[0] for row in rows], [_api.create_velocity_vti_parameters(*row[1:]) for row in rows],
-        interpolation, _api.Geometry("spherical_experimental_density", 6371.0, density_exponent), name)
+    depths, *values = zip(*rows)
+    fields = dict(zip(("rho", "vph", "vpv", "vsh", "vsv", "eta"), values))
+    return _api.create_model(depths, "grid", fields, interpolation,
+                             _api.Geometry("spherical_experimental_density", 6371.0, density_exponent), name)
 
 
 def load_prem_flat(*, interpolation: str = "stiffness", max_depth_km: float = 500.0,

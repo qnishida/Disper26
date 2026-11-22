@@ -5,6 +5,7 @@ No Disper26 extension or network connection is required. Units in stored
 curves are km/s; errors plotted here are 100*abs(prediction-exact)/exact.
 Edit COLORS, rcParams, and the figure functions for presentation changes.
 """
+import argparse
 import hashlib
 import json
 import os
@@ -25,6 +26,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data" / "results"
 FIG = ROOT / "Fig"
+PLAN_L_PREFIX = "plan_l_v2"
 COLORS = {1: "#D55E00", 2: "#0072B2", "exact": "#595959"}
 CURVES = [("rayleigh", 0), ("rayleigh", 1), ("love", 0), ("love", 1)]
 plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 9,
@@ -36,6 +38,7 @@ plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 9,
 
 
 def save(fig, name):
+    name = name.replace("plan_l_v2", PLAN_L_PREFIX)
     FIG.mkdir(exist_ok=True)
     fig.savefig(FIG / (name + ".pdf"), bbox_inches="tight",
                 metadata={"CreationDate": None, "ModDate": None,
@@ -164,17 +167,39 @@ def runtime_plot():
     axes[0].set_title("(a) Scalar evaluation", loc="left")
     axes[1].set_ylabel("Exact / surrogate time")
     axes[1].set_ylim(500, 40000)
+    if PLAN_L_PREFIX != "plan_l_v2":
+        scalar_ms = [1000 * row[field] for row in rows
+                     for field in ("exact_scalar_seconds", "surrogate_scalar_seconds")]
+        speedups = [row[field] for row in rows
+                    for field in ("scalar_speedup", "batch_speedup")]
+        axes[0].set_ylim(min(scalar_ms) / 2, max(scalar_ms) * 3)
+        axes[1].set_ylim(min(speedups) / 2, max(speedups) * 3)
     axes[1].set_title("(b) Evaluation speedup", loc="left")
     fig.tight_layout()
     save(fig, "plan_l_v2_runtime")
 
 
 def main():
-    provenance = json.loads((DATA / "provenance.json").read_text())
-    for filename, expected in provenance["exports"].items():
-        assert hashlib.sha256((DATA / filename).read_bytes()).hexdigest() == expected, filename
-    small_report = json.loads((DATA / "plan_l_v2_small_amplitude_report.json").read_text())
-    assert hashlib.sha256((DATA / "plan_l_v2_small_amplitude.npz").read_bytes()).hexdigest() == small_report["data_sha256"]
+    global DATA, PLAN_L_PREFIX
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--plan-l-data", type=Path, help="Directory produced by recompute_plan_l_eft.py all")
+    args = parser.parse_args()
+    if args.plan_l_data:
+        DATA = args.plan_l_data
+        PLAN_L_PREFIX = "plan_l_eft_p0_p3"
+        manifest = json.loads((DATA / "manifest.json").read_text())
+        if (manifest["p_by_wave"] != {"rayleigh": 0, "love": 3}
+                or manifest["source"]["reference_id"] != "plan_l_v2"):
+            raise ValueError("Expected the manuscript wave-specific EFT experiment")
+    else:
+        manifest = json.loads((DATA / "provenance.json").read_text())
+    exports = manifest["exports"]
+    required = {"plan_l_v2_holdout_curves.npz", "plan_l_v2_small_amplitude.npz", "plan_l_v2_benchmark_report.json"}
+    if not required.issubset(exports):
+        raise ValueError("Missing plotting inputs in the data manifest")
+    for filename, expected in exports.items():
+        if hashlib.sha256((DATA / filename).read_bytes()).hexdigest() != expected:
+            raise ValueError("Manifest checksum mismatch: " + filename)
     with np.load(DATA / "plan_l_v2_holdout_curves.npz", allow_pickle=False) as a:
         amplitude_plot(a)
         frequency_plot(a)

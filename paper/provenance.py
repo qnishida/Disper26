@@ -44,6 +44,22 @@ def reference_for_root(source_root):
     raise ValueError('Choose one of the source-only snapshots in reference_manifest.json')
 
 
+def load_reference_extension(root):
+    """Import the extension built in the selected, manifest-verified snapshot."""
+    import importlib
+    import sys
+    root = Path(root).resolve()
+    sys.path.insert(0, str(root))
+    guidance = f"Build the selected snapshot in {root.name} with python setup.py build_ext --inplace"
+    try:
+        extension = importlib.import_module('disper26py')
+    except ImportError as error:
+        raise ValueError(guidance) from error
+    if Path(extension.__file__).resolve().parent != root:
+        raise ValueError(guidance)
+    return extension
+
+
 def validate_output(path):
     """Keep new results outside immutable evidence and reference sources."""
     path = Path(path).resolve()

@@ -12,16 +12,18 @@ dimensionless stiffness ratio and is left unscaled.
 Ocean handling (ocean_mode):
   "crust_fill" (default) - extend the uppermost crust to r=6371 km, matching the
       standard PREM-noocean convention.
-  "drop" - simply remove fluid rows; the free surface sits at the seafloor.
+  "drop" - discard the ocean and measure the cutoff from the seafloor.
+Requests below the first internal fluid boundary raise ValueError.
 """
 
 from __future__ import annotations
 
-import csv
 import math
 from pathlib import Path
 
 import numpy as np
+
+from disper26._prem import mantle_records
 
 from .model import VELOCITY_FIELDS, ForwardGridModel, GridRefinementPolicy
 
@@ -43,21 +45,13 @@ def load_prem_flat(
         raise ValueError("ocean_mode must be 'crust_fill' or 'drop'")
     rows = []
     with Path(csv_path).open("r", encoding="utf-8") as fh:
-        for row in csv.reader(fh):
-            if not row:
-                continue
-            try:
-                radius_m = float(row[0])
-            except ValueError:
-                continue
+        for depth, row in mantle_records(fh, max_depth_km, seafloor_origin=ocean_mode == "drop"):
+            radius_km = float(row[0]) / 1000.0
             vsv = float(row[3]) / 1000.0
-            if vsv <= 0.0:
-                continue  # ocean / fluid layers
-            radius_km = radius_m / 1000.0
             rows.append(
                 {
                     "radius_km": radius_km,
-                    "depth_km": EARTH_RADIUS_KM - radius_km,
+                    "depth_km": depth,
                     "rho": float(row[1]) / 1000.0,
                     "vpv": float(row[2]) / 1000.0,
                     "vsv": vsv,
@@ -67,11 +61,6 @@ def load_prem_flat(
                 }
             )
 
-    # The CSV runs center -> surface, so at a discontinuity (duplicated radius)
-    # the deeper-side row comes first. Reverse before the stable sort so that
-    # in depth-ascending order the shallow-side value precedes the deep-side one.
-    rows.reverse()
-    rows.sort(key=lambda r: r["depth_km"])
     if not rows:
         raise RuntimeError(f"no solid nodes found in {csv_path}")
 
@@ -117,7 +106,7 @@ def load_prem_flat(
         depths = np.asarray([r["depth_km"] for r in trimmed], dtype=float)
         is_disc = np.zeros(depths.shape[0], dtype=bool)
         for i in range(depths.shape[0] - 1):
-            if abs(depths[i] - depths[i + 1]) < 1e-12:
+            if depths[i] == depths[i + 1]:
                 is_disc[i] = True
         return ForwardGridModel(
             depths=depths,
@@ -153,7 +142,7 @@ def load_prem_flat(
 
     is_disc = np.zeros(depths.shape[0], dtype=bool)
     for i in range(depths.shape[0] - 1):
-        if abs(depths[i] - depths[i + 1]) < 1e-12:
+        if depths[i] == depths[i + 1]:
             is_disc[i] = True
 
     return ForwardGridModel(
@@ -222,6 +211,8 @@ def refine_forward_grid(
     extra = np.atleast_1d(np.asarray(extra_depths_km, dtype=float))
     new_depths, new_fields = [], {name: [] for name in VELOCITY_FIELDS}
     for z in sorted(extra):
+        if new_depths and (z == new_depths[-1] or z - new_depths[-1] < min_spacing_km):
+            continue
         if np.any(np.abs(depths - z) < min_spacing_km):
             continue
         idx = np.searchsorted(depths, z)

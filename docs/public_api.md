@@ -37,8 +37,8 @@ solution = d26.compute_dispersion(
     model, period=5.0, wave="Rayleigh", mode=0,
     outputs=("phase_velocity", "group_velocity", "hv_ratio"),
 )
-kernels = d26.compute_kernels(solution, basis="isotropic")
-hessian = d26.compute_hessian(solution, basis="isotropic")
+kernels = d26.compute_kernels(solution, basis="velocity_iso")
+hessian = d26.compute_hessian(solution, basis="velocity_iso")
 print(solution.phase_velocity, solution.group_velocity)
 print([(p.entity, p.index, p.name, p.active) for p in kernels.parameters])
 print(kernels.gradient, hessian.hessian.shape)
@@ -307,10 +307,24 @@ Specify `basis` independently of model interpolation.
 
 | Basis | Axis order at each layer or node |
 |---|---|
-| `stiffness` | A, C, F, L, N, Rho |
-| `isotropic` | Vs, Vp, Rho (isotropic models only) |
+| `stiffness_vti` | A, C, F, L, N, Rho |
+| `stiffness_iso` | Lambda, Mu, Rho |
+| `velocity_iso` | Vs, Vp, Rho (isotropic models only) |
 | `velocity_vti` | rho, vph, vpv, vsh, vsv, eta |
 | `log_velocity_vti` | Natural logs of the same six quantities. Active coordinates must be positive. |
+
+The two `_iso` bases require an isotropic reference and preserve isotropy during
+perturbation. `stiffness_iso` uses the Lamé moduli (GPa). Its density derivative
+holds both moduli fixed, while `velocity_iso` holds both wave speeds fixed.
+On the same isotropic solution, use `compute_kernels(solution, basis="velocity_iso")`
+to vary Vs and Vp or `basis="velocity_vti"` to vary horizontal and vertical speeds
+independently. `isotropic` and `stiffness` remain aliases for `velocity_iso` and
+`stiffness_vti`. Results echo the requested spelling.
+
+At A = 2L, supply VTI velocity arrays with explicit eta to select the VTI
+reference coordinates. Isotropic velocity arrays select eta = 1. Stiffness
+alone cannot determine eta at this point. On a velocity-interpolated GRID,
+independent VTI stiffness gradients require an invertible velocity map.
 
 The half-space uses `entity="halfspace"`. Hessians in velocity or log
 coordinates include `Jᵀ H J` and the gradient contracted with the second
@@ -361,7 +375,8 @@ independently at each period.
 `load_prem_spherical` and `load_prem_flat` use bundled data without importing
 inversion code or SciPy. They use `crust_fill` to replace seawater with crustal
 properties. Arguments control truncation depth, maximum spacing and flattening
-exponent.
+exponent. The mantle-side node at the core boundary (2,891 km in bundled PREM)
+can supply the halfspace. A deeper cutoff raises `ValueError`.
 
 The gravity correction uses the perturbation formula with 40 subdivisions per
 layer and a relative angular-frequency difference step of 0.005 by default.
@@ -384,7 +399,7 @@ int main() {
     parameters.rho = std::vector<double>{2.5, 3.3};
     auto model = d26::create_model({0.0, 10.0}, "layer_cake", parameters);
     auto solution = d26::compute_dispersion(model, 5.0);
-    auto kernels = d26::compute_kernels(solution, "isotropic");
+    auto kernels = d26::compute_kernels(solution, "velocity_iso");
     return kernels.parameters.empty();
 }
 ```

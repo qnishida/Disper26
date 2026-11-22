@@ -33,27 +33,17 @@ struct GridModel {
     std::vector<bool> is_discontinuity;                 // is_discontinuity[i] = true → discontinuity between i and i+1
     GridRefinementPolicy refinement_policy{};            // flat by default; spherical is explicit
     
-    // Validation helper
+    void require_valid() const {
+        if (depths.empty() || depths.size() != params.size())
+            throw std::invalid_argument("Invalid GridModel depth/material counts");
+        if (!std::is_sorted(depths.begin(), depths.end()))
+            throw std::invalid_argument("Grid depths must be non-decreasing");
+        validate_grid_interfaces(depths, is_discontinuity);
+    }
+
     bool validate() const {
-        if (depths.size() != params.size()) return false;
-        if (depths.size() != is_discontinuity.size()) return false;
-        if (depths.empty()) return false;
-        
-        // Check depths are monotonically non-decreasing
-        for (size_t i = 1; i < depths.size(); ++i) {
-            if (depths[i] < depths[i-1]) return false;
-        }
-        
-        // Check discontinuity flags match duplicate depths
-        for (size_t i = 0; i < is_discontinuity.size(); ++i) {
-            if (is_discontinuity[i]) {
-                if (i + 1 >= depths.size()) return false;
-                if (std::abs(depths[i] - depths[i+1]) > 1e-10) {
-                    // Warning: discontinuity flag set but depths don't match
-                    return false;
-                }
-            }
-        }
+        try { require_valid(); }
+        catch (const std::invalid_argument&) { return false; }
         return true;
     }
 };
@@ -198,9 +188,7 @@ private:
     
 public:
     explicit Mesher(const GridModel& model) : model_(model) {
-        if (!model_.validate()) {
-            throw std::runtime_error("Invalid GridModel: validation failed");
-        }
+        model_.require_valid();
     }
     
     // Get number of nodes (for AD variable sizing)
