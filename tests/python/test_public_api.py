@@ -4,7 +4,9 @@ Run in the project environment: python -m unittest discover -s tests/python -p t
 The 1e-9 relative / 1e-11 absolute comparisons allow root-solver roundoff when
 comparing the integer-count mode selector with the legacy sign-change scan.
 """
+import ast
 import math
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import subprocess
 import sys
@@ -25,6 +27,18 @@ class PublicAPI(unittest.TestCase):
         cls.raw_layers = [raw.create_isotropic_parameters(3.0, 5.2, 2.5)]
         cls.raw_halfspace = raw.create_isotropic_parameters(4.5, 8.0, 3.3)
         cls.solution = dp.compute_dispersion(cls.model, period=5.0)
+
+    def test_read_only_properties_in_type_stub(self):
+        stub = Path(dp.__file__).with_name("__init__.pyi")
+        for cls in ast.parse(stub.read_text()).body:
+            if not isinstance(cls, ast.ClassDef):
+                continue
+            declared = {item.name for item in cls.body if isinstance(item, ast.FunctionDef)
+                        and any(isinstance(d, ast.Name) and d.id == "property"
+                                for d in item.decorator_list)}
+            runtime = {name for name, member in vars(getattr(dp, cls.name)).items()
+                       if isinstance(member, property) and member.fset is None}
+            self.assertEqual(declared, runtime, cls.name)
 
     def test_removed_seabed_option_and_remaining_gravity_fields(self):
         gravity = 0.00980665
