@@ -1,4 +1,17 @@
+module test_handle_owners
+  use disper26_api, only: model, mode_solution, result_data, dispersion_context
+  implicit none
+  private
+  type, public :: owner
+    type(model) :: m
+    type(mode_solution) :: s
+    type(result_data) :: r
+    type(dispersion_context) :: ctx
+  end type
+end module
+
 program test_api_fortran
+  use test_handle_owners
   use disper26_api
   use, intrinsic :: iso_c_binding, only: c_sizeof
   use, intrinsic :: ieee_arithmetic, only: ieee_is_finite,ieee_is_nan
@@ -80,6 +93,28 @@ program test_api_fortran
   thicknesses=[10.0_c_double,-99.0_c_double]
   call create_layer_cake_model([layer],thicknesses(1:2:2),halfspace,input_model,status,name='Fortran test')
   call success()
+  block
+    type(owner) :: held(2)
+    block
+      type(owner) :: source(2)
+      source(1)%m=input_model
+      call create_dispersion_context(source(1)%ctx,status)
+      call success()
+      call compute_dispersion(source(1)%m,10.0_c_double,source(1)%s,status,context=source(1)%ctx)
+      call success()
+      call source(1)%s%info(source(1)%r,status)
+      call success()
+      source(2)=source(1)
+      held=source
+    end block
+    call held(2)%r%text('wave',text,status)
+    call success()
+    if(text/='Rayleigh') error stop 'wrapped result assignment lost metadata'
+    call held(1)%s%phase_velocity(c,status)
+    call success()
+    call compute_dispersion(held(2)%m,10.0_c_double,solution,status,context=held(1)%ctx)
+    call success()
+  end block
   block
     type(dispersion_context) :: workspace,copy,empty
     type(mode_solution) :: saved,reused,fresh

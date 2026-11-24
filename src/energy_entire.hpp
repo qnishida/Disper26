@@ -24,7 +24,13 @@ void rayleigh_moments_ode(const PhysicalParameters<T>& p,T h,T w,T k,
     g(3,2)=-toComplex<T>((p.c11-p.c13*p.c13/p.c33)*k*k-p.rho*w*w);
     M b=g*toComplex(h);
     double norm=0.;
-    for(int i=0;i<4;++i) {double row=0.;for(int j=0;j<4;++j)row+=ad_cmag1(b(i,j));norm=std::max(norm,row);}
+    for (int i = 0; i < 4; ++i) {
+        double row = 0.;
+        for (int j = 0; j < 4; ++j) row += ad_cmag1(b(i,j));
+        if (!std::isfinite(row))
+            throw std::runtime_error("Nonfinite Rayleigh energy matrix");
+        norm = std::max(norm, row);
+    }
     int steps=0;while(norm>.25) {norm*=.5;++steps;}
     const double scale=std::ldexp(1.,-steps);
     b=b*ad_const(zero,scale);

@@ -78,6 +78,8 @@ module disper26_api
     private
     type(c_ptr) :: handle=c_null_ptr
   contains
+    procedure, private :: assign_context
+    generic, public :: assignment(=) => assign_context
     final :: finalize_context
     procedure :: valid => context_valid
   end type
@@ -85,6 +87,8 @@ module disper26_api
     private
     type(c_ptr) :: handle=c_null_ptr
   contains
+    procedure, private :: assign_model
+    generic, public :: assignment(=) => assign_model
     final :: finalize_model
     procedure :: info => model_info
     procedure :: valid => model_valid
@@ -93,6 +97,8 @@ module disper26_api
     private
     type(c_ptr) :: handle=c_null_ptr
   contains
+    procedure, private :: assign_solution
+    generic, public :: assignment(=) => assign_solution
     final :: finalize_solution
     procedure :: info => solution_info
     procedure :: get_model => solution_model
@@ -105,6 +111,8 @@ module disper26_api
     private
     type(c_ptr) :: handle=c_null_ptr
   contains
+    procedure, private :: assign_result
+    generic, public :: assignment(=) => assign_result
     final :: finalize_result
     procedure :: numeric => result_numeric
     procedure :: vector => result_vector
@@ -115,8 +123,9 @@ module disper26_api
     procedure :: get_solution => curve_solution
     procedure :: valid => result_valid
   end type
+  ! Keep explicit USE, ONLY: assignment(=) imports source-compatible.
+  ! The owning types now supply the assignments, including for components.
   interface assignment(=)
-    module procedure assign_model, assign_solution, assign_result, assign_context
   end interface
   interface
 
@@ -925,7 +934,7 @@ contains
     this%handle=c_null_ptr
   end subroutine
   impure elemental subroutine assign_context(left,right)
-    type(dispersion_context), intent(inout) :: left
+    class(dispersion_context), intent(inout) :: left
     type(dispersion_context), intent(in) :: right
     type(c_ptr) :: handle
     handle=right%handle
@@ -963,7 +972,7 @@ contains
     this%handle=c_null_ptr
   end subroutine
   impure elemental subroutine assign_model(left,right)
-    type(model), intent(inout) :: left
+    class(model), intent(inout) :: left
     type(model), intent(in) :: right
     type(c_ptr) :: handle
     handle=right%handle
@@ -990,7 +999,7 @@ contains
     this%handle=c_null_ptr
   end subroutine
   impure elemental subroutine assign_solution(left,right)
-    type(mode_solution), intent(inout) :: left
+    class(mode_solution), intent(inout) :: left
     type(mode_solution), intent(in) :: right
     type(c_ptr) :: handle
     handle=right%handle
@@ -1017,7 +1026,7 @@ contains
     this%handle=c_null_ptr
   end subroutine
   impure elemental subroutine assign_result(left,right)
-    type(result_data), intent(inout) :: left
+    class(result_data), intent(inout) :: left
     type(result_data), intent(in) :: right
     type(c_ptr) :: handle
     handle=right%handle

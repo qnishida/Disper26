@@ -689,8 +689,7 @@ away from any integer:
 
 The legacy integer is `floor(|total_phase| / pi)`.  There is a real structural
 difference between the two branches: the Rayleigh branch seeds `total_phase`
-from the half-space Woodhouse phase minus `0.5*pi` (`src/disper26.cpp:3368`,
-added by `2774ab7`), whereas the Love branch starts from zero and sums layer
+from the half-space Woodhouse phase minus `0.5*pi` in `calculateTotalPhaseAccumulationWithDebug`, whereas the Love branch starts from zero and sums layer
 contributions only, with no half-space phase reference at all.
 `countModesLayerLove` also never fills in the integer half of its return value
 (`n_sub` is declared 0 and never assigned), though that is harmless because the

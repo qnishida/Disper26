@@ -104,7 +104,10 @@ class ForwardGridModel:
             raise ValueError("is_discontinuity shape mismatch")
         if n < 2:
             raise ValueError("grid model needs at least two nodes")
-        if np.any(np.diff(self.depths) < -1e-12):
+        spacing = np.diff(self.depths)
+        if np.any((spacing > 0) & (spacing < 1e-12)):
+            raise ValueError("Positive GRID depth intervals must be at least 1e-12 km")
+        if np.any(spacing < 0):
             raise ValueError("depths must be non-decreasing")
         paired = np.r_[self.depths[:-1] == self.depths[1:], False]
         invalid = (self.is_discontinuity != paired) | (paired & np.r_[False, paired[:-1]])

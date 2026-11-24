@@ -16,9 +16,23 @@ their original provenance; they are not commits in this public history.
 
 ## Current manuscript figures
 
-Run these commands from the public repository root in the paper environment
-with the current public extension built. The long-period experiment uses the
+Use a working copy of the public source tree for these commands. Historical scripts
+load the extension from inside a verified snapshot, so build in the working
+copy and keep the archived sources and paper inputs intact. Start at the
+repository root in a dedicated environment with the [native prerequisites](../docs/install.md).
+
+```sh
+python -m pip install 'setuptools>=64' wheel 'cmake>=3.18' 'pybind11>=2.10'
+python -m pip install '.[paper]'
+python setup.py build_ext --inplace
+```
+
+The historical `setup.py` files use `/usr/include/eigen3` directly. If Eigen
+3.4.x is elsewhere, set `CPPFLAGS="-I/path/to/eigen3 ${CPPFLAGS:-}"` in
+the build environment and use the same include directory for the diagnostic.
+The long-period experiment uses the
 archived `plan_l_v2` solver, with Rayleigh modulus exponent 0 and Love exponent 3.
+They correspond to `density_exponent` values 2 and 5 in the snapshot loader.
 Verify the snapshot before building it from inside its directory.
 
 ```sh

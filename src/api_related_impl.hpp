@@ -72,7 +72,7 @@ Eigenfunctions compute_eigenfunctions(const ModeSolution& solution, int num_sub_
                 throw Error("numerical_failure", "Eigenfunctions contain nonfinite values.");
         out.diagnostics.availability[entry.first] = "computed";
     }
-    detail::finish(out.diagnostics, data.options.strict);
+    detail::finish(out.diagnostics, false);
     return out;
 }
 
@@ -302,7 +302,10 @@ Model apply_mineos_physical_dispersion(const Model& reference_model,
     out.q_reference_period = reference_period;
     for (const auto& material : out.materials) detail::check_material(material);
     detail::check_material(out.halfspace);
-    return Access::model(std::move(out));
+    auto corrected = Access::model(std::move(out));
+    if (corrected.data().interpolation == "velocity")
+        (void)detail::velocities(corrected);
+    return corrected;
 }
 
 namespace detail {
@@ -315,11 +318,12 @@ inline double gravity_polish_root(const VelocityGridRefinement& stack,
         stack.thicknesses, stack.halfspace, omega, c, "Rayleigh"); };
     double lo = root * (1.0 - 1e-7), hi = root * (1.0 + 1e-7);
     double f_lo = f(lo), f_hi = f(hi);
-    if (f_lo * f_hi > 0.0) return root;
+    if (!std::isfinite(f_lo) || !std::isfinite(f_hi) || f_lo * f_hi > 0.0) return root;
     for (int iteration = 0; iteration < 200; ++iteration) {
         const double mid = 0.5 * (lo + hi);
         if (hi - lo <= 1e-15 * mid) break;
         const double f_mid = f(mid);
+        if (!std::isfinite(f_mid)) return root;
         if (f_lo * f_mid <= 0.0) { hi = mid; f_hi = f_mid; }
         else { lo = mid; f_lo = f_mid; }
     }
@@ -382,6 +386,7 @@ GravityCorrection compute_gravity_correction(const ModeSolution& solution,
     for (const auto& material : stack.layers)
         detail::require(material.gravity == 0.0,
             "Gravity correction requires a non-gravitating reference model.");
+    detail::ensure_mode_verified(solution);
     auto at = [&](double omega, double near) {
         const auto roots = py_searchRoots(stack.layers, stack.thicknesses,
             stack.halfspace, omega, near * 0.99, near * 1.01, 6000, "Rayleigh");
@@ -412,6 +417,7 @@ GravityCorrection compute_gravity_correction(const ModeSolution& solution,
         throw Error("numerical_failure", "Gravity correction contains nonfinite values.");
     out.region = region;
     out.diagnostics = detail::diagnostic("gravity_kg", data.options);
+    out.diagnostics.mode_verified = true;
     out.diagnostics.messages.push_back(
         "First-order correction to subtract from observations, in km/s; "
         "the reference solution and its derivatives remain unchanged.");
@@ -421,7 +427,7 @@ GravityCorrection compute_gravity_correction(const ModeSolution& solution,
     for (const char* quantity : {"phase_velocity", "group_velocity", "delta_c", "delta_u",
             "omega_delta_c_omega_derivative"})
         out.diagnostics.availability[quantity] = "computed";
-    detail::finish(out.diagnostics, data.options.strict);
+    detail::finish(out.diagnostics, false);
     return out;
 }
 }} // namespace disper26::api

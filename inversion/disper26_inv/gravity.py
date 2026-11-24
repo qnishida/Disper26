@@ -127,13 +127,15 @@ def _polish_root(layers, thicknesses, halfspace, omega, c):
 
     lo, hi = c * (1.0 - 1e-7), c * (1.0 + 1e-7)
     f_lo, f_hi = f(lo), f(hi)
-    if f_lo * f_hi > 0.0:
+    if not np.isfinite(f_lo) or not np.isfinite(f_hi) or f_lo * f_hi > 0.0:
         return c
     for _ in range(200):
         mid = 0.5 * (lo + hi)
         if hi - lo <= 1e-15 * mid:
             break
         f_mid = f(mid)
+        if not np.isfinite(f_mid):
+            return c
         if f_lo * f_mid <= 0.0:
             hi, f_hi = mid, f_mid
         else:

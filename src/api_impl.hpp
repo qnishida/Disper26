@@ -493,6 +493,9 @@ static Model create_grid_model_impl(const std::vector<double>& z,const std::vect
     std::vector<bool> flags(z.size(),false);
     for(size_t i=0;i<z.size();++i) {
         detail::require(std::isfinite(z[i])&&z[i]>=0,"Depths must be finite and nonnegative"); detail::check_material(ps[i]);
+        if (i && z[i] > z[i-1])
+            detail::require(z[i] - z[i-1] >= minimum_grid_spacing_km,
+                "Positive GRID depth intervals must be at least 1e-12 km");
         if(i) {detail::require(z[i]>=z[i-1],"Depths must be nondecreasing"); if(z[i]==z[i-1]) {
             detail::require(i<2 || z[i-2]!=z[i],"An interface must have exactly two nodes: node "+std::to_string(i)+", depth "+std::to_string(z[i])+" km"); flags[i-1]=true;
         }}
@@ -939,7 +942,7 @@ DerivativeResult compute_hessian(const ModeSolution& s,const std::string& basis,
         auto mesh=detail::mesh(m,0);
         if(o.method=="ad") raw=computePhaseVelocityHessianFullAD(mesh.layers,mesh.thicknesses,mesh.halfspace,1/s.period(),s.phase_velocity(),parseWaveType(s.wave()),SensitivityMode::VTI,false);
         else if(s.wave()=="Rayleigh") raw=computePhaseVelocityHessianWeakFormRayleigh(mesh.layers,mesh.thicknesses,mesh.halfspace,1/s.period(),s.phase_velocity(),SensitivityMode::VTI,false,o.num_sub_layers,detail::analytical(m,o),parseWFHessianBackend(o.backend));
-        else raw=computePhaseVelocityHessianWeakFormLove(mesh.layers,mesh.thicknesses,mesh.halfspace,1/s.period(),s.phase_velocity(),SensitivityMode::VTI,false,200,detail::analytical(m,o),LoveBranchPolicy::Auto,1.0,parseWFHessianBackend(o.backend));
+        else raw=computePhaseVelocityHessianWeakFormLove(mesh.layers,mesh.thicknesses,mesh.halfspace,1/s.period(),s.phase_velocity(),SensitivityMode::VTI,false,o.num_sub_layers,detail::analytical(m,o),LoveBranchPolicy::Auto,1.0,parseWFHessianBackend(o.backend));
     }
     auto r=detail::from_hessian(raw,m);detail::transform(r,m,basis,d.kind=="grid");
     r.diagnostics=detail::diagnostic(o.method=="ad"?"ad":"variational_ad",o);

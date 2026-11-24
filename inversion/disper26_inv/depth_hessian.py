@@ -224,6 +224,12 @@ class FdDepthHessianBackend(DepthHessianBackend):
         )
 
 
+def _flat_interface_inputs(model):
+    if model.refinement_policy.kind != "flat":
+        raise ValueError("Interface depth derivatives require a flat model; use load_prem_flat")
+    return model.to_params()
+
+
 class AdDepthHessianBackend(DepthHessianBackend):
     """Analytic depth column via nested forward AD (no finite difference).
 
@@ -292,7 +298,7 @@ class AdDepthHessianBackend(DepthHessianBackend):
 
         from .derivatives import STIFF_ORDER
 
-        depths, params, is_disc = model.to_params()
+        depths, params, is_disc = _flat_interface_inputs(model)
         try:
             if solution is None:
                 # Standalone use: obtain provenance for this exact datum. Do
@@ -440,7 +446,7 @@ class VariationalAdDepthHessianBackend(AdDepthHessianBackend):
         """
         import disper26py as dp
 
-        depths, params, is_disc = model.to_params()
+        depths, params, is_disc = _flat_interface_inputs(model)
         dc_dz = dp.compute_interface_gradient_variational_grid(
             depths, params, is_disc, datum.period, datum.wave, float(c),
             self.discontinuity_index, int(level),
@@ -454,7 +460,7 @@ class VariationalAdDepthHessianBackend(AdDepthHessianBackend):
     ) -> DepthHessianColumn:
         import disper26py as dp
 
-        depths, params, is_disc = model.to_params()
+        depths, params, is_disc = _flat_interface_inputs(model)
         try:
             if solution is None:
                 # Standalone use: obtain provenance for this exact datum.

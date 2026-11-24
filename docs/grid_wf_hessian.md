@@ -22,7 +22,7 @@ f(h) = f(0) + C₂h² + C₄h⁴ + ...
 
 halving the spacing reduces the leading error by a factor of four. Midpoint
 sampling in the layer-cake approximation gives this behavior for phase
-velocity (observed ratio ≈ 4.0, see [Romberg extrapolation](Romberg.md), §2).
+velocity (observed ratio ≈ 4.0, see [Romberg convergence verification](Romberg.md#convergence-verification)).
 
 ### 1.2 Energy integrals
 
@@ -128,7 +128,8 @@ to node-based parameters.
 ### 3.2 Love quadrature
 
 The existing Love routine was `computeLoveAnalyticalIntegrals`. The proposed
-trapezoidal routine would use the boundary states in the following interface.
+interface below illustrates the design. The implemented routine returns
+`LoveEnergyTerms<T>` and takes the subdivision count as an argument.
 
 ```cpp
 template <typename T>
@@ -262,7 +263,7 @@ The early check used ε=0.5. Comparisons with finer central differences
 | **5** | **2.1e-9** | **2.2e-7** |
 | 6 | 1.4e-10 | 5.9e-8 |
 
-The measured gradient error was of order 1e-5 at level 3 and reached 2e-9
+The measured gradient error was 5.8e-6 at level 3 and reached 2e-9
 at level 5. The improvement at levels 4–5 was consistent with cancellation
 of even powers as the Neville polynomial degree increased.
 

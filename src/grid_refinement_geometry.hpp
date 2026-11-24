@@ -102,11 +102,15 @@ inline void grid_fill_flattening_scales(
     }
 }
 
+constexpr double minimum_grid_spacing_km = 1e-12;
+
 inline void validate_grid_interfaces(const std::vector<double>& depths,
                                      const std::vector<bool>& flags) {
     if (depths.size() != flags.size())
         throw std::invalid_argument("Grid depth and discontinuity counts differ");
     for (size_t i = 0; i < depths.size(); ++i) {
+        if (i && depths[i] > depths[i-1] && depths[i] - depths[i-1] < minimum_grid_spacing_km)
+            throw std::invalid_argument("Positive GRID depth intervals must be at least 1e-12 km");
         const bool paired = i+1 < depths.size() && depths[i] == depths[i+1];
         if (flags[i] != paired || (paired && i && depths[i-1] == depths[i]))
             throw std::invalid_argument("Expected a flagged two-node discontinuity at node "
@@ -159,7 +163,6 @@ inline void fill_grid_sublayer_geometry(
         }
         const double d0 = depths[i];
         const double d1 = depths[i + 1];
-        if (d1 - d0 < 1.0e-12) continue;
 
         const double z0 = policy.is_flat()
             ? d0 : grid_flat_depth_from_spherical_depth(d0, policy.planet_radius);

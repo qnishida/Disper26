@@ -108,6 +108,12 @@ def test_seabed_value_and_fluid_thickness_derivative(gravity):
     ef=raw.compute_eigenfunctions_rayleigh(l,h,hs,w,c,8)
     j=np.flatnonzero(~np.asarray(ef['is_fluid']))[0]
     np.testing.assert_allclose(e,(ef['ur'][j]/ef['uz'][j]).real,rtol=1e-9,atol=1e-11)
+    if gravity:
+        for op in (raw.compute_kernels_ad_layer_cake, raw.compute_kernels_variational_layer_cake,
+                   raw.compute_kernels_fd_layer_cake, raw.compute_hessian_ad_layer_cake):
+            with pytest.raises(ValueError, match="Cowling gravity"):
+                op(l,h,hs,w,c,wave_type="Rayleigh",compute_thickness=True)
+        return
     ka=raw.compute_kernels_ad_layer_cake(l,h,hs,w,c,compute_thickness=True)
     kv=raw.compute_kernels_variational_layer_cake(l,h,hs,w,c,compute_thickness=True,want_kernel_u=False)
     for kernels in [ka,kv]:
@@ -148,15 +154,11 @@ def test_fluid_grid_seabed_and_tied_gradients(gravity):
                 api.compute_kernels(solution,basis='stiffness',outputs=('hv_ratio',))
         water_raw=raw.create_fluid_parameters(1.5,1.03,gravity)
         crust_raw=material(3.2,5.8,2.7); hs_raw=material(4.5,8.,3.3)
-        pk=raw.compute_kernels_ad_layer_cake([water_raw,crust_raw],[3.,20.],hs_raw,
-            math.pi/10,solutions[0].phase_velocity,sensitivity_mode='VTI')
-        gk=raw.compute_kernels_ad_grid([0.,3.,3.,23.,23.],
-            [water_raw,water_raw,crust_raw,crust_raw,hs_raw],
-            [False,True,False,True,False],20.,'Rayleigh',solutions[1].phase_velocity,
-            sensitivity_mode='VTI',want_kernel_u=False)[5]
-        lookup=lambda ks,i:next(k.d_HV for k in ks if k.layer_index==i and k.parameter_name=='L')
-        np.testing.assert_allclose([lookup(gk,2)+lookup(gk,3),lookup(gk,4)],
-            [lookup(pk,1),lookup(pk,-1)],rtol=1e-5,atol=1e-9)
+        with pytest.raises(ValueError, match="Cowling gravity"):
+            raw.compute_kernels_ad_grid([0.,3.,3.,23.,23.],
+                [water_raw,water_raw,crust_raw,crust_raw,hs_raw],
+                [False,True,False,True,False],20.,'Rayleigh',solutions[1].phase_velocity,
+                sensitivity_mode='VTI',want_kernel_u=False)
         return
     kernels=[api.compute_kernels(s,basis='stiffness',outputs=('hv_ratio',)).gradients['hv_ratio'].reshape(-1,6) for s in solutions]
     # Solid parameters and halfspace; fluid stiffness components are constrained.

@@ -18,8 +18,8 @@ are in km, velocity in km/s, density in g/cm³ and stiffness in GPa.
 |---|---|
 | Layer-cake root search, single-period values, kernels and Hessians | `omega` [rad/s] |
 | Layer-cake and GRID `compute_dispersion_curve_*` | `periods` [s] |
-| `compute_dispersion_romberg*`, `compute_kernels_ad_grid`, GRID interface derivatives | `period` [s] |
-| `compute_hessian_variational_ad_*_grid` | `freq` [Hz] |
+| `compute_dispersion_romberg*`, `compute_kernels_ad_grid*`, `compute_frequency_curvature_ad_grid`, GRID interface derivatives | `period` [s] |
+| `compute_kernels_variational_grid`, `compute_hessian_ad_grid`, `compute_hessian_variational_ad_*_grid*` | `freq` [Hz] |
 
 Use `omega = 2π / period` and `freq = 1 / period`.
 
@@ -214,6 +214,12 @@ The existing Love-wave and unrequested-output availability rules still apply.
 
 ## 5. First-order sensitivity kernels for c, U and H/V
 
+In a VTI GRID, `compute_kernels_variational_grid` and the variational Hessian
+use `(Rho,A,C,F,L,N)` within each node. The AD kernels from
+`compute_kernels_ad_grid` and the material part of an interface Hessian row
+use `(A,C,F,L,N,Rho)`. Reorder each six-component block before combining an
+interface row with the variational Hessian. Keep trailing depth entries in place.
+
 ### Layer-cake model
 
 Full AD gives phase-velocity, group-velocity and H/V sensitivities.
@@ -269,13 +275,18 @@ zeros. Consult the requested quantities when interpreting a zero. To check
 an interface-depth derivative by finite differences, move both coincident
 nodes together, as in the [Love group-velocity regression](../tests/python/test_u_kernel_frequency_variational_grid.py).
 
-`max_steps` and `max_levels` cap refinement. Inspect the returned `rel_err`
+`max_steps` and `max_levels` cap refinement. The interface routines in
+Section 7 call the upper level `max_level`. Inspect the returned `rel_err`
 and accepted level to assess accuracy. The five-level example demonstrates
 the calls and can reach the cap before all requested quantities converge.
 
 <a id="lowlevel-hessian"></a>
 
 ## 6. Phase-velocity Hessians (d²c/dp²)
+
+Layer-cake Hessians have material coordinates only. The legacy
+`compute_thickness` argument adds no rows or columns. First-order kernels
+support thickness derivatives through `compute_thickness=True`.
 
 The primary method applies first-order AD to a variational gradient. Runtime
 and accuracy depend on the model, quadrature and backend. See the

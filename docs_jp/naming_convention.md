@@ -1,8 +1,8 @@
-# API naming convention
+# API 命名規則
 
 [English edition](../docs/naming_convention.md)
 
-## 2. 関数名の文法
+## 1. 関数名の文法
 
 ```
 <verb>_<quantity>[_<method>][_<wave>][_<model>][_<variant>…]
@@ -10,7 +10,7 @@
 
 旧名 `compute_phase_velocity_hessian_weakform_rayleigh_grid_reduced` と同じ順序で各要素を並べる。
 
-## 3. 統制語彙（各軸1語、同義語禁止）
+## 2. 統制語彙（各軸1語、同義語禁止）
 
 ### verb
 
@@ -65,6 +65,10 @@ dispersion/group_velocity/hv_ratio/eigenfunctions/energy_integrals/mode_count �
 関数（`kernels`/`hessian` 系以外の大半のユーティリティ）には付けない。
 `layer_cake` は一つのモデル種別を表す語として扱う。`grid` の省略で暗黙に表さない。
 
+既存名には GRID の `compute_dispersion_romberg` や
+`debug_hessian_ad_love_upward_ift_layer_cake` がある。
+引数名にも `cp`、`hs`、`half_space` が残る。キーワード指定時は各関数のシグネチャを参照する。
+
 ### variant
 
 `_reduced`（基底縮約）/ `_extrapolated`（レベル外挿）。
@@ -73,26 +77,27 @@ GRID Hessianのように常に外挿する関数ではこの接尾辞を省略�
 `compute_interface_hessian_row_variational_ad_grid` と
 `compute_interface_hessian_row_variational_ad_grid_extrapolated` は両方の形式を持つ例である。
 
-## 4. 衝突語の裁定（1トークン1意味）
+## 3. 衝突語の裁定（1トークン1意味）
 
 | 語 | 裁定 |
 |---|---|
-| `Reduced` | 基底縮約のみ。複合行列の5成分表現 `ReducedIndex`（`disper26.cpp:171`）は `MinorIndex` へ |
+| `Reduced` | 基底縮約のみ。複合行列の5成分表現 `ReducedIndex` は内部実装に残る旧名 |
 | `Romberg` | レベル外挿の意味に限定。層内求積（`integrateGridLayer_Romberg`、`propagate_romberg_vector`）は `quadrature` へ |
 | `Liquid` / `Fluid` | `fluid` に統一 |
 | `Boundary` / `Interface` / `Depth`（K_d） | `interface` に統一 |
 | `Bran` / `AdModeCount` / `Total` / `Continuous` | `mode_count`（正）と `continuous_mode_count`（legacy）の2語のみ |
 | `Pieces` / `Breakdown` / `Trace` / `Probe` | `debug_` 接頭辞に統一 |
-| `Weakform` / `WeakForm` 表記揺れ | 語自体の退役で消滅 |
+| `Weakform` / `WeakForm` 表記揺れ | 公開名では `variational`。C++ 内部には `WeakForm` が残る |
 | `compute` / `calculate` | `compute` |
 
-## 5. kwarg・辞書キー・フィールド名
+## 4. kwarg・辞書キー・フィールド名
 
 - 値の要求には `want_value_u` / `want_value_hv`、カーネルの要求には `want_kernel_u` / `want_kernel_hv` を使う。
+  `phase_only` も現行の指定である。旧名には値の `compute_u`・`compute_hv`、逆解析の `want_u_kernel`・`want_hv_kernel` がある。
 - 低水準関数の微分座標を選ぶ引数は `sensitivity_mode`、波種は `wave_type` とする。
 - `SensitivityKernel.d_c` は層・ノード別の感度、`gradient` と `gradient_node` は組み上げた勾配ベクトルを表す。
   出所を区別する場合は `g_a_ad`、`g_a_variational`、`g_variational_depth` のように計算法を添える。
-- 界面Hessianの行には `interface_hessian_row` を使う。旧 `column()` は転置した量を返した。
+- 界面Hessianの行には `interface_hessian_row` を使う。内部には `DepthHessianColumn.column` が残る。旧 `column()` は転置した量を返した。
 - Romberg trace は `phase_velocity_roots`（level ごとの生 root）と
   `phase_accepted_level`（direct phase の外挿 prefix 終端）を必ず組で渡す。
   追加生成深さは `minimum_trace_level`、root solve tolerance は `root_tolerance` とし、
@@ -110,7 +115,7 @@ GRID Hessianのように常に外挿する関数ではこの接尾辞を省略�
 - 深さHessianの既定キーは `"variational_ad"`。過去のPhase-1キャッシュ識別子には `"central_fd_of_ad_gradient"` も使われた。
 - 変分HessianのAD実装を選ぶ `backend` は別の設定で、低水準バインディングの既定は `"dual"`、`ForwardEngine.hessian_backend` の既定は `"vector"` である。
 
-## 6. 旧名の扱い
+## 5. 旧名の扱い
 
 ### 共通公開APIの名前（2026-09）
 
@@ -139,3 +144,7 @@ GRID Hessianのように常に外挿する関数ではこの接尾辞を省略�
 低水準Pythonでは正名と旧名を `m.def` に登録し、旧名のdocstringに
 `Deprecated alias. Use <canonical name>.` と明記する。C++の転送関数も旧シグネチャを保持する。
 新規コードとREADMEでは正名を使い、公開済みの旧名は同じ引数・既定値で呼び出せるようにする。
+
+旧名 `compute_phase_velocity_hessian_reference` は `sensitivity_mode` と
+`compute_thickness` を受け取るが計算には使わない。Layer-cake の物性 Hessian
+に厚さの行・列は含まれない。

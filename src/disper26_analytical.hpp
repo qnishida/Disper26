@@ -14,6 +14,23 @@
 
 namespace Analytical {
 
+// Samples are ordered from the surface down. Choose the nearest sample so a
+// thin layer cannot select its predecessor merely because both fit the tolerance.
+template<class Point, class T>
+const Point& boundary_sample(const std::vector<Point>& points, T depth, size_t& cursor) {
+    if (cursor == points.size())
+        throw std::invalid_argument("Missing eigenfunction sample at a layer boundary");
+    const double target = get_val(depth);
+    while (cursor + 1 < points.size() &&
+           std::abs(get_val(points[cursor+1].depth) - target) <=
+           std::abs(get_val(points[cursor].depth) - target))
+        ++cursor;
+    if (!(std::abs(get_val(points[cursor].depth) - target) < 1e-6))
+        throw std::invalid_argument("Missing eigenfunction sample at a layer boundary");
+    return points[cursor++];
+}
+
+
 // Helper: Exact integral of Exp((nu_i + nu_j) * z) from 0 to d
 template <typename T>
 std::complex<T> integrate_exp(std::complex<T> nu_sum, T d) {
@@ -63,33 +80,11 @@ EnergyIntegralResult<T> computeLoveEnergyIntegrals_Analytical(
     T k = omega / phaseVelocity; 
     T k_sq = k * k;
 
-    // Loop over layers
-    // Note: eigenfunctions vector has points at interfaces + sublayers if numerical computed.
-    // If we only have interface points, we assume layer mapping is direct.
-    // Implementation constraint: The "eigenfunctions" input must correspond to the layer boundaries.
-    // The standard output stores points at depth 0, d1, d1+d2, ...
-    // We access eigenfunctions[i] which corresponds to Top of Layer i.
-    // Wait, standard output includes sublayers. We need to pick the correct points.
-    // Strategy: Re-propagate to find y_top at each layer? Or search depth?
-    // Searching depth is safer.
-    
-    int processed_layers = 0;
-    
+    size_t cursor = 0;
+    T top_depth = 0;
     for (size_t i = 0; i < layers.size(); ++i) {
-        // Find y_top from eigenfunctions list
-        T top_depth = 0.0;
-        for(int l=0; l<i; ++l) top_depth += thicknesses[l];
-        
-        // Linear search for point matches top_depth (approx)
-        int idx = -1;
-        for(size_t j=0; j<eigenfunctions.size(); ++j) {
-            if (std::abs(eigenfunctions[j].depth - top_depth) < 1e-6) {
-                idx = j; break;
-            }
-        }
-        if (idx == -1) continue; // Should not happen
-        
-        auto pt = eigenfunctions[idx];
+        const auto& pt = boundary_sample(eigenfunctions, top_depth, cursor);
+        top_depth += thicknesses[i];
         CT uy_top = pt.uy;
         // Convert the public upward stress to the local depth-derivative stress
         // used by E. Without this sign, nonzero interface tractions exchange
@@ -237,16 +232,8 @@ EnergyIntegralResult<T> computeLoveEnergyIntegrals_Analytical(
     // Or extract from eigenfunction list again.
     
     // Finding y_top_half
-    T total_depth = 0; for(auto t:thicknesses) total_depth += t;
-    int idx_half = -1;
-    for(size_t j=0; j<eigenfunctions.size(); ++j) {
-        if (std::abs(eigenfunctions[j].depth - total_depth) < 1e-6) {
-            idx_half = j; break;
-        }
-    }
-    
-    if (idx_half != -1) {
-        auto pt = eigenfunctions[idx_half];
+    {
+        const auto& pt = boundary_sample(eigenfunctions, top_depth, cursor);
         CT uy0 = pt.uy;
         CT tyz0 = pt.tyz;
         PhysicalParameters<T> p = halfSpaceParams;
@@ -314,16 +301,11 @@ EnergyIntegralResult<T> computeRayleighEnergyIntegrals_Analytical(
     T k_sq = k * k;
     WaveVariables<T> wave; wave.omega = omega; wave.k = k; wave.z = T(0);
 
+    size_t cursor = 0;
+    T top_depth = 0;
     for (size_t i = 0; i < layers.size(); ++i) {
-        // 1. Find y_top (State at top of layer)
-        T top_depth = 0.0; for(int l=0; l<i; ++l) top_depth += thicknesses[l];
-        int idx = -1;
-        for(size_t j=0; j<eigenfunctions.size(); ++j) {
-            if (std::abs(eigenfunctions[j].depth - top_depth) < 1e-6) { idx = j; break; }
-        }
-        if (idx == -1) continue;
-        
-        auto pt = eigenfunctions[idx];
+        const auto& pt = boundary_sample(eigenfunctions, top_depth, cursor);
+        top_depth += thicknesses[i];
         // Ikeda: y1=uz, y2=szz, y3=ur, y4=szr
         // But the input struct is {ur, uz, szz, szr}
         // Let's stick to the struct fields and map them to physical Y.
@@ -353,14 +335,8 @@ EnergyIntegralResult<T> computeRayleighEnergyIntegrals_Analytical(
     // But `y_top_half` IS constructed from V0, V1 in the Eigenfunction Pass.
     // So it should be consistent.
     
-    T total_depth = 0; for(auto t:thicknesses) total_depth += t;
-    int idx_half = -1;
-    for(size_t j=0; j<eigenfunctions.size(); ++j) {
-        if (std::abs(eigenfunctions[j].depth - total_depth) < 1e-6) { idx_half = j; break; }
-    }
-    
-    if (idx_half != -1) {
-        auto pt = eigenfunctions[idx_half];
+    {
+        const auto& pt = boundary_sample(eigenfunctions, top_depth, cursor);
         Vector4 y_half; y_half << pt.uz, pt.szz, pt.ur, pt.szr;
         
         DerivedComplexValues<T> dv = computeDerivedValues(halfSpaceParams, wave);

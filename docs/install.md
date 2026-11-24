@@ -1,6 +1,6 @@
 # Building Disper26
 
-CMake 3.18+, a C++17 compiler, and Eigen 3.4.x are required. Ubuntu builds
+CMake 3.18+, a C++17 compiler, and Eigen 3.4.x are required. Linux builds
 use Eigen 3.4.x from the system package or an explicit `Eigen3_DIR`.
 On macOS, Homebrew `eigen@3` is required, and the
 complex automatic-differentiation code currently requires GNU GCC/libstdc++.
@@ -31,7 +31,7 @@ Run these commands from the project root:
 
 ```bash
 cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release
-cmake --build build-native -j4
+cmake --build build-native --parallel 2
 (cd build-native && ctest --output-on-failure)
 ```
 
@@ -85,6 +85,9 @@ path explicitly. For non-interactive Conda commands, use
 `conda run -n ENV_NAME python ...`, replacing `ENV_NAME` with your environment
 name. Python 3.8+ is supported; 3.12 above is an example choice.
 
+The distribution name is `disper26py`. It provides the shared `disper26` package
+and the low-level `disper26py` extension.
+
 The Python build uses CMake and the same compiler/header discovery as the C++
 build. `pyproject.toml` declares setuptools, wheel, CMake, and pybind11 as build
 dependencies, so pip/uv prepare them in an isolated build environment. Only
@@ -127,7 +130,7 @@ requires Git and network access for the fixed upstream fetch. A Python source
 distribution includes the autodiff source and does not need that fetch. The
 native Eigen and Python build dependencies must still be installed. No build
 requires a private research repository. Eigen remains a native dependency:
-Eigen 3.4.x on Ubuntu, and Homebrew `eigen@3` on macOS, including inside
+Eigen 3.4.x on Linux, and Homebrew `eigen@3` on macOS, including inside
 Conda/uv.
 
 Eigen 5 changes `Eigen::internal::SingleRange` into a template, which

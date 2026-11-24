@@ -58,7 +58,7 @@ target_link_libraries(test_love_upward_convention PRIVATE Eigen3::Eigen autodiff
 add_test(NAME love_upward_convention COMMAND test_love_upward_convention)
 
 add_executable(test_real_rayleigh test_real_rayleigh.cpp)
-target_compile_options(test_real_rayleigh PRIVATE ${DISPER26_MATH_FLAGS} -march=native)
+target_compile_options(test_real_rayleigh PRIVATE ${DISPER26_MATH_FLAGS} $<$<NOT:$<PLATFORM_ID:Darwin>>:-march=native>)
 target_link_libraries(test_real_rayleigh PRIVATE Eigen3::Eigen autodiff::autodiff)
 add_test(NAME real_rayleigh COMMAND test_real_rayleigh)
 
@@ -139,11 +139,11 @@ target_link_libraries(test_romberg_root_trace disper26_lib Eigen3::Eigen)
 add_test(NAME romberg_root_trace COMMAND test_romberg_root_trace)
 
 # Build the Full AD group velocity sensitivity test
-add_executable(test_group_velocity_full_ad test_group_velocity_full_ad.cpp)
+add_executable(test_group_velocity_full_ad EXCLUDE_FROM_ALL test_group_velocity_full_ad.cpp)
 target_link_libraries(test_group_velocity_full_ad disper26_lib Eigen3::Eigen autodiff::autodiff)
 
 # Build the backward mode sensitivity test
-add_executable(test_backward_mode_sensitivity test_backward_mode_sensitivity.cpp)
+add_executable(test_backward_mode_sensitivity EXCLUDE_FROM_ALL test_backward_mode_sensitivity.cpp)
 target_link_libraries(test_backward_mode_sensitivity disper26_lib Eigen3::Eigen autodiff::autodiff)
 
 # Build the vectorized forward mode test
@@ -199,11 +199,11 @@ target_link_libraries(verify_mode_count Eigen3::Eigen autodiff::autodiff)
 add_test(NAME legacy_layer_mode_count COMMAND verify_mode_count)
 
 add_executable(benchmark_energy_candidates EXCLUDE_FROM_ALL benchmark_energy_candidates.cpp)
-target_compile_options(benchmark_energy_candidates PRIVATE ${DISPER26_MATH_FLAGS} -march=native)
+target_compile_options(benchmark_energy_candidates PRIVATE ${DISPER26_MATH_FLAGS} $<$<NOT:$<PLATFORM_ID:Darwin>>:-march=native>)
 target_link_libraries(benchmark_energy_candidates PRIVATE Eigen3::Eigen autodiff::autodiff)
 
 add_executable(benchmark_group_velocity EXCLUDE_FROM_ALL benchmark_group_velocity.cpp)
-target_compile_options(benchmark_group_velocity PRIVATE ${DISPER26_MATH_FLAGS} -march=native)
+target_compile_options(benchmark_group_velocity PRIVATE ${DISPER26_MATH_FLAGS} $<$<NOT:$<PLATFORM_ID:Darwin>>:-march=native>)
 target_link_libraries(benchmark_group_velocity PRIVATE Eigen3::Eigen autodiff::autodiff)
 
 # Allocation instrumentation runs separately from wall-clock benchmarks.

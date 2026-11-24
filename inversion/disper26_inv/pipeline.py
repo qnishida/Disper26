@@ -39,7 +39,7 @@ from .surrogate import QuadraticSurrogate
 
 def _config_hash(model: ForwardGridModel, basis: InversionBasis, dataset: DatasetSpec,
                  engine_kwargs: dict, depth_validation_step_km: float | None = None,
-                 ad_kernel_every: int = 1) -> str:
+                 ad_kernel_every: int = 1, reduced_hessian: bool = True) -> str:
     h = hashlib.sha256()
     for arr in (model.depths, model.rho, model.vph, model.vpv, model.vsh, model.vsv, model.eta):
         h.update(np.ascontiguousarray(arr).tobytes())
@@ -74,6 +74,8 @@ def _config_hash(model: ForwardGridModel, basis: InversionBasis, dataset: Datase
     # full one has numbers, so it must not reuse a full run's cache.
     if ad_kernel_every != 1:
         h.update(json.dumps({"ad_kernel_every": ad_kernel_every}).encode())
+    if not reduced_hessian:
+        h.update(b"full_node_hessian")
     return h.hexdigest()[:16]
 
 
@@ -175,14 +177,15 @@ def run_phase1(
     engine_kwargs = engine_kwargs or {}
     cfg_hash = _config_hash(
         model0, basis, dataset, engine_kwargs, depth_validation_step_km,
-        ad_kernel_every,
+        ad_kernel_every, reduced_hessian,
     )
     cache_path = None
     if cache_dir is not None:
         cache_path = Path(cache_dir) / f"phase1_{cfg_hash}.npz"
         if cache_path.exists():
             result = Phase1Result.load(cache_path)
-            if result.config_hash == cfg_hash and result.meta.get("root_trace"):
+            if (result.config_hash == cfg_hash and result.meta.get("root_trace")
+                    and result.meta.get("reduced_hessian") == reduced_hessian):
                 return result
 
     # Build one branch-verified reference trace before the per-datum process
@@ -683,6 +686,8 @@ def run_phase4(model0, basis: InversionBasis, dataset: DatasetSpec, c_obs, sigma
         )
     gmm_all = GaussianMixturePosterior.from_components(means, covs, raw_log_w, metas)
     keep = gmm_all.weights >= config.min_component_weight
+    if not np.any(keep):
+        raise ValueError("min_component_weight excludes every posterior component")
     dropped = [
         {"index": int(k), "weight": float(gmm_all.weights[k]), **metas[k]}
         for k in np.nonzero(~keep)[0]

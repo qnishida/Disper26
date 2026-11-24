@@ -222,6 +222,17 @@ inline std::vector<double> py_getRayleighMinors(
     return vec;
 }
 
+// Material and interface derivatives use the non-gravitating reference model.
+inline void require_non_gravitating_derivatives(
+    const std::vector<PhysicalParameters<double>>& materials,
+    const PhysicalParameters<double>* halfspace = nullptr) {
+    if ((halfspace && halfspace->gravity != 0.0) ||
+        std::any_of(materials.begin(), materials.end(),
+            [](const PhysicalParameters<double>& p) { return p.gravity != 0.0; }))
+        throw std::invalid_argument("Material and interface derivatives with Cowling gravity "
+            "require a non-gravitating reference model and the separate Kg correction");
+}
+
 // Wrapper for Finite Difference Sensitivity Kernels
 inline std::vector<SensitivityKernel> py_computeSensitivityFD(
     const std::vector<PhysicalParameters<double>>& layers,
@@ -233,6 +244,7 @@ inline std::vector<SensitivityKernel> py_computeSensitivityFD(
     std::string mode_str,
     bool compute_thickness
 ) {
+    require_non_gravitating_derivatives(layers, &halfSpaceParams);
     WaveType type = WaveType::Rayleigh;
     if (wave_type_str == "Love" || wave_type_str == "love") type = WaveType::Love;
 
@@ -299,6 +311,7 @@ inline std::vector<SensitivityKernel> py_computeSensitivityFullAD(
     std::string mode_str,
     bool compute_thickness
 ) {
+    require_non_gravitating_derivatives(layers, &halfSpaceParams);
     WaveType type = WaveType::Rayleigh;
     if (wave_type_str == "Love" || wave_type_str == "love") type = WaveType::Love;
 
@@ -329,6 +342,7 @@ inline std::vector<SensitivityKernel> py_computeSensitivityWeakForm(
     bool compute_u,
     bool compute_hv
 ) {
+    require_non_gravitating_derivatives(layers, &halfSpaceParams);
     SensitivityMode mode = SensitivityMode::Isotropic;
     if (mode_str == "VTI" || mode_str == "vti") mode = SensitivityMode::VTI;
 
@@ -1388,7 +1402,8 @@ inline Eigen::VectorXd map_vti_gradient_to_velocity_iso_nodes(
     const Eigen::VectorXd& g_vti
 ) {
     const int n = static_cast<int>(depths.size());
-    std::vector<bool> fluid_nodes(depths.size(), false);
+    std::vector<bool> fluid_nodes;
+    fill_velocity_grid_fluid_nodes(vss, vss, fluid_nodes);
     const auto geometry = build_grid_sublayer_geometry(
         depths, is_discontinuity, fluid_nodes, refinement_level, policy);
     if (g_vti.size() != (static_cast<int>(geometry.size()) + 1) * 6) {
@@ -1429,6 +1444,7 @@ inline Eigen::VectorXd map_vti_gradient_to_velocity_iso_nodes(
         ++s;
     }
     GridSublayerGeometry hs;
+    hs.fluid = fluid_nodes.back();
     hs.radius_ratio = policy.is_flat() ? 1.0
         : (policy.planet_radius - depths.back()) / policy.planet_radius;
     grid_fill_flattening_scales(hs, policy);
@@ -1455,7 +1471,8 @@ inline Eigen::VectorXd map_vti_gradient_to_velocity_vti_nodes(
     const Eigen::VectorXd& g_vti
 ) {
     const int n = static_cast<int>(depths.size());
-    std::vector<bool> fluid_nodes(depths.size(), false);
+    std::vector<bool> fluid_nodes;
+    fill_velocity_grid_fluid_nodes(vshs, vsvs, fluid_nodes);
     const auto geometry = build_grid_sublayer_geometry(
         depths, is_discontinuity, fluid_nodes, refinement_level, policy);
     if (g_vti.size() != (static_cast<int>(geometry.size()) + 1) * 6) {
@@ -1509,6 +1526,7 @@ inline Eigen::VectorXd map_vti_gradient_to_velocity_vti_nodes(
         ++s;
     }
     GridSublayerGeometry hs;
+    hs.fluid = fluid_nodes.back();
     hs.radius_ratio = policy.is_flat() ? 1.0
         : (policy.planet_radius - depths.back()) / policy.planet_radius;
     grid_fill_flattening_scales(hs, policy);
@@ -1958,6 +1976,7 @@ py_computeDispersionRombergWithKernels(
     const std::optional<std::vector<double>>& phase_velocity_roots = std::nullopt,
     int phase_accepted_level = -1
 ) {
+    require_non_gravitating_derivatives(params);
     if (want_value_u != want_value_hv) {
         throw std::invalid_argument(
             "want_value_u and want_value_hv must currently agree: the Romberg "
@@ -2203,7 +2222,7 @@ py_computeDispersionRombergWithKernels(
                         const auto weights = interfaceBoundaryWeights(
                             is_discontinuity, N,
                             discontinuity_pair_starts[d], k);
-                        if (static_cast<int>(weights.size()) <
+                        if (static_cast<int>(weights.size()) !=
                             frequency.group_boundary.size() + 1) {
                             throw std::runtime_error(
                                 "boundary weight count does not match frequency kernel");
@@ -2332,6 +2351,7 @@ py_computeDepthHessianColumnGrid(
     const std::optional<std::vector<double>>& phase_velocity_roots = std::nullopt,
     int phase_accepted_level = -1
 ) {
+    require_non_gravitating_derivatives(params);
     if (phase_velocity_roots) {
         (void)validate_trace_phase_identity(
             *phase_velocity_roots, phase_accepted_level, c_root);
@@ -2551,6 +2571,7 @@ inline std::vector<double> py_computeInterfaceHessianRowVariational(
     int refinement_level,
     std::string sensitivity_mode_str
 ) {
+    require_non_gravitating_derivatives(params);
     WaveType type = (wave_type_str == "Love" || wave_type_str == "love")
                         ? WaveType::Love : WaveType::Rayleigh;
     SensitivityMode sens_mode =
@@ -2719,6 +2740,7 @@ inline std::vector<double> py_computeInterfaceHessianRowVariationalExtrapolated(
     const std::optional<std::vector<double>>& phase_velocity_roots = std::nullopt,
     int phase_accepted_level = -1
 ) {
+    require_non_gravitating_derivatives(params);
     if (phase_velocity_roots) {
         (void)validate_trace_phase_identity(
             *phase_velocity_roots, phase_accepted_level, c_root);
@@ -2845,7 +2867,7 @@ inline std::vector<double> py_computeInterfaceHessianRowVariationalExtrapolated(
 
         const std::vector<double> w =
             interfaceBoundaryWeights(is_discontinuity, N, pair_start, k);
-        if ((int)w.size() < (int)kd.size() + 1) {
+        if ((int)w.size() != (int)kd.size() + 1) {
             throw std::runtime_error(
                 "boundary weight count does not match the level-k stack");
         }
@@ -2897,6 +2919,7 @@ inline double py_computeInterfaceGradientVariationalExtrapolated(
     const std::optional<std::vector<double>>& phase_velocity_roots = std::nullopt,
     int phase_accepted_level = -1
 ) {
+    require_non_gravitating_derivatives(params);
     if (phase_velocity_roots) {
         (void)validate_trace_phase_identity(
             *phase_velocity_roots, phase_accepted_level, c_root);
@@ -2952,7 +2975,7 @@ inline double py_computeInterfaceGradientVariationalExtrapolated(
 
         const std::vector<double> w =
             interfaceBoundaryWeights(is_discontinuity, N, pair_start, k);
-        if ((int)w.size() < (int)kd.size() + 1) {
+        if ((int)w.size() != (int)kd.size() + 1) {
             throw std::runtime_error(
                 "boundary weight count does not match the level-k stack");
         }
@@ -2979,6 +3002,7 @@ inline std::vector<double> py_computeBoundaryKernelsRayleigh(
     double phase_velocity,
     bool use_analytical
 ) {
+    require_non_gravitating_derivatives(layers, &halfSpace);
     auto v = computeBoundaryKernelsRayleigh_T<double>(
         layers, thicknesses, halfSpace, omega, phase_velocity, use_analytical);
     return std::vector<double>(v.data(), v.data() + v.size());
@@ -2991,6 +3015,7 @@ inline std::vector<double> py_computeBoundaryKernelsLove(
     double omega,
     double phase_velocity
 ) {
+    require_non_gravitating_derivatives(layers, &halfSpace);
     auto v = computeBoundaryKernelsLove_T<double>(
         layers, thicknesses, halfSpace, omega, phase_velocity);
     return std::vector<double>(v.data(), v.data() + v.size());

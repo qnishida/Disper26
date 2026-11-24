@@ -14,8 +14,8 @@ install Disper26 and the dependencies for testing the examples, including pytest
 python -m pip install '.[test]'
 ```
 
-Rebuild the extension after changing its source. See the [development
-instructions](../AGENTS.md) for build and regression commands.
+Rebuild the extension after changing its source. See the [verification
+instructions](../README.md#verification) for build and regression commands.
 
 ## 1. Model construction and dispersion curves
 

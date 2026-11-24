@@ -107,7 +107,9 @@ api::Options options(const d26_api_options* p,const d26_api_tracking_options* t)
 }
 std::vector<std::string> outputs(const char* p) {
     if(!p) return {"phase_velocity"};
-    std::vector<std::string> result; std::stringstream input(p); std::string item;
+    std::string names(p);
+    require(names.empty() || names.back()!=',',"Empty output name");
+    std::vector<std::string> result; std::stringstream input(names); std::string item;
     while(std::getline(input,item,',')) {
         const auto start=item.find_first_not_of(" \t");
         const auto end=item.find_last_not_of(" \t");
@@ -341,6 +343,7 @@ int d26_api_solution_info(const d26_api_solution* p,d26_api_result** out,char* m
         if(o.c_guess) scalar(*r,"options.c_guess",*o.c_guess);
         if(o.c_range) vector(*r,"options.c_range",{o.c_range->first,o.c_range->second});
         r->strings["options.start"]=o.start;r->strings["options.predictor"]=o.predictor;
+        if(o.verify_mode) scalar(*r,"options.verify_mode",*o.verify_mode);
         if(o.verify) r->strings["options.verify"]=*o.verify;
         if(o.on_violation) r->strings["options.on_violation"]=*o.on_violation;
         r->strings["options.method"]=o.method; r->strings["options.backend"]=o.backend; r->strings["options.integration"]=o.integration;

@@ -39,6 +39,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -135,6 +136,62 @@ def test_only_the_variational_backend_has_the_ad_free_route():
         "pipeline.py's RuntimeError guard depends on this distinction")
     print("OK 'variational_ad' backend has depth_gradient_variational, "
           "'fd' does not")
+
+
+def test_depth_backends_require_a_flat_reference():
+    from disper26_inv.prem import load_prem_spherical
+
+    spherical = load_prem_spherical(max_depth_km=50.)
+    config = depth_backend_config(DEPTH_BASIS)
+    for backend in ("ad", "variational_ad"):
+        evaluator = make_depth_backend(None, dict(config, backend=backend))
+        with pytest.raises(ValueError, match="load_prem_flat"):
+            evaluator.interface_hessian_row(spherical, DATA.data[0], 3.)
+        if backend == "variational_ad":
+            with pytest.raises(ValueError, match="load_prem_flat"):
+                evaluator.depth_gradient_variational(spherical, DATA.data[0], 3., 0)
+
+
+def test_phase1_hash_distinguishes_hessian_modes():
+    from disper26_inv.pipeline import _config_hash
+
+    args = (REF, VEL_BASIS, DATA, {})
+    assert _config_hash(*args) == _config_hash(*args, reduced_hessian=True)
+    assert _config_hash(*args) != _config_hash(*args, reduced_hessian=False)
+
+
+@pytest.mark.parametrize("processes", [1, 2])
+def test_worker_failures_and_projection_cache(monkeypatch, processes):
+    from types import SimpleNamespace
+    from disper26_inv import parallel
+    from disper26_inv.engine import BranchError
+
+    datum = Datum("Rayleigh", 0, 20.)
+    solution = SimpleNamespace(c=3., U=3., level=0, rel_err=0.,
+                               romberg_roots=[3.], confirmation={})
+    monkeypatch.setattr(parallel.ForwardEngine, "phase_velocity",
+                        lambda *args, **kwargs: solution)
+    for error in (BranchError("branch lost"), ValueError("invalid input")):
+        def fail(*args, **kwargs):
+            assert "J_reduced" not in parallel._WORKER_STATE
+            parallel._WORKER_STATE["J_reduced"] = object()
+            raise error
+
+        parallel._WORKER_STATE["J_reduced"] = object()
+        monkeypatch.setattr(parallel.ForwardEngine, "datum_hessian", fail)
+        try:
+            kwargs = dict(want_kernels=False, want_hessian=True, processes=processes,
+                          ad_kernel_every=0)
+            if isinstance(error, BranchError):
+                result, = parallel.map_over_data(REF, [datum], **kwargs)
+                assert result == {"failed": datum.label(), "error": "BranchError: branch lost"}
+            else:
+                with pytest.raises(ValueError, match="invalid input"):
+                    parallel.map_over_data(REF, [datum], **kwargs)
+            if processes == 1:
+                assert not parallel._WORKER_STATE
+        finally:
+            parallel._WORKER_STATE.clear()
 
 
 if __name__ == "__main__":

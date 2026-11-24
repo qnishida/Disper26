@@ -228,6 +228,47 @@ class PublicAPI(unittest.TestCase):
             dp.compute_hessian(solution, basis="stiffness")
         self.assertEqual(solution.model.interpolation, "velocity")
 
+    def test_grid_spacing_and_ocean_transition(self):
+        water = dp.create_fluid_parameters(1.5, 1.03)
+        for interpolation in ("velocity", "stiffness"):
+            def model(depths, nodes):
+                return dp.create_grid_model(depths, nodes, interpolation=interpolation)
+            with self.assertRaises(dp.Error) as raised:
+                model([0., 1e-13, 5.], [self.layer, self.layer, self.halfspace])
+            self.assertEqual(raised.exception.code, "invalid_argument")
+            model([0., 1e-12, 5.], [self.layer, self.layer, self.halfspace])
+            bad = model([0., 3., 20.], [water, self.layer, self.halfspace])
+            cap = next(c for c in dp.get_capabilities(bad) if c.operation == "dispersion")
+            self.assertFalse(cap.supported)
+            with self.assertRaises((dp.Error, ValueError)):
+                dp.compute_dispersion(bad, period=5.)
+
+    def test_ocean_ba97_velocity_interpolation(self):
+        # Each finite interval has constant properties in spherical coordinates.
+        depths = [0., 4., 4., 24., 24.]
+        vs = [0., 0., 3.2, 3.2, 4.5]
+        vp = [1.5, 1.5, 5.8, 5.8, 8.1]
+        rho = [1.03, 1.03, 2.6, 2.6, 3.35]
+        geometry = dp.Geometry("spherical_ba97")
+        models = [
+            dp.create_grid_model(depths, interpolation=kind, geometry=geometry,
+                                 vs=vs, vp=vp, rho=rho) for kind in ("stiffness", "velocity")
+        ]
+        models.append(dp.create_model(depths, kind="grid", interpolation="velocity", geometry=geometry,
+            rho=rho, vph=vp, vpv=vp, vsh=vs, vsv=vs, eta=np.ones(len(vs))))
+        options = dp.Options(max_steps=7, strict=True)
+        roots = [dp.compute_dispersion(model, period=8., options=options).phase_velocity for model in models]
+        np.testing.assert_allclose(roots, roots[0], rtol=1e-9, atol=1e-11)
+
+    def test_love_trapezoid_subdivisions(self):
+        sol = dp.compute_dispersion(self.model, period=5., wave="Love")
+        def h(method, n):
+            return dp.compute_hessian(sol, basis="stiffness",
+                options=dp.Options(integration=method, num_sub_layers=n)).hessian
+        reference = h("analytical", 2)
+        self.assertLess(np.linalg.norm(h("trapezoidal", 80) - reference),
+                        np.linalg.norm(h("trapezoidal", 2) - reference))
+
     def test_grid_gradient_axes_in_both_interpolations(self):
         depths = [0., 10., 30.]
         vs, vp, rho = np.array([3., 3.4, 4.5]), np.array([5.2, 6., 8.]), np.array([2.5, 2.8, 3.3])
@@ -348,6 +389,20 @@ class PublicAPI(unittest.TestCase):
             projection[15, 1] = 1.0
             reduced = dp.compute_hessian_reduced(solution, projection, options=options)
             self.assertEqual([p.active for p in reduced.parameters], [False, True])
+            options.max_levels = 0  # Compare identical meshes and root traces.
+            full = dp.compute_hessian(solution, basis="stiffness", options=options)
+            mixed = np.eye(24)[:, [5, 15]].copy()
+            mixed[11, 1] = 0.5
+            for backend in ("dual", "vector", "vector_dyn"):
+                options.backend = backend
+                backend_full = dp.compute_hessian(solution, basis="stiffness", options=options)
+                np.testing.assert_allclose(backend_full.hessian, full.hessian, rtol=1e-8, atol=1e-10)
+                for J in (np.eye(24), mixed):
+                    result = dp.compute_hessian_reduced(solution, J, options=options)
+                    np.testing.assert_allclose(result.gradient, J.T @ full.gradient,
+                                               rtol=1e-8, atol=1e-10)
+                    np.testing.assert_allclose(result.hessian, J.T @ full.hessian @ J,
+                                               rtol=1e-8, atol=1e-10)
             np.testing.assert_array_equal(reduced.hessian[0, :], 0.)
         love = {entry.operation: entry for entry in dp.get_capabilities(model, wave="Love")}
         self.assertFalse(love["dispersion"].supported)

@@ -4117,7 +4117,10 @@ std::vector<RayleighStatePoint<T>> propagateRayleighEigenstates(
 
     T k = omega / phaseVelocity;
     WaveVariables<T> wave;
-    wave.omega = omega; wave.k = k; wave.z = T(0.0);
+    // Keep prescribed boundary values in the same derivative space as the wave.
+    const T zero = make_zero_like(k);
+    const CT ct_zero = toComplex(zero);
+    wave.omega = omega; wave.k = k; wave.z = zero;
 
     const int top_liquid_count = countTopLiquidLayersOrThrow(*trace_layers);
     if (top_liquid_count > 0) {
@@ -4150,17 +4153,17 @@ std::vector<RayleighStatePoint<T>> propagateRayleighEigenstates(
         }
 
         Eigen::Matrix<CT, 2, 1> fluid_state;
-        fluid_state(0) = toComplex(T(1.0));
+        fluid_state(0) = toComplex(T(zero + 1.0));
         T surface_gravity = (*trace_layers)[0].gravity * (*trace_layers)[0].gravity_surface_scale;
         T surface_coeff = (*trace_layers)[0].rho * surface_gravity;
         fluid_state(1) = toComplex(surface_coeff) * fluid_state(0);
 
-        T currentDepth = T(0.0);
+        T currentDepth = zero;
         auto push_fluid_point = [&](const PhysicalParameters<T>& layer) {
             CT uz = fluid_state(0);
             CT szz = fluid_state(1);
             CT ur = computeFluidHorizontalDisplacement<T>(layer, uz, szz, omega, phaseVelocity);
-            results.push_back({currentDepth, ur, uz, szz, toComplex(T(0.0))});
+            results.push_back({currentDepth, ur, uz, szz, ct_zero});
         };
 
         push_fluid_point((*trace_layers)[0]);
@@ -4182,7 +4185,7 @@ std::vector<RayleighStatePoint<T>> propagateRayleighEigenstates(
         CT uz = fluid_state(0);
         CT szz = fluid_state(1);
 
-        CT ur = toComplex(T(0.0));
+        CT ur = ct_zero;
         if (get_magnitude(Y_seabed(I12)) > 1e-15) {
             ur = (szz * toComplex(Y_seabed(I13)) - uz * toComplex(Y_seabed(I23))) / toComplex(Y_seabed(I12));
         } else if (get_magnitude(Y_seabed(I14)) > 1e-15) {
@@ -4190,7 +4193,6 @@ std::vector<RayleighStatePoint<T>> propagateRayleighEigenstates(
             ur = -uz * toComplex(Y_seabed(I12)) / toComplex(Y_seabed(I14));
         }
         Eigen::Matrix<CT, 4, 1> state;
-        CT ct_zero = toComplex(T(0.0));
         state << uz, szz, ur, ct_zero;
         results.push_back({currentDepth, state(2), state(0), state(1), state(3)});
 
@@ -4255,13 +4257,12 @@ std::vector<RayleighStatePoint<T>> propagateRayleighEigenstates(
     CT uz_s = toComplex(uz_surf_r);
 
     Eigen::Matrix<CT, 4, 1> state;
-    CT ct_zero = toComplex(T(0.0));
     state << uz_s, ct_zero, ur_s, ct_zero;  // [uz, szz=0, ur, szr=0]
 
     double mag_ur = get_magnitude(ur_surf_r);
     double mag_uz = get_magnitude(uz_surf_r);
     if (mag_ur < 1e-20 && mag_uz < 1e-20) {
-        CT ct_one(T(1.0));
+        const CT ct_one = toComplex(T(zero + 1.0));
         state << ct_one, ct_zero, ct_one, ct_zero;
     } else {
         if (mag_uz > mag_ur) state /= uz_s;
@@ -4269,7 +4270,7 @@ std::vector<RayleighStatePoint<T>> propagateRayleighEigenstates(
     }
 
     // --- Step 3: Downward Pass ---
-    T currentDepth = T(0.0);
+    T currentDepth = zero;
     results.push_back({currentDepth, state(2), state(0), state(1), state(3)});
 
     for (int i = 0; i < N; ++i) {
@@ -4485,7 +4486,7 @@ RayleighEnergyResult<T> computeRayleighEnergyIntegrals_CT(
     int /*numSubLayers*/ = 10
 ) {
     RayleighEnergyResult<T> res;
-    T zero = T(0.0);
+    const T zero = make_zero_like(phaseVelocity);
     res.I1 = zero; res.I2 = zero; res.I3 = zero;
     if (eigenfunctions.size() < 2) return res;
 
@@ -4521,7 +4522,7 @@ RayleighEnergyResult<T> computeRayleighEnergyIntegrals_CT(
         T uz1 = p1.uz.real(), ur1 = p1.ur.real(), szz1 = p1.szz.real(), szr1 = p1.szr.real();
         T uz2 = p2.uz.real(), ur2 = p2.ur.real(), szz2 = p2.szz.real(), szr2 = p2.szr.real();
 
-        T half = T(0.5);
+        const double half = 0.5;
         lint.int_uz2_ur2 += (uz1*uz1 + ur1*ur1 + uz2*uz2 + ur2*ur2) * half * dz;
         lint.int_szz2    += (szz1*szz1 + szz2*szz2) * half * dz;
         lint.int_szr2    += (szr1*szr1 + szr2*szr2) * half * dz;

@@ -203,8 +203,10 @@ level at the direct loop's retained mesh root and Neville-combined
 element-wise, mirroring the grid weak-form Hessian path. This differentiates the
 *extrapolated* value rather than a single converged-level mesh, removing the
 O(h²) truncation the extrapolation was designed to eliminate — the kernels then
-match the finite difference of the extrapolated `U/c` to ~1e-8, versus ~2e-4
-(dU) / ~6e-4 (dc) for the single-level kernel. Pass
+match finite differences of the extrapolated values. The [implementation
+map](sensitivity_implementation_map.md) records a dU kernel error of 1.6e-9,
+compared with 2e-4 for the single-level kernel. The single-level dc error was
+about 6e-4 in the reported comparison. Pass
 `kernel_extrapolation=False` to recover the old single-level kernel. Cost is
 about 2× the single-level kernel (the level sum is dominated by the finest
 level); with `u_kernel_mode="variational"` the extrapolated kernels are still
@@ -227,15 +229,8 @@ For no-kernel dispersion entry points, period sweeps with a predictor-quality
 `c_guess` can pass `initial_root_window_frac > 0` to try a narrow level-0
 bracket/scan around `c_guess` before falling back to the legacy ±20% scan. This
 is intended for continuation workflows where the previous-period solution and
-`dc/dω` provide a safe branch-local prediction. The default `0.0` preserves
-legacy level-0 behavior.
-
-For no-kernel Rayleigh calls, `rayleigh_fast_apply=True` lets phase-only root
-searches on all-solid models apply the solid compound propagator directly to the
-state vector instead of materializing the 5×5 layer matrix. It is ignored
-outside `phase_only=True` root searches and falls back to the generic path for
-liquid models. `computeLayerMatrix()` remains the reference path for AD,
-kernels, Hessian, H/V, and liquid handling.
+`dc/dω` provide a safe branch-local prediction. Single-period entry points default to `0.0`.
+The batched `compute_dispersion_curve_romberg_grid_velocity_vti` uses `0.01`.
 
 `extrapolate_start_level=1` excludes the coarse level-0 value from the
 Neville/Richardson extrapolation table while still using it for root continuation
@@ -380,7 +375,8 @@ estimate, level and `rel_err`. Compare `rel_err` with the requested tolerance.
 ## Mode-order fallback
 
 `compute_dispersion_romberg(..., branch=n)` selects the AD-z mode-count jump
-for mode order `n` independently on every refinement level.  The default
+for mode order `n` independently on every refinement level.  The levels variant also accepts `branch`. The single-period velocity-ISO and
+velocity-VTI calls do not accept it. The default
 `branch=None` retains the historical nearest-root continuation behavior.
 
 `ForwardEngine` first uses the faster nearest-root path and verifies the final

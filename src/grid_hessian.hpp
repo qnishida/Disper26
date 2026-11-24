@@ -265,8 +265,7 @@ inline std::vector<PhysicalParameters<T>> seedGridNodeParamBlock(
 // cheap J^T (H_a @ J) matmul afterwards gives the fully reduced P x P
 // Hessian without ever materializing the 528 x 528 H_a
 // (see docs/Weakform_AD_Hessian.md and the plan this implements).
-// Fixed-fluid nodes are still skipped (their J rows are assumed zero there;
-// production models have no fluid nodes so this is unexercised in practice).
+// Fixed-fluid rows of J may be nonzero. They seed no material derivatives.
 template <typename T>
 inline std::vector<PhysicalParameters<T>> seedGridNodeParamBlockFromJacobian(
     const std::vector<PhysicalParameters<double>>& node_params,
@@ -722,6 +721,11 @@ inline GridHessianReducedResult computePhaseVelocityHessianWeakFormRayleigh_Grid
             SensitivityMode::VTI, 1, false, false);
         Eigen::VectorXd g0_node_vti = mesher.apply_sublayer_grad_to_node(k, g_sub_vti_dbl, npl_int);
 
+        for (int node = 0; node < M; ++node) {
+            if (grid_hessian_node_is_fixed_fluid(model.params, node))
+                g0_node_vti.segment(node * npl_int, npl_int).setZero();
+        }
+
         // HJ = H_node @ J, built block-by-block via J-column seeding.
         Eigen::MatrixXd HJ = Eigen::MatrixXd::Zero(num_params_int, P);
 
@@ -790,6 +794,10 @@ inline GridHessianReducedResult computePhaseVelocityHessianWeakFormRayleigh_Grid
                 run_block_vec(TypeTag<ADChunk<WF_HESSIAN_CHUNK>>{}, j0);
         }
 
+        for (int node = 0; node < M; ++node) {
+            if (grid_hessian_node_is_fixed_fluid(model.params, node))
+                HJ.middleRows(node * npl_int, npl_int).setZero();
+        }
         Eigen::MatrixXd H_reduced = J.transpose() * HJ;
         H_reduced = ((H_reduced + H_reduced.transpose()) * 0.5).eval();
         H_table.push_back(H_reduced);

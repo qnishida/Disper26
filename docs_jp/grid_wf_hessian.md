@@ -2,11 +2,9 @@
 
 [English edition](../docs/grid_wf_hessian.md)
 
-> 現行実装での Romberg 加速対象ごとの積分評価の切り分けは
-> [感度・Hessian実装マップ](sensitivity_implementation_map.md) と
-> [共通API](public_api.md) を参照。
-> この文書は設計検討の履歴を含むため、古い「台形積分を主戦略」とする記述は
-> 現行の Love/Rayleigh 非対称な実装方針と必ずしも一致しない。
+> 現行の GRID 変分 Hessian は Rayleigh 波で台形積分、Love 波で解析積分を使う。
+> 以下には両波で台形積分を検討した時点の設計も含む。
+> [感度・Hessian実装マップ](sensitivity_implementation_map.md) と [共通API](public_api.md) を参照。
 
 ## 改訂履歴
 - 初版: 解析積分ベースの案A/B/Cを検討
@@ -23,8 +21,8 @@ Romberg加速（Richardson外挿）は誤差の偶数べき展開を前提とす
 f(h) = f(0) + C₂h² + C₄h⁴ + ...   ← これが成り立つとき比率4の外挿が有効
 ```
 
-表面波パンケーキ近似の位相速度はmidpoint ruleの超収束（superconvergence）により
-この構造を満たすことが確認されている（比率 ≈ 4.0、Romberg.md §2参照）。
+表面波の layer-cake 近似の位相速度はmidpoint ruleの超収束（superconvergence）により
+この構造を満たすことが確認されている（比率 ≈ 4.0、[Romberg 外挿の収束検証](../docs/Romberg.md#convergence-verification)参照）。
 
 ### 1.2 エネルギー積分の手法と収束次数
 
@@ -39,7 +37,7 @@ WFの変分勾配は `g_i = c³/(2ω²I₃) · (∂I₂/∂pᵢ − ω²∂I₁/
 - 伝播行列は midpointパラメータで境界点を O(h²) 精度で計算
 - 解析積分は均質副層の閉形式で「正確すぎる」積分を実行
 - → 伝播(O(h²))と積分(副層内正確)の近似レベルが不整合
-- → パンケーキ誤差が偶数べき展開に従わず、比率=4の外挿が不適切になる
+- → layer-cake 近似の誤差が偶数べき展開に従わず、比率=4の外挿が不適切になる
 
 **台形積分が収束次数を維持する理由（近似の一貫性）**:
 - 伝播行列：境界点 y₀, y₁ を O(h²) で計算
@@ -66,7 +64,7 @@ Romberg収束が改善されたのは、この「近似の一貫性」が回復�
 
 ### 2.1 数学的構造（再整理）
 
-**設計時のWF Hessian（パンケーキモデル）:**
+**設計時のWF Hessian（layer-cake モデル）:**
 - パラメータ: 各均質層の物性 p₁,...,p_L（L = 層数）
 - Hessian行列サイズ: (L×npl)²
 
@@ -131,7 +129,7 @@ Phase 2: converged_levelの副層でWF Hessian（台形積分）を1回計算
 - 外挿なし → 収束次数の問題を完全回避
 - 解析積分 or 台形積分どちらでも使用可能（外挿しないため）
 - 精度は converged_level での layer_cake近似誤差 O(h²) に依存
-- **現行 `useAnalytical=true` のままでも、この案では問題なし**
+- **設計時のこの案では `useAnalytical=true` も使用可能**
 
 ---
 
@@ -149,7 +147,8 @@ Phase 2: converged_levelの副層でWF Hessian（台形積分）を1回計算
 
 設計時には `computeLoveAnalyticalIntegrals`（解析積分）のみが利用できた。
 
-**必要な追加実装**:
+以下は設計時のシグネチャ。実装は `LoveEnergyTerms<T>` を返し、分割数も引数に取る。
+
 ```cpp
 template <typename T>
 LoveEnergyResult<T> computeLoveEnergyIntegrals_Trap(
@@ -236,7 +235,8 @@ H_final = symmetrize(H_final)
 - 設計時にはK=2–3で目標精度に達すると予想（実測は§6.3）
 - Adaptive stopping（H_kのノルム誤差増加で停止）で丸め誤差域を回避
 
-**代替案: Two-phase（シンプル版）**\
+**代替案: Two-phase（シンプル版）**
+
 Romberg外挿をHessianに適用しない。converged_levelのみでWF Hessianを1回計算。
 外挿なしのため積分手法（解析/台形）を問わず安定。精度は副層数依存。
 

@@ -23,6 +23,23 @@ PhysicalParameters<H> convert(const PhysicalParameters<double>& p) {
     PhysicalParameters<H> r;r.rho=p.rho;r.c11=p.c11;r.c13=p.c13;
     r.c33=p.c33;r.c44=p.c44;r.c66=p.c66;return r;
 }
+void boundary_samples() {
+    std::vector<LoveEigenfunctionPoint<double>> points(4);
+    points[0].depth = 0.;
+    points[1].depth = 1e-7;
+    points[2].depth = 2e-7;
+    points[3].depth = 1.;
+    size_t cursor = 0;
+    if (&Analytical::boundary_sample(points, 0., cursor) != &points[0] ||
+        &Analytical::boundary_sample(points, 2e-7, cursor) != &points[2])
+        throw std::runtime_error("Thin-layer boundary sampled at the wrong depth");
+    try {
+        Analytical::boundary_sample(points, 0.5, cursor);
+    } catch (const std::invalid_argument&) {
+        return;
+    }
+    throw std::runtime_error("Missing boundary sample accepted");
+}
 void rayleigh() {
     for(int model=0;model<5;++model) {
         auto raw=createIsotropicParameters(.5,1.,2.);
@@ -79,4 +96,4 @@ void love() {
     }
 }
 }
-int main() {rayleigh();love();std::cout<<"Energy moment values/gradients/Hessians passed\n";}
+int main() {boundary_samples();rayleigh();love();std::cout<<"Energy moment values/gradients/Hessians passed\n";}

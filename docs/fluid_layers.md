@@ -104,12 +104,11 @@ constant-$g$ term. The kernels agree with Full AD to roundoff.
 
 By design the energy functional and the variational kernels are those of the
 non-gravitating reference model; background gravity is applied separately as
-the first-order $K_g$ correction, and the public derivative API rejects
+the first-order $K_g$ correction, and the shared and low-level derivative APIs reject
 gravitating models. Fluid Cowling propagation is kept as a cross-check only.
-If it is enabled through the low-level functions, the analytical and
-trapezoidal integrals still agree with each other, but the kernels are not
-derivatives of the gravitating model, because the functional is no longer
-stationary for its eigenfunctions.
+Use a non-gravitating reference for material kernels, Hessians and interface
+derivatives. The forward Cowling root, group velocity and signed ellipticity
+remain available.
 
 For Layer-cake models the public `integration="auto"` option selects these
 analytical integrals when the fluid layers form a contiguous stack at the top
@@ -141,7 +140,7 @@ nodes is rejected because it creates an artificial transition layer.
 
 ### C++ API
 
-Link against the `disper26::api` CMake target. This example prints the fundamental
+Use `add_subdirectory` and link the `disper26::api` CMake target. This example prints the fundamental
 Rayleigh phase velocity in km/s at a period of 2 s.
 
 ```cpp
@@ -166,21 +165,21 @@ The low-level scan below finds sign-changing Rayleigh roots between 1.6 and
 with `mode=0` to request the fundamental as in the C++ example.
 
 ```python
-import disper26py as d26
+import disper26py as dp
 import math
 
 # Create fluid layer
-ocean = d26.create_fluid_parameters(vp=1.5, rho=1.0)
+ocean = dp.create_fluid_parameters(vp=1.5, rho=1.0)
 
 # Create solid layer
-sediment = d26.create_isotropic_parameters(vs=0.5, vp=2.0, rho=1.8)
-halfspace = d26.create_isotropic_parameters(vs=3.0, vp=5.0, rho=2.5)
+sediment = dp.create_isotropic_parameters(vs=0.5, vp=2.0, rho=1.8)
+halfspace = dp.create_isotropic_parameters(vs=3.0, vp=5.0, rho=2.5)
 
 layers = [ocean, sediment]
 thicknesses = [2.0, 1.0]  # km
 
 omega = 2.0 * math.pi * 0.5
-roots = d26.search_roots(layers, thicknesses, halfspace, omega, 1.6, 2.9, 100, "Rayleigh")
+roots = dp.search_roots(layers, thicknesses, halfspace, omega, 1.6, 2.9, 100, "Rayleigh")
 print(roots)  # Phase velocities in km/s at 0.5 Hz
 ```
 

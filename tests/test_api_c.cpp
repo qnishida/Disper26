@@ -138,6 +138,27 @@ int main() {
         d26_api_options tracking_options;
         d26_api_default_options(&tracking_options);
         std::strcpy(tracking_options.method,"continuation");
+        d26_api_tracking_options controls;
+        d26_api_default_tracking_options(&controls);
+        for (int verify : {-1, 0, 1}) {
+            controls.verify_mode=verify;
+            success(d26_api_compute_dispersion_ex(homogeneous,10.,"Rayleigh",0,nullptr,
+                &tracking_options,&controls,nullptr,&fundamental,message,sizeof message));
+            d26_api_result* snapshot=nullptr;
+            success(d26_api_solution_info(fundamental,&snapshot,message,sizeof message));
+            size_t rows=0,cols=0;
+            const int status=d26_api_result_numeric(snapshot,"options.verify_mode",nullptr,0,
+                &rows,&cols,message,sizeof message);
+            if (verify==-1) check(status==D26_API_INVALID_ARGUMENT,"Unset verify_mode was serialized");
+            else check(status==0 && numeric(snapshot,"options.verify_mode").at(0)==verify,
+                       "Explicit verify_mode lost");
+            d26_api_result_release(snapshot);
+            d26_api_solution_release(fundamental);
+        }
+        controls.verify_mode=-1;
+        check(d26_api_compute_dispersion(homogeneous,10.,"Rayleigh",0,"phase_velocity,",
+            &tracking_options,&fundamental,message,sizeof message)==D26_API_INVALID_ARGUMENT,
+            "Empty trailing output accepted");
         const double periods[]={10.,10.1};
         d26_api_result* tracked=nullptr;
         success(d26_api_compute_dispersion_curve(homogeneous,2,periods,"Rayleigh",0,nullptr,
@@ -167,8 +188,6 @@ int main() {
         d26_api_result_release(info);
         d26_api_solution_release(fundamental);
         d26_api_result_release(tracked);
-        d26_api_tracking_options controls;
-        d26_api_default_tracking_options(&controls);
         std::strcpy(controls.verify,"endpoints");
         controls.has_c_range=1;controls.c_min=4.;controls.c_max=4.3;
         tracking_options.has_c_guess=1;tracking_options.c_guess=1.;

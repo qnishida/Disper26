@@ -19,7 +19,7 @@ from .derivatives import (
     reduced_result_to_node_gradient,
 )
 from .depth_hessian import make_depth_backend
-from .engine import Datum, ForwardEngine
+from .engine import BranchError, Datum, ForwardEngine
 from .model import ForwardGridModel
 
 _WORKER_STATE = {}
@@ -41,6 +41,7 @@ def _model_payload(model: ForwardGridModel) -> dict:
 
 
 def _init_worker(model_payload: dict, engine_kwargs: dict, depth_config: dict = None, basis=None):
+    _WORKER_STATE.clear()
     _WORKER_STATE["model"] = ForwardGridModel(**model_payload)
     _WORKER_STATE["engine"] = ForwardEngine(**engine_kwargs)
     _WORKER_STATE["depth_backend"] = make_depth_backend(
@@ -67,31 +68,34 @@ def _eval_datum(task):
     -- does not depend on this flag at all, because it needs no AD kernels in
     the first place.
     """
-    (wave, branch, period, c_hint, want_hessian, want_kernels, reduced_hessian,
-     want_ad_kernels) = task
+    datum = Datum(*task[:3])
+    try:
+        return _compute_datum(datum, *task[3:])
+    except BranchError as exc:
+        return {"failed": datum.label(), "error": f"{type(exc).__name__}: {exc}"}
+
+
+def _compute_datum(datum, c_hint, want_hessian, want_kernels, reduced_hessian,
+                   want_ad_kernels):
     model = _WORKER_STATE["model"]
     engine = _WORKER_STATE["engine"]
     depth_backend = _WORKER_STATE.get("depth_backend")
-    datum = Datum(wave, branch, period)
-    try:
-        minimum_trace_level = engine.hessian_max_levels if want_hessian else 0
-        if (want_kernels or want_hessian) and want_ad_kernels:
-            solution, kernels = engine.phase_velocity_with_kernels(
-                model,
-                datum,
-                c_hint=c_hint,
-                minimum_trace_level=minimum_trace_level,
-            )
-        else:
-            solution = engine.phase_velocity(
-                model,
-                datum,
-                c_hint=c_hint,
-                minimum_trace_level=minimum_trace_level,
-            )
-            kernels = None
-    except Exception as exc:
-        return {"failed": datum.label(), "error": f"{type(exc).__name__}: {exc}"}
+    minimum_trace_level = engine.hessian_max_levels if want_hessian else 0
+    if (want_kernels or want_hessian) and want_ad_kernels:
+        solution, kernels = engine.phase_velocity_with_kernels(
+            model,
+            datum,
+            c_hint=c_hint,
+            minimum_trace_level=minimum_trace_level,
+        )
+    else:
+        solution = engine.phase_velocity(
+            model,
+            datum,
+            c_hint=c_hint,
+            minimum_trace_level=minimum_trace_level,
+        )
+        kernels = None
     out = {
         "c": solution.c,
         "U": solution.U,
@@ -112,9 +116,6 @@ def _eval_datum(task):
         # unconditionally: landing.py calls this with want_hessian=False and
         # want_kernels=False for plain forward evaluations during a line
         # search, and those must not pay for a gradient nobody asked for.
-        # Also primes depth_backend's level cache for the column() call below,
-        # so a thinned datum's Hessian column does not pay for its own kernel
-        # evaluation to learn the level either.
         out["g_variational_depth"] = depth_backend.depth_gradient_variational(
             model,
             datum,
@@ -178,7 +179,8 @@ def map_over_data(
 ):
     """Evaluate (c[, kernels][, Hessian]) for every datum; preserves order.
 
-    Failures appear as {"failed": label, "error": ...} entries.
+    Branch failures appear as {"failed": label, "error": ...} entries.
+    Other exceptions propagate in both serial and pool execution.
 
     ``ad_kernel_every`` thins the AD Romberg kernel pass: 1 (default) runs it
     for every datum as before, N runs it for every Nth, 0 skips it entirely.
@@ -221,10 +223,11 @@ def map_over_data(
         for i, d in enumerate(data)
     ]
     if processes <= 1:
-        _init_worker(_model_payload(model), engine_kwargs, depth_config, basis)
-        results = [_eval_datum(t) for t in tasks]
-        _WORKER_STATE.clear()
-        return results
+        try:
+            _init_worker(_model_payload(model), engine_kwargs, depth_config, basis)
+            return [_eval_datum(t) for t in tasks]
+        finally:
+            _WORKER_STATE.clear()
     ctx = mp.get_context("fork")
     with ctx.Pool(
         processes=processes,
@@ -237,6 +240,7 @@ def map_over_data(
 # -- forward-only sweeps: many perturbed models x fixed dataset ---------------
 
 def _init_forward_worker(data_tuples, c_hints, engine_kwargs, curve_segments=None):
+    _WORKER_STATE.clear()
     _WORKER_STATE["data"] = [Datum(w, b, p) for (w, b, p) in data_tuples]
     _WORKER_STATE["hints"] = c_hints
     _WORKER_STATE["engine"] = ForwardEngine(**engine_kwargs)
@@ -379,10 +383,12 @@ def map_over_models_traced(models, data, processes: int = 1, engine_kwargs: dict
     data_tuples = [(d.wave, d.branch, d.period) for d in data]
     payloads = [_model_payload(m) for m in models]
     if processes <= 1:
-        _init_forward_worker(data_tuples, None, engine_kwargs)
-        rows = [_eval_model_traced(p) for p in payloads]
-        _WORKER_STATE.clear()
-        return np.asarray(rows)
+        try:
+            _init_forward_worker(data_tuples, None, engine_kwargs)
+            rows = [_eval_model_traced(p) for p in payloads]
+            return np.asarray(rows)
+        finally:
+            _WORKER_STATE.clear()
     ctx = mp.get_context("fork")
     with ctx.Pool(
         processes=processes,
@@ -405,10 +411,12 @@ def map_over_models_traced_partial(
     data_tuples = [(d.wave, d.branch, d.period) for d in data]
     payloads = [_model_payload(m) for m in models]
     if processes <= 1:
-        _init_forward_worker(data_tuples, None, engine_kwargs)
-        rows = [_eval_model_traced_partial(payload) for payload in payloads]
-        _WORKER_STATE.clear()
-        return np.asarray(rows)
+        try:
+            _init_forward_worker(data_tuples, None, engine_kwargs)
+            rows = [_eval_model_traced_partial(payload) for payload in payloads]
+            return np.asarray(rows)
+        finally:
+            _WORKER_STATE.clear()
     ctx = mp.get_context("fork")
     with ctx.Pool(
         processes=processes,
@@ -439,10 +447,12 @@ def map_over_models_traced_segments(
     data_tuples = [(datum.wave, datum.branch, datum.period) for datum in data]
     payloads = [_model_payload(model) for model in models]
     if processes <= 1:
-        _init_forward_worker(data_tuples, None, engine_kwargs, segments)
-        rows = [_eval_model_traced_segments(payload) for payload in payloads]
-        _WORKER_STATE.clear()
-        return np.asarray(rows)
+        try:
+            _init_forward_worker(data_tuples, None, engine_kwargs, segments)
+            rows = [_eval_model_traced_segments(payload) for payload in payloads]
+            return np.asarray(rows)
+        finally:
+            _WORKER_STATE.clear()
     ctx = mp.get_context("fork")
     with ctx.Pool(
         processes=processes,
@@ -458,10 +468,12 @@ def map_over_models(models, data, c_hints=None, processes: int = 1, engine_kwarg
     data_tuples = [(d.wave, d.branch, d.period) for d in data]
     payloads = [_model_payload(m) for m in models]
     if processes <= 1:
-        _init_forward_worker(data_tuples, c_hints, engine_kwargs)
-        rows = [_eval_model(p) for p in payloads]
-        _WORKER_STATE.clear()
-        return np.asarray(rows)
+        try:
+            _init_forward_worker(data_tuples, c_hints, engine_kwargs)
+            rows = [_eval_model(p) for p in payloads]
+            return np.asarray(rows)
+        finally:
+            _WORKER_STATE.clear()
     ctx = mp.get_context("fork")
     with ctx.Pool(
         processes=processes,

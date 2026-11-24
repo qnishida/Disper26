@@ -42,7 +42,7 @@ Hessian seeds only basis directions, reducing the number of AD passes from
 | First, variational | `compute_kernels_variational_layer_cake` | `compute_kernels_variational_grid` |
 | First, propagator AD | `compute_kernels_ad_layer_cake` | `compute_kernels_ad_grid` |
 | Second, variational | `compute_hessian_variational_ad_rayleigh_layer_cake` / `_love_layer_cake` | `compute_hessian_variational_ad_*_grid[_reduced]` |
-| Second, full material propagator Hessian | `compute_hessian_ad_layer_cake` | No equivalent entry in this table |
+| Second, full material propagator Hessian | `compute_hessian_ad_layer_cake` | `compute_hessian_ad_grid` (fixed level, flat VTI validation) |
 
 The standalone first-order GRID variational kernel was added on 2026-08-11.
 It returns the same quantity as `gradient_node` from the reduced Hessian.
@@ -74,7 +74,7 @@ request. See the [Romberg trace contract](Romberg.md) and the
 
 | Binding | Model | dc/dp | dU/dp | Extrapolation |
 |---|---|---|---|---|
-| `compute_kernels_ad_grid` | GRID | `AutoDiffScalar<VectorXd>` (528 directions in the example), IFT −(dF/dp)/(dF/dc) | `variational_frequency_ad` by default, also `variational` or `full_ad` | Per-level kernels and Neville extrapolation by default |
+| `compute_kernels_ad_grid` | GRID | `AutoDiffScalar<VectorXd>` (six material directions per VTI node), IFT −(dF/dp)/(dF/dc) | `variational_frequency_ad` by default, also `variational` or `full_ad` | Per-level kernels and Neville extrapolation by default |
 | `compute_kernels_ad_grid_velocity_iso` / `_vti` | Velocity GRID | As above | As above | As above |
 | `compute_kernels_variational_layer_cake` | Layer-cake | Closed-form variational | `variational_frequency_ad` by default, also `variational` (dual, N passes) | None |
 | `compute_kernels_ad_layer_cake` | Layer-cake | Full AD | Nested AD | None |
@@ -95,7 +95,7 @@ requested thickness and interface contributions.
 | `compute_c`, `want_kernel_u`, `want_kernel_hv` | `True` | Select dc/dp, dU/dp and d(H/V)/dp. Unrequested U/HV kernels are skipped and returned as zeros. Computing dU/dp needs dc/dp internally. |
 | `u_kernel_mode` | `"variational_frequency_ad"` | Method for dU/dp. `"variational"` differentiates energy integrals in the parameter directions. |
 | `compute_thickness` | `False` | Differentiate layer thicknesses. For Love the fallback applies only to requested thickness components. |
-| `use_analytical` | `False` | Rayleigh within-layer quadrature. Frequency AD applies to solid models with `True`. |
+| `use_analytical` | `False` | Rayleigh within-layer quadrature. With `True`, frequency AD also supports a non-gravitating top fluid stack with `compute_thickness=False`. |
 
 ### GRID kernel options
 
@@ -105,10 +105,10 @@ calculation. Its switches gate the work for each requested quantity.
 | Keyword | Default | Effect |
 |---|---|---|
 | `compute_c`, `want_kernel_u`, `want_kernel_hv` | `True` | Request dc/dp, dU/dp and d(H/V)/dp kernels. |
-| `want_value_u`, `want_value_hv` (formerly `phase_only`) | `True` | Request U and H/V values from the per-level full-AD evaluation. Phase-only evaluation requires both `want_kernel_u=False` and `want_kernel_hv=False`. |
+| `want_value_u`, `want_value_hv` (must agree; `phase_only` also applies) | `True` | Request U and H/V values from the per-level full-AD evaluation. Phase-only evaluation requires both `want_kernel_u=False` and `want_kernel_hv=False`. |
 | `u_kernel_mode` | `"variational_frequency_ad"` | Frequency AD of a variational phase kernel. Alternatives are `"variational"` (energy-integral parameter AD) and `"full_ad"` (nested AD). A nonfinite value triggers the existing fallback path. |
 | `kernel_extrapolation` | `True` | Compute kernels at all levels and extrapolate with Neville's algorithm. |
-| `adaptive_root_scan` | `True` | Adaptive root search (5.8× speedup in the historical P2 measurement). |
+| `adaptive_root_scan` | `True` | Adaptive root search (5.8× speedup in the historical root-search benchmark). |
 | `phase_velocity_roots` | `None` | Use the roots selected by direct Romberg dispersion. A residual mismatch raises an exception. |
 | `phase_accepted_level` | `-1` | When passing roots, supply the last level accepted for phase extrapolation by the same direct solve. |
 
@@ -119,7 +119,7 @@ from that of scalar outputs.
 |---|---:|---|
 | `want_kernel_u=True, want_kernel_hv=True` (former default configuration) | 6.833 | — |
 | `want_kernel_u=False, want_kernel_hv=False` | 1.091 | U and H/V derivatives (84%) |
-| Also `want_value_u=want_value_hv=False` (formerly `phase_only=True`) | 1.083 | U and H/V values (0.1% of original runtime) |
+| Also `want_value_u=want_value_hv=False` (also selected by `phase_only=True`) | 1.083 | U and H/V values (0.1% of original runtime) |
 
 Phase velocity and dc/dp agreed bit for bit in all three cases. In a separate
 comparison, kernel extrapolation took 0.2020 s against 0.1085 s without
@@ -159,7 +159,7 @@ Four historical Love names covered three implementations. The production
 `_hybrid_love` recovered eigenfunctions from an AD propagator with two
 nested AD levels, O(L·N²). `_variational_love` was an eight-line forwarding
 alias for that function. `_variational_fd_love` differenced the gradient.
-Their use outside inversion was confined to diagnostics, including five
+Their use outside inversion was confined to diagnostics, including five archived
 `diagnose_*` scripts and the archived `verify_hessian_taylor_random.py`.
 The hybrid, its alias and `debug_variational_love_hessian_breakdown` were
 removed and seven callers updated (historical sequence `77e566d`,
@@ -196,10 +196,10 @@ The following pseudocode shows the row comparison.
 
 ```text
 G_hess = gradient_log(model0, res["g_a_variational"])
-J[i] = project_gradient(G_hess, basis)
+J[i] = project_gradient(G_hess, basis, model=model0)
 if "g_a_ad" in res:
     G_kernel = gradient_log(model0, res["g_a_ad"])
-    ad_row = res.get("g_inv_kernel", project_gradient(G_kernel, basis))
+    ad_row = res.get("g_inv_kernel", project_gradient(G_kernel, basis, model=model0))
     consistency[i] = max(abs(J[i] - ad_row)) / scale
 ```
 
@@ -275,10 +275,8 @@ cost, with convergence order 2.00–2.03. That keyword was removed.
 
 ### Finite differences retained in Newton iteration and reference calculations
 
-Fourteen historical sites estimated Newton slopes with
-`df = (f(c+eps) − f(c))/eps`. They were in `sensitivity_utils.hpp` (lines
-1427, 1515, 1735, 1907, 3184, 5277, 5443, 5853, 5999, 6081), `bindings.cpp`
-(1434, 1872) and `grid_hessian.hpp` (348, 545). The approximate Jacobian
+Newton polishing in `sensitivity_utils.hpp` and `grid_hessian.hpp` uses
+one-sided slopes `df = (f(c+eps) − f(c))/eps`. The approximate Jacobian
 affects the iteration path. For a converged solve the stopping condition
 sets root accuracy. Switching these sites to AD would add work per iteration.
 
@@ -307,7 +305,7 @@ two gradients into agreement at about 1e-8.
 The engine uses the C++ defaults for `compute_c`, `u_kernel_mode`,
 `kernel_extrapolation`, `want_value_u` and `want_value_hv`. Suppressing scalar
 values saved about 0.1% in the historical comparison, and `_group_predict`
-in `trace_dataset` needs `solution.U` for a warm start. `derivatives.py`
+in `trace_dispersion_curve` needs `solution.U` for a warm start. `derivatives.py`
 reads `kernel.d_c`. The inversion's `Datum` describes a wave, branch and
 period, and its current observables do not use `d_U` or `d_HV`.
 
@@ -344,7 +342,7 @@ The production switch on 2026-08-11 proceeded in three steps.
    is skipped and a depth gradient is required.
 
 `VariationalAdDepthHessianBackend.interface_hessian_row` (formerly `column`)
-uses the level cached by `depth_gradient_variational`. It does not need
+reads the level and per-level roots from the supplied `ModeSolution`. It does not need
 `dc_dz`. On the default backend this avoids a separate
 `phase_velocity_with_kernels` call on points that skip AD. Compute depth
 gradients only when `want_kernels or want_hessian`, so pure forward evaluations

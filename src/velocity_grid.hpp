@@ -98,6 +98,14 @@ PhysicalParameters<T> make_vti_from_velocities(
 }
 
 template <typename T>
+void fill_velocity_grid_fluid_nodes(const std::vector<T>& vsh, const std::vector<T>& vsv,
+                                    std::vector<bool>& fluid_nodes) {
+    fluid_nodes.resize(vsh.size());
+    for (size_t i = 0; i < vsh.size(); ++i)
+        fluid_nodes[i] = vsh[i] == 0.0 && vsv[i] == 0.0;
+}
+
+template <typename T>
 VelocityGridRefinementT<T> refine_velocity_grid_iso_values(
     const std::vector<double>& depths,
     const std::vector<T>& rhos,
@@ -109,7 +117,8 @@ VelocityGridRefinementT<T> refine_velocity_grid_iso_values(
 ) {
     validate_velocity_grid_sizes(depths, is_discontinuity, {rhos.size(), vps.size(), vss.size()});
     VelocityGridRefinementT<T> refined;
-    std::vector<bool> fluid_nodes(depths.size(), false);
+    std::vector<bool> fluid_nodes;
+    fill_velocity_grid_fluid_nodes(vss, vss, fluid_nodes);
     const auto geometry = build_grid_sublayer_geometry(
         depths, is_discontinuity, fluid_nodes, refinement_level, policy);
     for (const auto& g : geometry) {
@@ -127,6 +136,7 @@ VelocityGridRefinementT<T> refine_velocity_grid_iso_values(
     }
 
     GridSublayerGeometry hs_geo;
+    hs_geo.fluid = fluid_nodes.back();
     hs_geo.radius_ratio = policy.is_flat() ? 1.0
         : (policy.planet_radius - depths.back()) / policy.planet_radius;
     grid_fill_flattening_scales(hs_geo, policy);
@@ -154,7 +164,7 @@ void fill_velocity_grid_vti_values(
 ) {
     validate_velocity_grid_sizes(depths, is_discontinuity, {rhos.size(), vphs.size(), vpvs.size(), vshs.size(), vsvs.size(), etas.size()});
     refined.layers.clear(); refined.thicknesses.clear();
-    fluid_nodes.assign(depths.size(), false);
+    fill_velocity_grid_fluid_nodes(vshs, vsvs, fluid_nodes);
     fill_grid_sublayer_geometry(depths, is_discontinuity, fluid_nodes, refinement_level, policy, geometry);
     refined.layers.reserve(geometry.size()); refined.thicknesses.reserve(geometry.size());
     for (const auto& g : geometry) {
@@ -177,6 +187,7 @@ void fill_velocity_grid_vti_values(
     }
 
     GridSublayerGeometry hs_geo;
+    hs_geo.fluid = fluid_nodes.back();
     hs_geo.radius_ratio = policy.is_flat() ? 1.0
         : (policy.planet_radius - depths.back()) / policy.planet_radius;
     grid_fill_flattening_scales(hs_geo, policy);

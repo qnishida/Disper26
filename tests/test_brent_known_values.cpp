@@ -101,6 +101,9 @@ std::vector<double> legacy_search_roots(Func func, double min_c, double max_c,
 }  // namespace
 
 int main() {
+    const auto mesh_node_root = searchRoots([](double x) {return x - 1.75;},
+                                          1., 1.8, .25);
+    require(mesh_node_root == std::vector<double>{1.75}, "Lost exact last interior root");
     const auto polynomial = [](double x) {
         return (x - 1.23) * (x - 1.87);
     };
@@ -177,6 +180,16 @@ int main() {
     };
     const auto nan_roots = searchRoots(nan_func, 0.5, 1.5, 0.2, 1e-10);
     require(nan_roots.empty(), "searchRoots changed NaN-gap handling");
+
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    require(brents_method_with_values(polynomial, 0., 1., nan, 0.01).root < 0.,
+            "Nonfinite bracket endpoint accepted");
+    require(brents_method_with_values([nan](double) { return nan; },
+            0., 1., -0.01, 0.01).root < 0., "Nonfinite trial point accepted");
+    const auto last = searchRoots([](double x) { return x - 4.499; },
+                                  1., 4.5, 3.5 / 200., 1e-10);
+    require(last.size() == 1 && std::abs(last.front() - 4.499) < 1e-10,
+            "Root lost in final scan interval");
 
     const auto pole = [](double x) { return 1.0 / (x - 1.23); };
     require(searchRoots(pole, 0.5, 2.0, 0.25, 1e-10).empty(),

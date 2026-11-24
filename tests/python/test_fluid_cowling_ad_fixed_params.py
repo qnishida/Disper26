@@ -1,5 +1,6 @@
-"""Check Cowling fluid layers are fixed parameters in AD kernel paths."""
+"""Cowling GRID propagation is available for forward checks."""
 
+import pytest
 import disper26py as dp
 
 
@@ -19,21 +20,12 @@ def test_fluid_cowling_ad_fixed_params():
     period = 8.0
     c_guess = 3.0
     depths, params, is_discontinuity = build_model(0.00980665)
-    result = dp.compute_dispersion_romberg_with_kernels(
-        depths,
-        params,
-        is_discontinuity,
-        period,
-        "Rayleigh",
-        c_guess,
-        "Isotropic",
-        4,
-        1e-8,
-        True,
-        False,
-        False,
-    )
-    c, _, _, _, _, kernels = result
+    with pytest.raises(ValueError, match="Cowling gravity"):
+        dp.compute_dispersion_romberg_with_kernels(
+            depths, params, is_discontinuity, period, "Rayleigh", c_guess,
+            "Isotropic", 4, 1e-8)
+    c = dp.compute_dispersion_romberg(
+        depths, params, is_discontinuity, period, "Rayleigh", c_guess, 4, 1e-8)[0]
 
     depths0, params0, is_discontinuity0 = build_model(0.0)
     c0 = dp.compute_dispersion_romberg(
@@ -41,13 +33,6 @@ def test_fluid_cowling_ad_fixed_params():
     )[0]
 
     assert abs(c - c0) > 1e-5
-    assert any(abs(k.d_c) > 1e-8 for k in kernels if k.layer_index not in (0, 1) and k.parameter_name != "Depth")
-
-    for k in kernels:
-        if k.layer_index in (0, 1):
-            assert abs(k.d_c) < 1e-14
-        if k.parameter_name == "Depth" and k.layer_index == 1:
-            assert abs(k.d_c) < 1e-14
 
 
 if __name__ == "__main__":

@@ -2,8 +2,8 @@
 """Analytical Rayleigh layer integrals for models with top liquid layers.
 
 A liquid layer carries only [U, Tzz]; its quadratic moments follow in closed
-form from the state at the layer top (energy_entire.hpp, fluid_moments). Three
-references that share no quadrature with them are used:
+form from the state at the layer top (energy_entire.hpp, fluid_moments). The tests compare these integrals with independent
+non-gravitating references:
 
   kernels -- Full AD of the secular function gives the exact derivative of the
   layered-model phase velocity. The analytical variational kernels must agree
@@ -12,14 +12,9 @@ references that share no quadrature with them are used:
   group velocity and energy balance -- U = I3/(c I1) against the AD group
   velocity, and I2 = omega^2 I1.
 
-  background gravity -- outside the supported formulation (the functional is
-  that of the non-gravitating model; gravity enters through the separate K_g
-  correction). With Cowling propagation enabled as a cross-check, only
-  consistency with the trapezoidal integrals of the same formula is tested.
-
-Tolerances: 1e-9 leaves room for root and propagation roundoff, as in
-test_love_energy_integrals.py. The trapezoidal comparison allows 5e-4 for its
-own O(dz^2) error at 200 sublayers.
+The derivative API rejects a Cowling reference for either quadrature.
+The relative tolerance of 1e-9 covers root and propagation roundoff, as in
+test_love_energy_integrals.py.
 """
 
 import math
@@ -34,7 +29,6 @@ import disper26py as dp  # noqa: E402
 
 
 EXACT_RTOL = 1e-9
-TRAPEZOID_RTOL = 5e-4
 HALFSPACE = dp.create_isotropic_parameters(4.5, 8.1, 3.35)
 
 
@@ -107,20 +101,18 @@ def test_energy_integrals_match_group_velocity_and_balance():
             print(f"OK {name} T={period}: U {u_error:.1e}, balance {balance:.1e}")
 
 
-def test_gravity_matches_trapezoidal_limit():
-    for name, layers, thick in models(gravity=9.8e-3):
-        for period in (20.0, 7.0):
-            omega = 2.0 * math.pi / period
-            c = root(layers, thick, omega)
-            error = scaled_difference(
-                weakform(layers, thick, omega, c, True),
-                weakform(layers, thick, omega, c, False, sublayers=200))
-            assert error < TRAPEZOID_RTOL, f"{name} T={period}: {error:.2e}"
-            print(f"OK {name} T={period}: gravity kernels vs trapezoid {error:.1e}")
+def test_gravitating_material_kernels_rejected():
+    import pytest
+    for _, layers, thick in models(gravity=9.8e-3):
+        omega = 2.0 * math.pi / 20.0
+        c = root(layers, thick, omega)
+        for analytical in (True, False):
+            with pytest.raises(ValueError, match="Cowling gravity"):
+                weakform(layers, thick, omega, c, analytical)
 
 
 if __name__ == "__main__":
     test_kernels_match_full_ad_without_gravity()
     test_energy_integrals_match_group_velocity_and_balance()
-    test_gravity_matches_trapezoidal_limit()
+    test_gravitating_material_kernels_rejected()
     print("OK")

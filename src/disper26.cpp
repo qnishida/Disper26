@@ -467,10 +467,14 @@ computeRayleighStatePropagatorRegular(
         double row_sum = 0.0;
         for (int j = 0; j < 4; ++j)
             row_sum += std::abs(get_val(H(i,j).real())) + std::abs(get_val(H(i,j).imag()));
+        if (!std::isfinite(row_sum))
+            throw std::runtime_error("Nonfinite solid propagation matrix");
         norm_inf = std::max(norm_inf, row_sum);
     }
     int squarings = 0;
-    if (norm_inf > 0.5)
+    if (norm_inf > std::numeric_limits<double>::max() * 0.5)
+        squarings = std::numeric_limits<double>::max_exponent + 1;
+    else if (norm_inf > 0.5)
         squarings = static_cast<int>(std::ceil(std::log2(norm_inf / 0.5)));
     const double inv_scale = std::ldexp(1.0, -squarings);
     const CT inv_scale_c = toComplex(scalar_constant(inv_scale));
@@ -656,7 +660,7 @@ Eigen::Matrix<T, 5, 1> computeInitialVector(
     // Radiative Regime Check (User's Request):
     // If Re(nu) is non-positive, the wave does not decay at infinity.
     // This region should be skipped for surface wave searching.
-    if (get_val(v.nu1.real()) <= 1e-10 || get_val(v.nu3.real()) <= 1e-10) {
+    if (!(get_val(v.nu1.real()) > 1e-10 && get_val(v.nu3.real()) > 1e-10)) {
         Eigen::Matrix<T, 5, 1> Y_radiative;
         Y_radiative.setConstant(make_nan<T>());
         return Y_radiative;
@@ -1044,7 +1048,7 @@ typename ComplexType<T>::type computeFluidHorizontalDisplacement(
     T gravity_coeff = layer.rho * effective_gravity;
     // Saito's liquid relation for the Lagrangian normal-stress state:
     // y3 = k/(rho w^2) * (rho g y1 - y2).
-    return CT(factor) * (CT(gravity_coeff) * uz - tzz);
+    return toComplex(factor) * (toComplex(gravity_coeff) * uz - tzz);
 }
 
 template <typename T>
@@ -3536,10 +3540,8 @@ BrentResult<T> brents_method_with_values(
     T fa = f_min;
     T fb = f_max;
     
-    if (fa * fb > 0) {
-        // For robustness, might need to scan or expand, but for now return error/nan
-        // Or handle simple failures.
-        std::cerr << "Root not bracketed in Brent's method: f(" << a << ")=" << fa << ", f(" << b << ")=" << fb << std::endl;
+    if (!std::isfinite(a) || !std::isfinite(b) ||
+        !std::isfinite(fa) || !std::isfinite(fb) || fa * fb > 0) {
         return {T(-1.0), fb};
     }
     
@@ -3578,7 +3580,7 @@ BrentResult<T> brents_method_with_values(
         
         T lower_bound = std::min((3 * a + b) / 4, b);
         T upper_bound = std::max((3 * a + b) / 4, b);
-        bool s_outside = (s < lower_bound) || (s > upper_bound);
+        bool s_outside = !(s >= lower_bound && s <= upper_bound);
         
         if (s_outside ||
             (mflag && std::abs(s - b) >= std::abs(b - c) / 2) ||
@@ -3593,6 +3595,7 @@ BrentResult<T> brents_method_with_values(
         }
         
         fs = func(s);
+        if (!std::isfinite(fs)) return {T(-1.0), fs};
         d = c;
         c = b;
         fc = fb; // c is previous b
@@ -3655,16 +3658,23 @@ std::vector<T> searchRoots(Func func, T min_c, T max_c, T step_c, T tol = 1e-6,
     // Reuse Brent/scan values without another propagation through the model.
     if (root_values) root_values->clear();
     std::vector<T> roots;
+    if (!std::isfinite(min_c) || !std::isfinite(max_c) || !(step_c > 0) ||
+        !std::isfinite(step_c) || min_c > max_c) return roots;
     T c1 = min_c;
     T f1 = func(c1);
     
     // TODO: Integrate Woodhouse's mode counting to ensure no missed modes.
     // Current: Simple grid scan. Risk of missing double roots or close roots if step is too large.
     
-    for (T c2 = min_c + step_c; c2 <= max_c; c2 += step_c) {
+    while (c1 < max_c) {
+        const T c2 = std::min(c1 + step_c, max_c);
+        if (c2 <= c1) break;
         T f2 = func(c2);
         
-        if (!std::isnan(f1) && !std::isnan(f2)) {
+        if (f1 == 0 && c1 > 0) {
+            roots.push_back(c1);
+            if (root_values) root_values->push_back(f1);
+        } else if (std::isfinite(f1) && std::isfinite(f2)) {
              if (f1 * f2 < 0.0) { // Sign change found
                 // Refine
                 const auto refined = brents_method_with_values(
@@ -3862,6 +3872,9 @@ T calculateGroupVelocityInternal(
     hs_ad.c33 = mkad(halfSpace.c33, 2);
     hs_ad.c44 = mkad(halfSpace.c44, 2);
     hs_ad.c66 = mkad(halfSpace.c66, 2);
+    hs_ad.gravity = mkad(halfSpace.gravity, 2);
+    hs_ad.gravity_internal_scale = mkad(halfSpace.gravity_internal_scale, 2);
+    hs_ad.gravity_surface_scale = mkad(halfSpace.gravity_surface_scale, 2);
     
     std::vector<PhysicalParameters<ADS>> layers_ad;
     std::vector<ADS> thick_ad;
@@ -3873,6 +3886,9 @@ T calculateGroupVelocityInternal(
         la.c33 = mkad(l.c33, 2);
         la.c44 = mkad(l.c44, 2);
         la.c66 = mkad(l.c66, 2);
+        la.gravity = mkad(l.gravity, 2);
+        la.gravity_internal_scale = mkad(l.gravity_internal_scale, 2);
+        la.gravity_surface_scale = mkad(l.gravity_surface_scale, 2);
         layers_ad.push_back(la);
     }
     for(const auto& t : thicknesses) {

@@ -287,7 +287,9 @@ class LMOptimizer:
 
 
 def merge_minima(landings, prior: PriorCovariance, sigma: np.ndarray, threshold: float = 1.0):
-    """Merge converged minima by Mahalanobis distance under the better one's H_GN."""
+    """Merge converged minima by Mahalanobis distance using each candidate landing's H_GN."""
+    if not landings:
+        return []
     unique = []
     metric = ObservationCovariance(sigma, n_data=landings[0].J.shape[0])
     for landing in sorted(landings, key=lambda l: l.misfit):

@@ -422,6 +422,7 @@ py::dict py_debugRayleighWeakformTrace(
     int numSubLayers,
     bool useAnalytical
 ) {
+    require_non_gravitating_derivatives(layers, &halfSpaceParams);
     py::dict out;
     const double zero = 0.0;
     const double k = omega / phaseVelocity;
@@ -828,6 +829,7 @@ py::dict py_computePhaseVelocityHessian(
     std::string wave_type_str, std::string mode_str,
     bool compute_thickness
 ) {
+    require_non_gravitating_derivatives(layers, &hs);
     WaveType type = (wave_type_str == "Love" || wave_type_str == "love") ? WaveType::Love : WaveType::Rayleigh;
     SensitivityMode mode = (mode_str == "VTI" || mode_str == "vti") ? SensitivityMode::VTI : SensitivityMode::Isotropic;
     // Route through the wave-type dispatcher (not ...Stable directly): Stable
@@ -851,6 +853,7 @@ py::dict py_computePhaseVelocityHessianFullAD(
     std::string wave_type_str, std::string mode_str,
     bool compute_thickness
 ) {
+    require_non_gravitating_derivatives(layers, &hs);
     WaveType type = (wave_type_str == "Love" || wave_type_str == "love") ? WaveType::Love : WaveType::Rayleigh;
     SensitivityMode mode = (mode_str == "VTI" || mode_str == "vti") ? SensitivityMode::VTI : SensitivityMode::Isotropic;
     auto res = computePhaseVelocityHessianFullAD(layers, thicknesses, hs, omega / (2.0 * M_PI), cp, type, mode, compute_thickness);
@@ -878,6 +881,7 @@ py::dict py_computePhaseVelocityHessianGridFullAD(
     double planet_radius = 6371.0,
     double flattening_exponent = std::numeric_limits<double>::quiet_NaN()
 ) {
+    require_non_gravitating_derivatives(params);
     GridModel model;
     model.depths = depths;
     model.params = params;
@@ -995,6 +999,7 @@ py::dict py_debugGridLoveLevelGradientPieces(
     double planet_radius = 6371.0,
     double flattening_exponent = std::numeric_limits<double>::quiet_NaN()
 ) {
+    require_non_gravitating_derivatives(params);
     GridModel model;
     model.depths = depths;
     model.params = params;
@@ -1030,6 +1035,7 @@ py::dict py_computePhaseVelocityHessianVariationalFDLove(
     int numSubLayers,
     double fdEps
 ) {
+    require_non_gravitating_derivatives(layers, &hs);
     SensitivityMode mode = (mode_str == "VTI" || mode_str == "vti") ? SensitivityMode::VTI : SensitivityMode::Isotropic;
     auto res = computePhaseVelocityHessianVariationalFDLove(layers, thicknesses, hs, omega / (2.0 * M_PI), cp, mode, compute_thickness, numSubLayers, fdEps);
     py::dict out;
@@ -1051,6 +1057,7 @@ py::dict py_computePhaseVelocityHessianWeakFormLove(
     std::string branch_policy_str,
     std::string backend_str
 ) {
+    require_non_gravitating_derivatives(layers, &hs);
     SensitivityMode mode = (mode_str == "VTI" || mode_str == "vti") ? SensitivityMode::VTI : SensitivityMode::Isotropic;
     LoveBranchPolicy branch_policy = parseLoveBranchPolicy(branch_policy_str);
     WFHessianBackend backend = parseWFHessianBackend(backend_str);
@@ -1077,6 +1084,7 @@ py::dict py_debugLoveWeakformHessianBreakdown(
     const std::vector<double>& provided_scales,
     double cp_grad_multiplier
 ) {
+    require_non_gravitating_derivatives(layers, &hs);
     SensitivityMode mode = (mode_str == "VTI" || mode_str == "vti") ? SensitivityMode::VTI : SensitivityMode::Isotropic;
     LoveBranchPolicy branch_policy = parseLoveBranchPolicy(branch_policy_str);
     const std::vector<double>* scale_ptr = provided_scales.empty() ? nullptr : &provided_scales;
@@ -1120,6 +1128,7 @@ py::dict py_debugLoveWeakformGradientPieces(
     int num_sub_layers,
     const std::vector<double>& provided_scales
 ) {
+    require_non_gravitating_derivatives(layers, &hs);
     SensitivityMode mode = (mode_str == "VTI" || mode_str == "vti") ? SensitivityMode::VTI : SensitivityMode::Isotropic;
     LoveBranchPolicy branch_policy = parseLoveBranchPolicy(branch_policy_str);
     double c_root = findLoveRootNear(layers, thicknesses, hs, omega, cp);
@@ -1210,6 +1219,7 @@ py::dict py_debugLoveUpwardIFTHessianBreakdown(
     double omega, double cp,
     std::string mode_str
 ) {
+    require_non_gravitating_derivatives(layers, &hs);
     SensitivityMode mode = (mode_str == "VTI" || mode_str == "vti") ? SensitivityMode::VTI : SensitivityMode::Isotropic;
     auto res = computePhaseVelocityHessianLoveUpwardIFTBreakdown(
         layers, thicknesses, hs, omega / (2.0 * M_PI), cp, mode, false);
@@ -1273,6 +1283,7 @@ py::dict py_computePhaseVelocityHessianWeakFormRayleigh(
     bool useAnalytical,
     std::string backend_str
 ) {
+    require_non_gravitating_derivatives(layers, &hs);
     SensitivityMode mode = (mode_str == "VTI" || mode_str == "vti") ? SensitivityMode::VTI : SensitivityMode::Isotropic;
     WFHessianBackend backend = parseWFHessianBackend(backend_str);
     auto res = computePhaseVelocityHessianWeakFormRayleigh(layers, thicknesses, hs, omega / (2.0 * M_PI), cp, mode, compute_thickness, numSubLayers, useAnalytical, backend);
@@ -1299,6 +1310,7 @@ py::dict py_computePhaseVelocityHessianWeakFormRayleigh_Grid(
     const std::optional<std::vector<double>>& phase_velocity_roots = std::nullopt,
     int phase_accepted_level = -1
 ) {
+    require_non_gravitating_derivatives(params);
     GridModel model;
     model.depths = depths;
     model.params = params;
@@ -1342,6 +1354,7 @@ py::dict py_computePhaseVelocityHessianWeakFormLove_Grid(
     const std::optional<std::vector<double>>& phase_velocity_roots = std::nullopt,
     int phase_accepted_level = -1
 ) {
+    require_non_gravitating_derivatives(params);
     GridModel model;
     model.depths = depths;
     model.params = params;
@@ -1390,6 +1403,7 @@ py::dict py_computePhaseVelocityHessianWeakFormRayleigh_Grid_Reduced(
     const std::optional<std::vector<double>>& phase_velocity_roots = std::nullopt,
     int phase_accepted_level = -1
 ) {
+    require_non_gravitating_derivatives(params);
     GridModel model;
     model.depths = depths;
     model.params = params;
@@ -1428,6 +1442,7 @@ py::dict py_computePhaseVelocityHessianWeakFormLove_Grid_Reduced(
     const std::optional<std::vector<double>>& phase_velocity_roots = std::nullopt,
     int phase_accepted_level = -1
 ) {
+    require_non_gravitating_derivatives(params);
     GridModel model;
     model.depths = depths;
     model.params = params;
@@ -1475,6 +1490,7 @@ py::dict py_computeKernelsVariationalGrid(
     const std::optional<std::vector<double>>& phase_velocity_roots = std::nullopt,
     int phase_accepted_level = -1
 ) {
+    require_non_gravitating_derivatives(params);
     GridModel model;
     model.depths = depths;
     model.params = params;
@@ -1518,6 +1534,7 @@ py::dict py_debugPhaseVelocityHessianWeakFormLove_Grid(
     double planet_radius = 6371.0,
     double flattening_exponent = std::numeric_limits<double>::quiet_NaN()
 ) {
+    require_non_gravitating_derivatives(params);
     GridModel model;
     model.depths = depths;
     model.params = params;
@@ -1569,6 +1586,7 @@ py::dict py_computePhaseVelocityHessianRef(
     std::string wave_type_str, std::string mode_str,
     bool compute_thickness
 ) {
+    require_non_gravitating_derivatives(layers, &hs);
     WaveType type = (wave_type_str == "Love" || wave_type_str == "love") ? WaveType::Love : WaveType::Rayleigh;
     auto res = computePhaseVelocityHessianReference(layers, thicknesses, hs, omega / (2.0 * M_PI), cp, type);
     py::dict d;
@@ -2082,7 +2100,7 @@ PYBIND11_MODULE(disper26py, m) {
           "chain rule advects the root (same device as the weak-form Hessian's cp_seed).\n"
           "The returned dc_dp reproduces the established first-order kernel and is intended as a\n"
           "free consistency check on the caller's dc_dz.\n"
-          "Formulation: docs/depth_sensitivity_kernels.tex, section 'Interface Depth Derivatives'.");
+          "See docs/lowlevel_api.md, Interface derivatives.");
     m.def("compute_depth_hessian_column_grid", &py_computeDepthHessianColumnGrid,
           py::arg("depths"), py::arg("params"), py::arg("is_discontinuity"), py::arg("period"),
           py::arg("wave_type"), py::arg("c_root"), py::arg("dc_dz"),
@@ -2102,8 +2120,7 @@ PYBIND11_MODULE(disper26py, m) {
           "  dc/dq = sum_b [K_d]_b * dz_b/dq,\n"
           "and the weights dz_b/dq are what distinguish an interface-depth derivative\n"
           "from a layer-thickness one, so they are left to the caller.\n"
-          "Formulation: docs/depth_sensitivity_kernels.tex, sections 'The variational\n"
-          "boundary kernel K_d' and 'K_d must be summed over every boundary that moves'.");
+          "See docs/lowlevel_api.md, Interface derivatives.");
     m.def("compute_interface_kernels_variational_rayleigh_pancake", &py_computeBoundaryKernelsRayleigh,
           py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
           py::arg("omega"), py::arg("phase_velocity"),
@@ -2116,8 +2133,7 @@ PYBIND11_MODULE(disper26py, m) {
           "  dc/dq = sum_b [K_d]_b * dz_b/dq,\n"
           "and the weights dz_b/dq are what distinguish an interface-depth derivative\n"
           "from a layer-thickness one, so they are left to the caller.\n"
-          "Formulation: docs/depth_sensitivity_kernels.tex, sections 'The variational\n"
-          "boundary kernel K_d' and 'K_d must be summed over every boundary that moves'.");
+          "See docs/lowlevel_api.md, Interface derivatives.");
     m.def("compute_boundary_kernels_rayleigh", &py_computeBoundaryKernelsRayleigh,
           py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),
           py::arg("omega"), py::arg("phase_velocity"),
@@ -2422,8 +2438,8 @@ PYBIND11_MODULE(disper26py, m) {
           py::arg("phase_velocity_roots") = py::none(),
           py::arg("phase_accepted_level") = -1,
           "GRID-mode Rayleigh phase-velocity gradient dc/dp and Hessian d2c/dp2 via the weak-form "
-          "(variational) method, Neville-extrapolated across Romberg levels (this is NOT full-AD; "
-          "full-AD HessianAD is layer_cake-only). Note freq [Hz], not period.\n"
+          "(variational) method, Neville-extrapolated across Romberg levels. "
+          "For fixed-level flat VTI validation see compute_hessian_ad_grid. freq is in Hz.\n"
           "Returns a dict with keys 'gradient', 'hessian', 'parameter_names', 'layer_indices'. "
           "See docs/sensitivity_implementation_map.md and docs/grid_wf_hessian.md.");
     m.def("compute_phase_velocity_hessian_weakform_rayleigh_grid",

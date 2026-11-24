@@ -52,7 +52,7 @@ U の**値**も full-AD だが、これは各レベル 1 回で全体の 0.1%。
 | 1 階 variational | `compute_kernels_variational_layer_cake` | `compute_kernels_variational_grid` |
 | 1 階 生の伝播子 | `compute_kernels_ad_layer_cake` | `compute_kernels_ad_grid` |
 | 2 階 variational | `compute_hessian_variational_ad_rayleigh_layer_cake` / `_love_layer_cake` | `compute_hessian_variational_ad_*_grid[_reduced]` |
-| 2 階 生の伝播子 | `compute_hessian_ad_layer_cake` | 無し（不要） |
+| 2 階 生の伝播子 | `compute_hessian_ad_layer_cake` | `compute_hessian_ad_grid`（固定レベル・平坦VTIの検算） |
 
 **空きマスは `compute_kernels_variational_grid` で埋まった**。命名は
 [命名規則](naming_convention.md) に従う。
@@ -106,7 +106,7 @@ LAYER_CAKE の `variational_frequency_ad` は Rayleigh の解析積分と Love �
 | `compute_c` / `want_kernel_u` / `want_kernel_hv` | `True` | dc/dp, dU/dp, d(H/V)/dp。U/HVの未要求部分をゲートし、出力は0にする（dUには内部dc/dpが必要） |
 | `u_kernel_mode` | `"variational_frequency_ad"` | dU/dp の解法。`"variational"` は旧parameter-width energy-integral AD |
 | `compute_thickness` | `False` | 固定層厚の微分。Loveでは要求時に厚さ成分のみ旧経路を使う |
-| `use_analytical` | `False` | Rayleigh層内積分。周波数ADは `True` のsolidモデルで有効 |
+| `use_analytical` | `False` | Rayleigh層内積分。周波数ADは `True` の固体モデル、および非重力の表面流体層（`compute_thickness=False`）に対応 |
 
 ### GRID kernel 経路のスイッチ
 
@@ -116,10 +116,10 @@ AD パスの中で計算され、フラグは出力のゼロ埋めではなく�
 | kwarg | 既定 | 制御対象 |
 |---|---|---|
 | `compute_c` / `want_kernel_u` / `want_kernel_hv` | `True` | **カーネル** dc/dp, dU/dp, d(H/V)/dp |
-| `want_value_u` / `want_value_hv`（旧 `phase_only`） | `True` | **値** U, H/V（各レベルの nested full-AD 評価）。`False` は `want_kernel_u=want_kernel_hv=False` を要求する |
+| `want_value_u` / `want_value_hv`（両方を同じ真偽値に設定。`phase_only` も有効） | `True` | **値** U, H/V（各レベルの nested full-AD 評価）。`False` は `want_kernel_u=want_kernel_hv=False` を要求する |
 | `u_kernel_mode` | `"variational_frequency_ad"` | dU/dp の解法。旧energy-integral parameter ADは `"variational"`、nested ADは `"full_ad"`。非有限値は既存経路へfallback |
 | `kernel_extrapolation` | `True` | カーネルを全レベルで計算して Neville 外挿するか |
-| `adaptive_root_scan` | `True` | 根探索（P2、5.8x） |
+| `adaptive_root_scan` | `True` | 根探索（過去の測定で5.8倍） |
 | `phase_velocity_roots` | `None` | direct Romberg が選んだ level root。指定時は各 level の独立 root 探索を禁止し、残差不一致を例外にする |
 | `phase_accepted_level` | `-1` | 根列を渡す場合は、同じ順計算が位相速度の外挿に採用した最終レベルを指定する。 |
 
@@ -131,7 +131,7 @@ AD パスの中で計算され、フラグは出力のゼロ埋めではなく�
 |---|---:|---|
 | `want_kernel_u=T, want_kernel_hv=T`（旧既定） | 6.833 | — |
 | `want_kernel_u=F, want_kernel_hv=F` | 1.091 | **カーネル dU/dp, dHV/dp — 84%** |
-| ＋ `want_value_u=want_value_hv=False`（旧 `phase_only=True`） | 1.083 | 値 U, H/V — 0.1% |
+| ＋ `want_value_u=want_value_hv=False`（`phase_only=True` でも指定可能） | 1.083 | 値 U, H/V — 0.1% |
 
 `c` と dc/dp はどの構成でもビット一致。`kernel_extrapolation` は別途約 2 倍を占める
 （研究アーカイブでの計測値: 外挿なし 0.1085 / あり 0.2020 s）が、dU の精度を
@@ -161,8 +161,7 @@ $dU/dp=U^2 d(\omega K_p/c^2)/d\omega$ でwidth-1 AD微分するため、群速�
 旧 `_hybrid_love` / `_variational_love` / `debug_variational_love_hessian_breakdown`
 は2026-08-11に削除済み（下記「Love の Hessian」参照）。
 
-**GRID の Hessian は full-AD ではなく variational。** full-AD Hessian (`HessianAD<N>`)
-は LAYER_CAKE のみ。
+GRID の本番 Hessian は変分法を使う。平坦 VTI の固定レベル検算には `compute_hessian_ad_grid` を使える。
 
 `_reduced` は node-VTI 単位ベクトルの代わりに基底 `J` を seed するので、AD パス数が
 `n_nodes*6` から `P` に落ちる（528 → 約 19）。C++ 側は n_nodes*6 の正方 Hessian を
@@ -174,7 +173,7 @@ $dU/dp=U^2 d(\omega K_p/c^2)/d\omega$ でwidth-1 AD微分するため、群速�
 `_hybrid_love`（過渡実装、固有関数を AD 伝播子から回収する 2 段 nested AD、
 O(L·N²)）、`_variational_love`（`_hybrid_love` への 8 行転送、実装を持たない
 別名）、`_variational_fd_love`（勾配の有限差分、参照用）の 4 名に実装 3 つが
-対応していた。`inversion/` からの使用がゼロで `tests/python/` の
+対応していた。`inversion/` からの使用がゼロで 研究アーカイブの
 `diagnose_*` 5 本 + 研究アーカイブの `verify_hessian_taylor_random.py` のみだったため、
 `_hybrid_love` とその別名 `_variational_love`・内訳診断
 `debug_variational_love_hessian_breakdown` を削除し、7 本の呼び出し元を
@@ -204,7 +203,7 @@ Variational ADが安定するまでの実装確認ではFull ADとの比較に�
 "Rename WeakForm → VariationalFD for clarity" が過去に逆方向へ振り替えた
 のがこの混乱の直接の原因だった。
 
-`diagnose_prem_grid_love_layer_cake_bridge.py:365-383` はかつて4経路を比較して
+`diagnose_prem_grid_love_layer_cake_bridge.py` はかつて4経路を比較して
 いるように見えて実質3経路だった（`variational` と `hybrid` が同じ関数への
 別名で、その2行は自分自身と比較していただけ）。この問題も `_hybrid_love`
 削除で解消済み。
@@ -217,14 +216,14 @@ Variational ADが安定するまでの実装確認ではFull ADとの比較に�
 ## 同じ dc/dp が 2 実装ある — 本番と検算
 
 GRID の dc/dp は 2 経路あり、**パイプラインは両方を計算して突き合わせている**
-(`pipeline.py:214-255`):
+(`pipeline.py の run_phase1`):
 
 ```text
 G_hess = gradient_log(model0, res["g_a_variational"])
-J[i] = project_gradient(G_hess, basis)                      # 本番は variational 側
+J[i] = project_gradient(G_hess, basis, model=model0)                      # 本番は variational 側
 if "g_a_ad" in res:
     G_kernel = gradient_log(model0, res["g_a_ad"])           # AD Romberg 経路
-    ad_row = res.get("g_inv_kernel", project_gradient(G_kernel, basis))
+    ad_row = res.get("g_inv_kernel", project_gradient(G_kernel, basis, model=model0))
     consistency[i] = max|J[i] - ad_row| / scale              # 検算
 ```
 
@@ -328,10 +327,9 @@ dF/dc(計算値) ≈ s(c+ε)·F_c      dF_dp = s(c)·F_p   (同一 AD パス、�
   `branch_confirmation` も accepted。
 - **`c≈Vs` の条件数崖でもない。** L1_10s は `|c−Vs|/c = 0.65`。
 
-### 残した片側差分 — Newton 反復のヤコビアン (14 か所)
+### 残した片側差分 — Newton 反復のヤコビアン
 
-`sensitivity_utils.hpp` 1427/1515/1735/1907/3184/5277/5443/5853/5999/6081、
-`bindings.cpp` 1434/1872、`grid_hessian.hpp` 348/545。
+`sensitivity_utils.hpp` と `grid_hessian.hpp` は
 `df = (f(c+eps) − f(c))/eps` を Newton の勾配に使うだけで、**不正確なヤコビアンは
 反復経路を変えるが不動点を動かさない**。根の精度は停止条件が決める。AD 化しても
 精度は変わらず反復ごとにコストが増えるだけなので、意図的に残す。
@@ -340,7 +338,7 @@ dF/dc(計算値) ≈ s(c+ε)·F_c      dF_dp = s(c)·F_p   (同一 AD パス、�
 `compute_hessian_variational_fd_love_layer_cake`、
 `FdDepthHessianBackend`。
 
-死んだコード: `computeNumericalDerivative` (`disper26.cpp:1953`) は呼び出し 0 件。
+死んだコード: `computeNumericalDerivative` (`disper26.cpp`) は呼び出し 0 件。
 
 現在の既定経路では界面深さ列に `depth_gradient_variational` を使い、ADの `Depth` は独立した検算に使う。
 
@@ -362,9 +360,9 @@ variational 側の gradient を使っていて、バグのある AD 側を通っ
 | `hessian_max_levels` / `hessian_tolerance` | 5 / 1e-8 | Hessian のレベル |
 
 `compute_c` / `u_kernel_mode` / `kernel_extrapolation` / `want_value_u`・`want_value_hv`
-（旧 `phase_only`）は**engine から渡していない**（C++ 既定のまま）。
+（両方を同じ真偽値に設定。`phase_only` も有効）は**engine から渡していない**（C++ 既定のまま）。
 `want_value_u`/`want_value_hv` を使わないのは、値の側の削減が 0.1% しか無いうえ
-`solution.U` が NaN になり、`trace_dataset` の `_group_predict` が warm-start
+`solution.U` が NaN になり、`trace_dispersion_curve` の `_group_predict` が warm-start
 ヒントにその U を使うため。
 
 `derivatives.py` が読むのは `kernel.d_c` のみ。`d_U` / `d_HV` は `inversion/` の
@@ -423,11 +421,7 @@ GRID の 1 階 `K_d`（界面深さ勾配 dc/dz、`compute_interface_gradient_va
   ——**黙って誤った Jacobian 行を作らない**
 - `consistency`: `ad_kernel_every` が AD を回した点でのみ有限値、他は NaN
 - `VariationalAdDepthHessianBackend.interface_hessian_row`（Hessian 列、旧 `column`）
-  は元々 `level` しか要らず `dc_dz` は不要だったので、`depth_gradient_variational`
-  が呼ばれた時点でレベルキャッシュを埋める。これにより
-  `interface_hessian_row()` 側の「AD スキップ時に自前で
-  `phase_velocity_with_kernels` を呼んでコストが移動するだけ」という制約
-  （B2 コミットメッセージの caveat）も、既定バックエンドでは実質解消した
+  は渡された `ModeSolution` から細分化レベルと各レベルの根を読む。
 
 **検証**: 新テスト `test_phase1_weakform_jacobian.py` で `ad_kernel_every=1` と
 `0` で **J がビット一致**すること、`consistency` の分位が 2.8e-11 に収まることを

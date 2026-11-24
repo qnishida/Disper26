@@ -1,6 +1,11 @@
 # Optional plotting diagnostic
 
-romberg_phase_velocity_kernel.py repeats finite-difference kernels through 512 layers.
-It was already excluded from the historical regression gate because it takes over 15 minutes.
-Run explicitly with python -m pytest tests/diagnostics/romberg_phase_velocity_kernel.py.
-The numerical loops and tolerances are unchanged. Normal regression collection is tests/python.
+From the repository root, with the `test` and `paper` extras installed, run
+
+```sh
+python -m pytest tests/diagnostics/romberg_phase_velocity_kernel.py
+```
+
+The diagnostic compares finite-difference kernels through 512 layers and can
+take over 15 minutes. Matplotlib writes `kernel_convergence_plot.png` to the
+current directory. The regular regression suite runs under `tests/python`.

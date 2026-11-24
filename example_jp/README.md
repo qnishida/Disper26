@@ -16,7 +16,7 @@ python -m pip install '.[test]'
 ```
 
 開発中はソースの変更後に拡張モジュールを再ビルドします。
-開発時のビルド・回帰確認手順は [AGENTS.md](../AGENTS.md) に記載しています。
+開発時のビルド・回帰確認手順は [READMEの検証手順](../README.md#verification) に記載しています。
 
 ## 1. モデル作成と分散曲線
 
@@ -33,7 +33,7 @@ Rayleigh波・Love波の基本モードの位相速度を計算します。
 
 `python -m examples.tracking_options` で[追跡の例](../examples/tracking_options.py)を実行できます。
 開始周期、初期速度範囲、両端でのモード番号の確認を指定し、違反時には `on_violation="fallback"` で再探索します。
-既定では最長周期から計算し、入力順に結果を返します。[共通API](../docs_jp/public_api.md)
+既定では最長周期から計算し、入力順に結果を返します。各設定でのモード確認については [共通公開API](../docs_jp/public_api.md) を参照してください。
 
 ## 2. 勾配モデルと収束診断
 
@@ -42,7 +42,7 @@ python -m examples.gradient_convergence
 ```
 
 [gradient_convergence.py](../examples/gradient_convergence.py) は、深度ノード間で剛性を補間する
-GRIDモデル（`kind="grid"`）を作り、Rombergの最大レベル `Options.max_steps`を変えた結果を表示します。
+GRIDモデル（`kind="grid"`）を作り、Rombergの最大レベル `Options.max_steps` を変えた結果を表示します。
 速度を補間するモデルとは異なるため、`interpolation="stiffness"` を明示しています。
 
 位相速度に加え、採用レベル、推定相対誤差、収束状態を確認します。

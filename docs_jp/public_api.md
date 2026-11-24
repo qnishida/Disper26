@@ -2,8 +2,8 @@
 
 [English edition](../docs/public_api.md)
 
-通常の順計算は Python の `disper26`、C++ の `disper26::api`、Fortran の
-`disper26_api` から利用する。三つの入口は同じC++実装に委譲する。
+通常の順計算は Python の `disper26`、C++ の `disper26::api`、C の `api_c.h`、Fortran の
+`disper26_api` から利用する。四つの入口は同じC++実装に委譲する。
 従来の `disper26py` と Fortran `disper26` は互換APIとして引き続き利用できる。
 順に実行するPythonの例は [練習例](../example_jp/README.md)、
 `disper26py` による検算・詳細診断は [低水準API利用ガイド](lowlevel_api.md) を参照。
@@ -13,7 +13,7 @@
 未検証の追加 traction ジャンプを導入する `gravity_seabed_scale` は削除した。
 低水準 Python の `create_fluid_parameters` の `seabed_scale` 引数も削除したため、
 旧呼び出しでは該当キーワードまたは第6位置引数を除く。
-`Material` の同名キーワード・第10位置引数、物性への同名フィールド設定も除く。
+`Material` の `gravity_seabed_scale` キーワード・第10位置引数、物性への同名フィールド設定も除く。
 海底では法線変位と Lagrangian 法線 traction の連続条件を使用する。
 旧値がゼロの計算の数値動作は維持し、非ゼロ値の追加ジャンプは提供しない。
 
@@ -68,6 +68,20 @@ GRIDは `interpolation="stiffness"` または `"velocity"` が必須。同じノ
 推定誤差を確認できる。`mode` は各周期の
 位相速度順の番号であり、固有関数によるモード同一性の追跡ではない。
 
+### 数値計算のオプション
+
+| オプション | 既定値 | 用途 |
+|---|---|---|
+| `max_steps` / `tolerance` | 5 / 1e-10 | GRID の分散・曲線・周波数曲率の細分化 |
+| `max_levels` / `derivative_tolerance` | 5 / 1e-6 | GRID 微分の細分化と、対応する演算での外挿 |
+| `root_tolerance` | 1e-12 | 個々のメッシュでの根探索 |
+| `num_sub_layers` | 10 | この設定を取る演算の層内分割数 |
+| `backend` | `"dual"` | 変分 AD Hessian では `"vector"`、`"vector_dyn"` も選べる |
+| `integration` | `"auto"` | 自動・解析・台形積分 |
+
+Layer-cake Love 波の Hessian で `integration="trapezoidal"` を指定すると
+`num_sub_layers` を使う。以前の台形積分結果を再現するには 200 を明示する。
+
 ### モード選択と追跡
 
 分散計算の `Options.method` は次の方式を選べる。既定は `standard` のまま。
@@ -83,7 +97,7 @@ GRIDは `interpolation="stiffness"` または `"velocity"` が必須。同じノ
 定期的な確認や最終点の自動確認は行わず、初期・復帰探索ではカウンタを複数回使う場合がある。
 両追跡方式の `verify_mode=True` は全点確認に切り替える。
 `None` / `False` は表の方式を使う（recoverの初期・復帰確認は無効化しない）。
-`mode_order` で `verify_mode=False` は拒否する。`level_mode_verified` は実際に
+`standard` と `mode_order` は `verify_mode=False` を拒否する。`verify="every"` などの方針を指定するときは `verify_mode` を省略する。`level_mode_verified` は実際に
 確認した根だけtrueとなる。端点の確認だけでは途中のbranch jumpを排除できない。
 
 `predictor="history"` は同じレベルの直近最大3点とレベル間情報を使う。
@@ -126,7 +140,7 @@ kernel/Hessianなど微分計算が要求する保存根の番号確認は従来
 条件に応じて履歴や粗いレベルの情報へ切り替える。
 `"group_velocity"` はAD評価を許可し、出力にUを要求した場合はその評価を共用する。
 未要求の公開群速度は引き続きNone。局所追跡に失敗した場合、`continuation` は
-予測速度の±20%内の根を探索して最も近いものを選び、根がなければ例外を返す。
+予測速度の±20%内の根を探索して最も近いものを選ぶ。既定の追跡設定で根がなければ `root_not_found` を返す。
 `continuation_recover` と全点確認の方式はモード順探索へ戻り、失敗したら例外を返す。
 
 全方式で `solution.mode` は入力した要求番号であり、検出した実際の番号へ自動更新しない。
@@ -138,7 +152,7 @@ kernel/Hessianなど微分計算が要求する保存根の番号確認は従来
 `fallback_count`、`mode_count_evaluations` で経路を確認できる。
 `predictor_ad_evaluations` はautoの開始時および明示的な群速度予測のAD評価数
 （予測用評価を出力Uと共用する分を含む）であり、群速度出力の全AD評価数ではない。
-未確認解から感度・Hessian・周波数曲率を求める前には保存済みの各レベル根を再確認する。
+未確認解から固有関数・エネルギー積分・重力補正・感度・Hessian・周波数曲率を求める前には保存済みの各レベル根を再確認する。
 不一致の場合、PythonとC++ではコード `mode_mismatch` の例外が発生する。
 成功した確認は内部で共有し、公開の元の解・診断は変更せず、派生結果に確認状態を返す。
 
@@ -194,10 +208,13 @@ curve = d26.compute_dispersion_curve(model, periods=[2., 5., 10., 20.], options=
 要求した群速度・H/Vも欠損値となり、未要求量やLoveのH/Vは従来どおりNoneとなる。
 欠損を予測履歴へ入れず、欠損区間を越える追跡は初期化し直す。
 `strict=True` はこれらをエラーにする。入力不正や未対応条件は常にエラーとなる。
-欠損解のモード数・感度・ヘシアンなどの派生計算は エラーコード `missing_solution` で失敗する。
-
+モード数や派生量を欠損解から求めると `missing_solution` となる。
+感度や固有関数、エネルギー積分、重力補正などの派生計算では、
+保存した根のモード番号が要求と異なる場合は `mode_mismatch` となる。
 
 ### モデル配列
+
+GRID の正のノード間隔は 1e-12 km 以上とする。深さの等しい2ノードは不連続面を表す。
 
 `create_model` は両モデルで深度と物性の配列を受け取る。`kind` は必須で自動判定しない。
 LayerCakeの深度は層の上端で、物性は次の深度まで一定、最終点から下は半無限媒質となる。
@@ -248,24 +265,24 @@ Q 補正後も保持され、C++・C・Fortran でも同じ規則を使う。計
 
 ### 符号付きRayleigh楕円率
 
-`hv_ratio` は符号付きの比 ε = y3/y1 で、`d_HV` と `hv_ratio` の勾配はその微分です。
-従来の振幅比から意味が変わりました。C・Fortranと旧名を含め、同じ規約を使います。
+`hv_ratio` は符号付きの比 ε = y3/y1 で、`d_HV` と `hv_ratio` の勾配はその微分である。
+従来の振幅比から意味が変わった。C・Fortranと旧名を含め、同じ規約を使う。
 zを上向き、波の位相を exp(i(kx−ωt)) とすると、固有関数配列 `uz` と `ur` は
-それぞれ y1 と y3 を格納し、水平変位の複素振幅は i·y3 です。
-正のx方向に伝播するとき、ε < 0 は逆行、ε > 0 は順行を表します。
+それぞれ y1 と y3 を格納し、水平変位の複素振幅は i·y3 である。
+正のx方向に伝播するとき、ε < 0 は逆行、ε > 0 は順行を表す。
 
-Layer-cakeとGRIDでは、固体自由表面、または海底の固体側で評価します。
-せん断応力ゼロの条件から、固体側の小行列式を用いて ε = −Y12/Y14 と表せます。
-従来の海底振幅には自由表面の法線応力条件が使われていました。
-GRIDでは値と勾配を符号付きで外挿します。一定物性の区間を一様に摂動した場合の層感度は、
-その区間の両端ノードの感度を足して比較できます。
+Layer-cakeとGRIDでは、固体自由表面、または海底の固体側で評価する。
+せん断応力ゼロの条件から、固体側の小行列式を用いて ε = −Y12/Y14 と表せる。
+従来の海底振幅には自由表面の法線応力条件が使われていた。
+GRIDでは値と勾配を符号付きで外挿する。一定物性の区間を一様に摂動した場合の層感度は、
+その区間の両端ノードの感度を足して比較できる。
 
-振幅比 E = |ε| の微分は、ε ≠ 0 では sign(ε)·dε/dp です。
-水平変位がゼロを横切るときは |ε + 勾配 · Δp| から振幅を予測できます。
-滑らかなゼロ交差では符号付き比を微分できますが、振幅の微分と正規化感度
-(p/ε)·dε/dp は特異になります。鉛直変位がゼロの点は比の極で、値と感度は未定義です。 共通APIで要求した分散値が非有限なら `numerical_failure` になります。
+振幅比 E = |ε| の微分は、ε ≠ 0 では sign(ε)·dε/dp である。
+水平変位がゼロを横切るときは |ε + 勾配 · Δp| から振幅を予測できる。
+滑らかなゼロ交差では符号付き比を微分できるが、振幅の微分と正規化感度
+(p/ε)·dε/dp は特異になる。鉛直変位がゼロの点は比の極で、値と感度は未定義である。共通APIで要求した分散値が非有限なら `numerical_failure` になる。
 
-Cowling重力を含むモデルの物性・界面微分は共通APIの対応範囲外です。
+Love 波の H/V は未定義であり、要求していない値には既存の出力規約が適用される。
 
 ## 微分の座標系と対応範囲
 
@@ -279,17 +296,17 @@ Cowling重力を含むモデルの物性・界面微分は共通APIの対応範�
 | `velocity_vti` | rho, vph, vpv, vsh, vsv, eta |
 | `log_velocity_vti` | 上記6量の自然対数（能動座標は正値に限定） |
 
-両方の `_iso` 基底は等方な基準媒質に対して等方性を保つ摂動を扱います。
-`stiffness_iso` の独立な弾性定数はラメ定数（GPa）です。密度微分では両ラメ定数を固定し、
-`velocity_iso` の密度微分では両波速度を固定します。同じ等方解に対し、
+両方の `_iso` 基底は等方な基準媒質に対して等方性を保つ摂動を扱う。
+`stiffness_iso` の独立な弾性定数はラメ定数（GPa）である。密度微分では両ラメ定数を固定し、
+`velocity_iso` の密度微分では両波速度を固定する。同じ等方解に対し、
 `compute_kernels(solution, basis="velocity_iso")` は Vs と Vp を、
-`basis="velocity_vti"` は水平・鉛直方向の速度を独立に摂動します。
-`isotropic` と `stiffness` もそれぞれ `velocity_iso` と `stiffness_vti` の別名として使えます。
-結果の基底名には指定時の表記を返します。
+`basis="velocity_vti"` は水平・鉛直方向の速度を独立に摂動する。
+`isotropic` と `stiffness` もそれぞれ `velocity_iso` と `stiffness_vti` の別名として使える。
+結果の基底名には指定時の表記を返す。
 
-A = 2L で VTI 速度座標を選ぶには、eta を含む VTI 速度配列を与えます。
-等方速度配列では eta = 1 です。この点では剛性だけから eta を復元できません。
-速度補間 GRID の独立な VTI 剛性感度には、速度への逆変換が一意に定まることが必要です。
+A = 2L で VTI 速度座標を選ぶには、eta を含む VTI 速度配列を与える。
+等方速度配列では eta = 1 である。この点では剛性だけから eta を復元できない。
+速度補間 GRID の独立な VTI 剛性感度には、速度への逆変換が一意に定まることが必要である。
 
 半無限層は `entity="halfspace"` で区別する。速度・対数座標のHessianには
 `Jᵀ H J` に加え、物性写像の2階微分と勾配の項も含める。
@@ -301,20 +318,20 @@ A = 2L で VTI 速度座標を選ぶには、eta を含む VTI 速度配列を�
 | 分散、曲線、カーネル | Layer-cake、剛性GRID、速度GRID |
 | フルHessian | Layer-cake、剛性GRID |
 | 縮約Hessian | 剛性GRID |
-| `compute_interface_kernels` | 固体のみのLayer-cakeまたはflatの剛性GRID |
+| `compute_interface_kernels` | 全層が固体のモデル（Layer-cake または flat の剛性GRID） |
 | `compute_interface_hessian_row` | 固体のみのflatの剛性GRID |
 | `compute_eigenfunctions`、`compute_energy_integrals`、`compute_frequency_curvature` | 解を保持する各モデル。GRIDの波動場と積分は採用メッシュ上の量 |
 | `compute_gravity_correction` | 非Cowling、flat LayerCakeのRayleigh。`region="fluid"/"solid"/"all"` |
 
-Rayleighの固体半無限層の上に表面流体層が連続する場合、`compute_energy_integrals` の `integration="auto"` は解析積分を選びます。低水準の点列版 `compute_energy_integrals_analytical_rayleigh` は固体専用です。
+Rayleighの固体半無限層の上に表面流体層が連続する場合、`compute_energy_integrals` の `integration="auto"` は解析積分を選ぶ。低水準の点列版 `compute_energy_integrals_analytical_rayleigh` は固体専用である。
 
 GRIDの周波数曲率は固有のRomberg停止条件を使うため、戻り値の位相速度が元の
 解と異なる場合がある。固有関数・積分の採用メッシュ上の値とは区別する。
 
 流体を含むLoveのモード探索は対象外。実際のモデルについて
-`get_capabilities(model, wave=...)` が対応可否と理由を返す。非対応の操作では、PythonとC++はコード `unsupported` の `Error` 例外を送出する。CとFortranはステータスコードで通知する。
-Cowling重力を設定したモデルの物性・界面微分は、既存AD経路が重力項を保持しない
-ため共通APIでは拒否する。通常の用途では非重力の解と別途のKg補正を使う。
+`get_capabilities(model, wave=...)` が対応可否と理由を返す。未対応の手法は `unsupported`、基底の不整合や変換の二重適用は `invalid_argument` となる。CとFortranはステータスコードで通知する。
+共通 API と低水準 API の物性・界面微分には非重力の参照モデルを使う。
+流体 Cowling の順計算は、別途求める一次重力補正の検算に使える。
 
 標準経路は `Options(method="standard")`。明示的な `ad`、`variational`、
 `variational_ad` の可否は演算ごとに異なる。GRIDの固定レベルFull ADなどの
@@ -325,7 +342,7 @@ Cowling重力を設定したモデルの物性・界面微分は、既存AD経�
 球面モデルは `Geometry("spherical_ba97")` または
 `Geometry("spherical_experimental_density", flattening_exponent=...)` で表す。
 GRIDの球面補間と、ノードを先に平坦化してからflatで補間するモデルは同一ではない。
-`earth_flattening_transformation` は新しいモデルと変換履歴を返し、二重変換を拒否する。
+`earth_flattening_transformation` は変換履歴を保持した新しい平坦モデルを返し、二重変換を拒否する。
 球面LayerCakeは明示的な平坦化が必要。
 LayerCakeの半無限層は、その上端深度で物性を平坦化した均質半無限層とする。
 
@@ -334,18 +351,18 @@ LayerCakeの半無限層は、その上端深度で物性を平坦化した均�
 再補正・別周期での利用を拒否する。周期列を計算するときは元モデルから各周期用の
 モデルを作る。
 
-`load_prem_spherical` / `load_prem_flat` はパッケージ同梱データを使用し、逆解析や
-SciPyをimportしない。海水層は地殻物性で置き換える `crust_fill` に固定し、
-打切り深度・最大間隔・平坦化指数は引数で指定できる。同梱PREMでは深さ2,891 kmまで指定でき、
+Python 専用の `load_prem_spherical` / `load_prem_flat` は同梱データを使用し、
+上部地殻を地表まで延長する。キーワード専用引数 `max_depth_km=500.0`、
+`max_spacing_km=10.0`、`density_exponent=-2.275` で深さ・間隔・密度指数を指定する。同梱PREMでは深さ2,891 kmまで指定でき、
 境界上ではマントル側の物性を半無限層に使う。それより深い指定では `ValueError` が発生する。
 
-重力補正は既存の採用済み摂動式を使う。既定は層内40分割、角周波数の相対差分幅
+補正量は `delta_c = c(g) − c(0)`、`delta_u = U(g) − U(0)` で、観測値から引く。既定は `gravity=9.80665e-3` km/s²、`region="solid"`。既定は層内40分割、角周波数の相対差分幅
 0.005で、これらの値を変える場合は対象モデルで収束を確認する。結果は元の解を
 変更せず、補正前の速度と `delta_c` / `delta_u` を別フィールドで返す。
 
 ## C++・C・Fortran
 
-C++は `#include <api.hpp>` とCMake target `disper26::api` を使用する。
+C++ は `#include "api.hpp"` を使う。`add_subdirectory` で取り込むと CMake ターゲット `disper26::api` をリンクできる。
 APIの公開ヘッダーにEigen・Python依存はない。従来の実装ライブラリ
 `disper26_lib` と同時にリンクする必要はない。
 
@@ -365,7 +382,7 @@ int main() {
 ```
 
 Cは `api_c.h` の `d26_api_*` を使用する。`d26_api_create_model` は深度列と
-「成分×点」の列優先物性行列を受け取る。`parameterization` と成分順は
+「成分×点」の列優先物性行列を受け取る。指定できる `parameterization` は次の3通りで、成分順は
 `isotropic`: Vs,Vp,Rho、`velocity_vti`: rho,vph,vpv,vsh,vsv,eta、
 `stiffness`: A,C,F,L,N,Rho。LayerCakeの補間引数はNULLとする。結果フィールドを列挙し、必要サイズを
 照会してからバッファへコピーできる。複素数は実部・虚部の別配列。エラー文字列は
@@ -374,18 +391,20 @@ Cは `api_c.h` の `d26_api_*` を使用する。`d26_api_create_model` は深�
 
 Fortranは `use disper26_api` と `disper26_fortran` targetを使用する。
 モデル・解・結果は派生型で、各演算に `status` を渡す。C++/C/Pythonの添字は0始まり、
-Fortranの配列・界面・ノード添字は1始まり、モードだけは共通で0始まり。
+Fortran の配列・曲線解・パラメータ・界面・ノードの添字は1始まりである。
+モード番号、細分化レベル、`capability.0.operation` などの生のフィールド名は全言語で0始まり。
+ハンドルやそれを成分に持つ型は代入でコピーする。allocatable 変数は領域を確保してから
+代入する。`allocate(copy, source=original)` では参照カウント用の代入手続きが呼ばれない。
 構築例は `call create_model(depths, "layer_cake", model_out, status, vs=vs, vp=vp, rho=rho)`。
 GRIDでは `interpolation="stiffness"` または `"velocity"` を追加する。
-使用例と代入・寿命の検証は `tests/test_api_fortran.f90` を参照。
+使用例と代入・寿命の検証は [Fortran の回帰テスト](../tests/test_api_fortran.f90)を参照。
 
-## 実装と互換性
+## 実装と検証
 
 `api_backend.hpp` は既存Pythonバインディングから移設した計算アダプター、
 `api_impl.hpp` と `api_related_impl.hpp` は入力検証・結果型・ディスパッチを担う。
 `api_python.hpp` と `api_c.cpp` は型変換、FortranモジュールはC ABIへの委譲のみを行う。
-既存逆解析・Plan Lは独立した用途別パッケージとして残し、既存アダプター経由で
-同じ数値実装を利用する。逆解析のパラメータ化やキャッシュ契約は変更していない。
+逆解析と長周期 Taylor サロゲートは逆解析パッケージのアダプターを介して同じ数値実装を利用する。
 Full AD Hessianの作業次元はスレッドごとに保持し、異なるモデルの並列計算で
 干渉しないようにした。数式・演算順序は従来と同じで、並列テストは直列結果との
 一致を確認する。

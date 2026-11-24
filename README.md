@@ -22,7 +22,9 @@ with Zenodo. The research comparison repository is maintained separately.
 For a Git clone, initialize the pinned autodiff dependency with
 `git submodule update --init`. Source archives use the dependency selection
 described in [installation](docs/install.md). Requirements are C++17,
-CMake 3.18+, Eigen 3.4.x and, for Python, NumPy and pybind11.
+CMake 3.18+, Eigen 3.4.x and, for Python, NumPy and pybind11 2.10+.
+On macOS the build requires GNU GCC/libstdc++ and Homebrew `eigen@3`.
+The Python distribution is `disper26py`. Import `disper26` for the shared API.
 Use Python 3.8+ in a dedicated environment; do not install into Conda base.
 The commands below use the Python interpreter from that environment. See
 [installation](docs/install.md) for environment setup and native dependencies.

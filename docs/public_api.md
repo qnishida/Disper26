@@ -2,7 +2,7 @@
 
 [Japanese edition](../docs_jp/public_api.md)
 
-Python (`disper26`), C++ (`disper26::api`) and Fortran (`disper26_api`) use
+Python (`disper26`), C++ (`disper26::api`), C (`api_c.h`) and Fortran (`disper26_api`) use
 the same C++ implementation for forward calculations. The legacy `disper26py`
 and Fortran `disper26` interfaces remain available. For runnable Python
 examples, see the [practice guide](../examples/README.md). For method-specific
@@ -14,7 +14,7 @@ The solver enforces continuity of normal displacement and Lagrangian normal
 traction at the seabed. The former `gravity_seabed_scale` option introduced
 an unverified additional traction jump. Remove the `seabed_scale` keyword
 or sixth positional argument from low-level Python `create_fluid_parameters`
-calls. Remove the corresponding keyword or tenth positional argument from
+calls. Remove the `gravity_seabed_scale` keyword or tenth positional argument from
 `Material` and any assignment to the removed field. Calculations that used
 a zero scale retain their previous numerical behavior.
 
@@ -68,9 +68,25 @@ define different models even for identical node values. A pair of nodes at
 the same depth represents the two sides of a discontinuity. The last node
 defines the half-space. The curve solver sorts and deduplicates periods
 internally and restores input order. With this GRID and the default refinement
-limit, the examples can emit `ConvergenceWarning`. Inspect each solution’s
-`diagnostics` for the accepted level and estimated error. At each period, `mode` indexes roots
+limit, the examples can emit `ConvergenceWarning`. Inspect the solution
+`diagnostics` for the accepted level and estimated error. At each period,
+`mode` indexes roots
 in phase-velocity order. This ordering does not track eigenfunction identity.
+
+### Numerical options
+
+| Option | Default | Use |
+|---|---|---|
+| `max_steps` / `tolerance` | 5 / 1e-10 | GRID phase and curve refinement, and frequency curvature |
+| `max_levels` / `derivative_tolerance` | 5 / 1e-6 | GRID derivative refinement and extrapolation where supported |
+| `root_tolerance` | 1e-12 | Root searches on individual meshes |
+| `num_sub_layers` | 10 | Within-layer sampling for operations taking this option |
+| `backend` | `"dual"` | Variational AD Hessians also support `"vector"` and `"vector_dyn"` |
+| `integration` | `"auto"` | Automatic, analytical or trapezoidal quadrature |
+
+For the layer-cake Love Hessian, `integration="trapezoidal"` uses
+`num_sub_layers`. Earlier builds used 200 regardless of the option.
+Use 200 explicitly to reproduce those trapezoidal calculations.
 
 ### Mode selection and tracking
 
@@ -85,7 +101,8 @@ unverified. By default, `continuation_recover` checks the requested mode
 during initialization and recovery, which can require multiple counts. It
 skips routine checks at intermediate points and the endpoint. For either
 tracking method, `verify_mode=True` checks every point. `None` or `False`
-selects the behavior in the table. `mode_order` rejects `verify_mode=False`.
+selects the behavior in the table. Both `standard` and `mode_order` reject `verify_mode=False`.
+Choose an explicit policy such as `verify="every"` in place of `verify_mode`.
 Only roots actually checked have `level_mode_verified=True`.
 
 `predictor="history"` uses up to three recent points at the same level and
@@ -136,8 +153,8 @@ phase-only output. It uses `dc/dω=(c/ω)(1-c/U)` for frequency changes up to
 requested U output. An unrequested public group velocity remains `None`.
 If local tracking fails, plain `continuation` searches within ±20% of the
 prediction and chooses the nearest root. Recovery and fully verified
-methods return to a mode-ordered search. A failed recovery search can raise
-an exception.
+methods return to a mode-ordered search. With default tracking controls, an
+empty unchecked search raises `root_not_found`.
 
 `solution.mode` always stores the requested index. Ordinary tracked points
 in `continuation_recover` may carry an unverified index. Only a solution
@@ -213,8 +230,10 @@ handled as missing gives `missing_reason="tracking_violation"`. Requested U
 and H/V are also missing. Unrequested quantities and Love H/V remain `None`.
 Tracking restarts after a gap and excludes missing points from the predictor
 history. Strict mode raises for missing results. Invalid input and unsupported
-conditions always raise. A mode count, kernel or Hessian requested for a
-missing solution reports the error code `missing_solution`.
+conditions always raise. Kernels, Hessians, eigenfunctions, energy integrals and gravity
+corrections check the saved solution. Missing roots report `missing_solution`,
+and a tracked root belonging to a different mode reports `mode_mismatch` during
+derived calculations. The explicit mode-count operation returns the measured index.
 
 ### Model arrays
 
@@ -224,7 +243,7 @@ layer, thicknesses are depth differences and the last depth starts the
 half-space. A single point describes a homogeneous half-space and supports
 `compute_dispersion(..., wave="Rayleigh", mode=0)`. Omit `interpolation`
 for layer-cake models. GRID needs at least two nondecreasing depths starting
-at zero, with at most two entries at a discontinuity.
+at zero, with at most two entries at a discontinuity. A positive GRID node spacing must be at least 1e-12 km.
 
 Supply exactly one complete set of material arrays: `vs/vp/rho`,
 `vph/vpv/vsh/vsv/eta/rho` or `A/C/F/L/N/rho`. Arrays must be finite,
@@ -297,9 +316,9 @@ and sensitivities are undefined. A nonfinite requested dispersion value raises
 `numerical_failure` in the shared API.
 The existing Love-wave and unrequested-output availability rules still apply.
 
-The existing high-level restriction on material/interface derivatives with
-Cowling gravity remains in force. Low-level signed-ellipticity checks do not
-validate every derivative offered by that high-level interface.
+Both shared and low-level material and interface derivatives require a
+non-gravitating reference model. Cowling propagation provides a forward check
+of the separate first-order gravity correction.
 
 ## Derivative coordinates and supported operations
 
@@ -337,7 +356,7 @@ curvature and computes directly in the reduced basis.
 | Dispersion, curves, kernels | Layer-cake, stiffness GRID, velocity GRID |
 | Full Hessian | Layer-cake, stiffness GRID |
 | Reduced Hessian | Stiffness GRID |
-| `compute_interface_kernels` | All-solid layer-cake or flat stiffness GRID |
+| `compute_interface_kernels` | All-solid models, either layer-cake or flat stiffness GRID |
 | `compute_interface_hessian_row` | All-solid flat stiffness GRID |
 | `compute_eigenfunctions`, `compute_energy_integrals`, `compute_frequency_curvature` | Models with a stored solution. GRID wavefields and integrals use the accepted mesh. |
 | `compute_gravity_correction` | Rayleigh in a flat, non-Cowling layer-cake model, with `region="fluid"`, `"solid"` or `"all"` |
@@ -347,7 +366,7 @@ For a contiguous surface fluid stack over solid material, `compute_energy_integr
 GRID frequency curvature has its own Romberg stopping criterion, so the phase
 velocity it returns may differ from that of the original solution. Love mode
 searches exclude models with fluid. `get_capabilities(model, wave=...)` reports
-support and its reasons. An unsupported operation raises an `Error` with code `unsupported` in Python and C++. C and Fortran report errors through status codes.
+support and its reasons. Unavailable methods report `unsupported`. Invalid arguments, including incompatible bases and repeated transformations, report `invalid_argument`. C and Fortran report errors through status codes.
 The shared API rejects material and interface derivatives for Cowling-gravity
 models because the AD paths omit gravity terms. The usual workflow uses a
 non-gravitating solution and a separate Kg correction.
@@ -362,7 +381,7 @@ Specify spherical geometry with `Geometry("spherical_ba97")` or
 `Geometry("spherical_experimental_density", flattening_exponent=...)`.
 Interpolating in spherical geometry and interpolating between preflattened
 nodes give different GRID models. `earth_flattening_transformation` returns a
-new model and transformation history and rejects a second application.
+new flat model carrying the transformation history and rejects a second application.
 Spherical layer-cake models require explicit flattening. The homogeneous
 half-space uses properties flattened at its top depth.
 
@@ -372,11 +391,12 @@ and reference periods. A corrected model is valid only at its target period
 and rejects another correction. For a curve, correct the original model
 independently at each period.
 
-`load_prem_spherical` and `load_prem_flat` use bundled data without importing
-inversion code or SciPy. They use `crust_fill` to replace seawater with crustal
-properties. Arguments control truncation depth, maximum spacing and flattening
-exponent. The mantle-side node at the core boundary (2,891 km in bundled PREM)
+The Python helpers `load_prem_spherical` and `load_prem_flat` extend the upper
+crust to the surface using bundled data. Their keyword-only controls include
+`max_depth_km=500.0`, `max_spacing_km=10.0` and `density_exponent=-2.275`. The mantle-side node at the core boundary (2,891 km in bundled PREM)
 can supply the halfspace. A deeper cutoff raises `ValueError`.
+
+The first-order corrections are `delta_c = c(g) − c(0)` and `delta_u = U(g) − U(0)`. Subtract them from the observations for comparison with the reference model. The defaults are `gravity=9.80665e-3` km/s² and `region="solid"`.
 
 The gravity correction uses the perturbation formula with 40 subdivisions per
 layer and a relative angular-frequency difference step of 0.005 by default.
@@ -385,7 +405,7 @@ reports the original velocities and `delta_c` and `delta_u` separately.
 
 ## C++, C and Fortran
 
-For C++, include `<api.hpp>` and link the CMake target `disper26::api`.
+For C++, include `"api.hpp"`. Projects using `add_subdirectory` can link the in-tree CMake target `disper26::api`.
 The public header has no Eigen or Python dependency. The target can be
 used independently of the legacy `disper26_lib`.
 
@@ -405,7 +425,8 @@ int main() {
 ```
 
 In C, use `d26_api_*` from `api_c.h`. `d26_api_create_model` accepts depths
-and a column-major component-by-point matrix. Component orders are Vs,Vp,Rho
+and a column-major component-by-point matrix. Its three input parameterization
+names and component orders are Vs,Vp,Rho
 for `isotropic`, rho,vph,vpv,vsh,vsv,eta for `velocity_vti` and A,C,F,L,N,Rho
 for `stiffness`. Pass NULL for layer-cake interpolation. Enumerate result
 fields and query their sizes before copying them. Complex data use separate
@@ -414,8 +435,12 @@ call, inspect diagnostics for numerical convergence.
 
 In Fortran, `use disper26_api` and link `disper26_fortran`. Models, solutions
 and results are derived types. Pass `status` to each operation. Fortran
-arrays, interfaces and nodes are one-based, whereas C++, C and Python use
-zero-based indices. Modes are zero-based everywhere. For example, call
+arrays, curve solutions, parameters, interfaces and nodes are one-based.
+Modes, refinement levels and raw field keys such as `capability.0.operation`
+are zero-based in every language. Copy Fortran handles and enclosing types by
+assignment. For an allocatable copy, allocate the destination and then assign
+to it. Sourced allocation (`allocate(copy, source=original)`) bypasses the
+handle's reference-counted assignment. For example, call
 `create_model(depths, "layer_cake", model_out, status, vs=vs, vp=vp, rho=rho)`.
 For GRID add `interpolation="stiffness"` or `"velocity"`. See
 [the Fortran API test](../tests/test_api_fortran.f90) for assignment and lifetime.
@@ -425,7 +450,7 @@ For GRID add `interpolation="stiffness"` or `"velocity"`. See
 `api_backend.hpp` contains the computational adapters formerly in the Python
 bindings. `api_impl.hpp` and `api_related_impl.hpp` validate inputs, manage
 results and dispatch operations. `api_python.hpp` and `api_c.cpp` convert types.
-Fortran delegates to the C ABI. The inversion and Plan L packages use the same
+Fortran delegates to the C ABI. The inversion and long-period Taylor surrogate modules use the same
 numerical implementation through their own adapters, parameterization and cache
 contracts. Full-AD Hessian work dimensions are thread-local. Parallel tests
 compare with serial results using the original formulas and operation order.

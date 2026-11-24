@@ -72,6 +72,18 @@ class RelatedPublicAPI(unittest.TestCase):
                         result.I3 / (result.phase_velocity * result.I1), places=13)
                     self.assertEqual(result.diagnostics.method, integration)
 
+    def test_strict_solution_and_gravity_mode_validation(self):
+        sol = dp.compute_dispersion(self.model, period=5., options=dp.Options(strict=True))
+        for operation in (dp.compute_eigenfunctions, dp.compute_gravity_correction):
+            self.assertEqual(operation(sol).diagnostics.convergence, "not_evaluated")
+        missing = dp.compute_dispersion_curve(self.model, periods=[5.], mode=99).solutions[0]
+        unchecked = dp.compute_dispersion(self.model, period=5., mode=1,
+            options=dp.Options(method="continuation", c_guess=sol.phase_velocity, verify_mode=False))
+        for invalid, code in ((missing, "missing_solution"), (unchecked, "mode_mismatch")):
+            with self.assertRaises(dp.Error) as raised:
+                dp.compute_gravity_correction(invalid)
+            self.assertEqual(raised.exception.code, code)
+
     def test_fluid_energy_uses_analytical_and_keeps_fluid_flags(self):
         solution = dp.compute_dispersion(self.ocean, period=5.)
         result = dp.compute_eigenfunctions(solution)
@@ -208,6 +220,27 @@ class RelatedPublicAPI(unittest.TestCase):
         with self.assertRaises(dp.Error):
             dp.apply_mineos_physical_dispersion(self.model, [600.], [300.],
                 reference_period=1., period=5.)
+
+    def test_q_correction_rejects_unrepresentable_velocity_grid(self):
+        # Choose Qk so corrected A equals 2L while F remains nonzero.
+        node = dp.Material(1., 2.25, 4., .25, 1., 1.)
+        mu = (node.A + node.C - 2*node.F + 5*node.N + 6*node.L) / 15
+        lam = (4*(node.A + node.F - node.N) + node.C) / 9 - 2*mu/3
+        ratio = 4*mu / (3*(lam + 2*mu))
+        factor = raw.mineos_physical_dispersion_factor(1., 2.)
+        q = factor*(1 - ratio) / (2*node.L/node.A - 1)
+        for kind in ("stiffness", "velocity"):
+            model = dp.create_grid_model([0., 20.], [node, node], interpolation=kind)
+            if kind == "stiffness":
+                result = dp.apply_mineos_physical_dispersion(model, [q, q], [0., 0.],
+                    reference_period=1., period=2.).materials[0]
+                self.assertEqual(result.A, 2*result.L)
+                self.assertNotEqual(result.F, 0.)
+            else:
+                with self.assertRaises(dp.Error) as raised:
+                    dp.apply_mineos_physical_dispersion(model, [q, q], [0., 0.],
+                        reference_period=1., period=2.)
+                self.assertEqual(raised.exception.code, "invalid_argument")
 
     def test_capabilities_distinguish_ad_and_variational_model_constraints(self):
         def capabilities(model):

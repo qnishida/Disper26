@@ -196,7 +196,7 @@ class LongPeriodTaylorCurve:
         ):
             raise ValueError("normalized squared slowness is a Love-only response")
         root = int(self.root_order)
-        if root != self.root_order or root not in (0, 1):
+        if isinstance(self.root_order, (bool, np.bool_)) or root != self.root_order or root not in (0, 1):
             raise ValueError("long-period Taylor stores root orders 0 and 1 only")
         frequency = np.asarray(self.frequency_hz, dtype=float)
         expected_frequency = np.asarray(PRIMARY_FREQUENCY_HZ, dtype=float)
