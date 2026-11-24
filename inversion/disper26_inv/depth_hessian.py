@@ -1,12 +1,10 @@
 """Backend interface for interface-depth derivatives.
 
-The inversion coordinates contain velocity parameters and, optionally, one
-duplicated-interface shift in km.  The GRID binding already returns the
-first derivative with respect to that shift as a ``Depth`` kernel.  This
-module keeps the depth-Hessian implementation separate from the inversion
-objective: the current backend differentiates the AD velocity gradient by a
-central finite difference, while a future directional second-order AD
-backend can implement the same small interface.
+The inversion basis can include one interface shift in km. Both coincident
+nodes move together, with their material values fixed in the model's input
+coordinates. Flat GRID uses the variational boundary kernel and its AD
+derivative. Spherical stiffness GRID uses AD through interpolation and EFT
+to obtain the gradient and Hessian row in physical depth.
 """
 
 from __future__ import annotations
@@ -226,7 +224,10 @@ class FdDepthHessianBackend(DepthHessianBackend):
 
 def _flat_interface_inputs(model):
     if model.refinement_policy.kind != "flat":
-        raise ValueError("Interface depth derivatives require a flat model; use load_prem_flat")
+        raise ValueError(
+            "Variational interface depth derivatives require a flat model. Use the default "
+            "spherical AD backend for spherical depths, or load_prem_flat for flat depths."
+        )
     return model.to_params()
 
 
@@ -294,11 +295,6 @@ class AdDepthHessianBackend(DepthHessianBackend):
     def interface_hessian_row(
         self, model: ForwardGridModel, datum, c: float, solution=None
     ) -> DepthHessianColumn:
-        import disper26py as dp
-
-        from .derivatives import STIFF_ORDER
-
-        depths, params, is_disc = _flat_interface_inputs(model)
         try:
             if solution is None:
                 # Standalone use: obtain provenance for this exact datum. Do
@@ -306,42 +302,7 @@ class AdDepthHessianBackend(DepthHessianBackend):
                 solution = self.engine.phase_velocity(
                     model, datum, c_hint=float(c)
                 )
-            level = int(solution.level)
-            c = float(solution.c)
-            romberg_roots = solution.romberg_roots
-
-            # The nested-AD row is evaluated on one refinement mesh, so its
-            # outer root seed must be dc_k/dz on that same mesh rather than
-            # the extrapolated dc/dz returned by phase_velocity_with_kernels.
-            level_result = dp.compute_kernels_ad_grid(
-                depths,
-                params,
-                is_disc,
-                datum.period,
-                datum.wave,
-                float(c),
-                self.sensitivity_mode,
-                max_steps=int(level),
-                tolerance=self.engine.tolerance,
-                compute_c=True,
-                want_kernel_u=False,
-                want_kernel_hv=False,
-                u_kernel_mode="variational",
-                kernel_extrapolation=False,
-                phase_velocity_roots=romberg_roots,
-                phase_accepted_level=int(level),
-                **model.refinement_kwargs(),
-            )
-            dc_dz = float(kernels_to_depth_gradient(
-                level_result[5], self.pair_start
-            ))
-            _, d2 = dp.compute_interface_hessian_row_ad_grid(
-                depths, params, is_disc, datum.period, datum.wave,
-                float(c), dc_dz, self.discontinuity_index,
-                int(level), self.sensitivity_mode,
-                phase_velocity_roots=romberg_roots,
-                phase_accepted_level=int(level),
-            )
+            d2 = self._raw_column(model, datum, solution)
         except Exception as exc:
             return DepthHessianColumn(
                 column=None, step_km=0.0, plus_success=False, minus_success=False,
@@ -362,6 +323,49 @@ class AdDepthHessianBackend(DepthHessianBackend):
             method="ad",
             plus_error=None if ok else "non-finite analytic depth column",
         )
+
+    def _raw_column(self, model, datum, solution):
+        import disper26py as dp
+
+        depths, params, is_disc = model.to_params()
+        level = int(solution.level)
+        c = float(solution.c)
+        romberg_roots = solution.romberg_roots
+
+        # The nested-AD row is evaluated on one refinement mesh, so its
+        # outer root seed must be dc_k/dz on that same mesh rather than
+        # the extrapolated dc/dz returned by phase_velocity_with_kernels.
+        level_result = dp.compute_kernels_ad_grid(
+            depths,
+            params,
+            is_disc,
+            datum.period,
+            datum.wave,
+            float(c),
+            self.sensitivity_mode,
+            max_steps=int(level),
+            tolerance=self.engine.tolerance,
+            compute_c=True,
+            want_kernel_u=False,
+            want_kernel_hv=False,
+            u_kernel_mode="variational",
+            kernel_extrapolation=False,
+            phase_velocity_roots=romberg_roots,
+            phase_accepted_level=int(level),
+            **model.refinement_kwargs(),
+        )
+        dc_dz = float(kernels_to_depth_gradient(
+            level_result[5], self.pair_start
+        ))
+        _, d2 = dp.compute_interface_hessian_row_ad_grid(
+            depths, params, is_disc, datum.period, datum.wave,
+            float(c), dc_dz, self.discontinuity_index,
+            int(level), self.sensitivity_mode,
+            phase_velocity_roots=romberg_roots,
+            phase_accepted_level=int(level),
+            **model.refinement_kwargs(),
+        )
+        return d2
 
     def _project_column(self, model: ForwardGridModel, d2: np.ndarray) -> np.ndarray:
         """Raw node-variable column -> inversion coordinates.
@@ -500,6 +504,26 @@ class VariationalAdDepthHessianBackend(AdDepthHessianBackend):
         )
 
 
+class SphericalAdDepthHessianBackend(AdDepthHessianBackend):
+    """Extrapolate the secular AD derivatives in physical spherical coordinates."""
+
+    def _evaluate(self, model, datum, c, level, roots, row):
+        import disper26py as dp
+
+        return dp._compute_spherical_interface_ad_grid(
+            *model.to_params(), datum.period, datum.wave, float(c), int(level),
+            roots, int(level), row, **model.refinement_kwargs()
+        )
+
+    def depth_gradient(self, model, datum, c, level, phase_velocity_roots):
+        gradient = self._evaluate(model, datum, c, level, phase_velocity_roots, None)
+        return float(gradient[self.discontinuity_index])
+
+    def _raw_column(self, model, datum, solution):
+        return self._evaluate(model, datum, solution.c, solution.level,
+                              solution.romberg_roots, self.discontinuity_index)
+
+
 def depth_backend_config(
     basis,
     step_km: float = 0.05,
@@ -530,6 +554,7 @@ def depth_backend_config(
             f"pair_start {basis.pair_start} is not a discontinuity of the reference model"
         ) from exc
     return {
+        **({"backend": "spherical_ad"} if basis.reference.refinement_policy.kind != "flat" else {}),
         "pair_start": int(basis.pair_start),
         "depth_parameter_index": depth_index,
         "discontinuity_index": discontinuity_index,
@@ -542,7 +567,7 @@ def depth_backend_config(
     }
 
 
-# Selects the implementation used by make_depth_backend.  Both satisfy the same
+# Selects the implementation used by make_depth_backend. The backends share the
 # DepthHessianBackend contract, so LM / phase 4 / GMM are unaffected either way,
 # and `make_depth_backend(..., backend="fd")` reverts.
 #
@@ -556,14 +581,15 @@ def depth_backend_config(
 # faster end-to-end at equivalent accuracy in the 2026-08-06 study. Those
 # diagnostics and reports are retained in the research archive.
 #
-# `variational_ad` supersedes `ad` as the default: same quantity, one AD
-# level instead of two, and the only depth column that is Romberg-extrapolated
-# like the rest of H (historical 2026-08-07 accuracy study).  `ad` is
-# kept because it is an independent derivation -- secular function vs energy
-# functional -- and is what the accuracy regressions check against.
+# Flat GRID defaults to `variational_ad`, which differentiates the boundary
+# kernel once and extrapolates. The fixed-level `ad` backend differentiates
+# the dispersion equation and provides an independent check. A spherical
+# basis selects `spherical_ad`, which differentiates through EFT at each
+# refinement level before extrapolation.
 DEPTH_HESSIAN_BACKENDS = {
     "fd": FdDepthHessianBackend,
     "ad": AdDepthHessianBackend,
+    "spherical_ad": SphericalAdDepthHessianBackend,
     "variational_ad": VariationalAdDepthHessianBackend,
 }
 DEFAULT_DEPTH_HESSIAN_BACKEND = "variational_ad"

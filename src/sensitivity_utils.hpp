@@ -6223,7 +6223,7 @@ void compute_grid_level_kernels(
     bool compute_hv, bool compute_u, bool u_variational,
     int num_vars,
     Eigen::VectorXd& dc_out, Eigen::VectorXd& dU_out, Eigen::VectorXd& dHV_out,
-    bool polish_root = true
+    bool polish_root = true, bool active_spherical_depth = false
 ) {
     const double c_root = polish_root
         ? polish_grid_kernel_root(
@@ -6246,7 +6246,7 @@ void compute_grid_level_kernels(
         std::vector<double> gauge;
         calculateDispersionFunction(
             layers_dbl, thicknesses_dbl, halfspace_dbl, omega, c_root, type,
-            NormalizationMode::Vertical,
+            active_spherical_depth ? NormalizationMode::VectorNorm : NormalizationMode::Vertical,
             static_cast<Eigen::Matrix<double, 5, 1>*>(nullptr), &gauge);
 
         Eigen::Matrix<ADS, 5, 1> seabedState_ad; seabedState_ad.setZero();
@@ -6264,6 +6264,8 @@ void compute_grid_level_kernels(
         if (finite_secular) {
             dc_out = -dF_dp / dF_dc;
         } else {
+            if (active_spherical_depth)
+                throw std::runtime_error("Non-finite Love secular derivative for spherical interface depth");
             Eigen::VectorXd g_physical;
             try {
                 g_physical = computeVariationalGradientLove_T<double>(
@@ -6297,7 +6299,7 @@ void compute_grid_level_kernels(
         std::vector<double> gauge;
         calculateDispersionFunction(
             layers_dbl, thicknesses_dbl, halfspace_dbl, omega, c_root, type,
-            NormalizationMode::Vertical,
+            active_spherical_depth ? NormalizationMode::VectorNorm : NormalizationMode::Vertical,
             static_cast<Eigen::Matrix<double, 5, 1>*>(nullptr), &gauge);
 
         Eigen::Matrix<ADS, 5, 1> seabedState_ad; seabedState_ad.setZero();

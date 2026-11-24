@@ -66,7 +66,10 @@ print(curve.periods)  # Preserves the input order and repeated periods.
 GRID requires `interpolation="stiffness"` or `"velocity"`. These choices
 define different models even for identical node values. A pair of nodes at
 the same depth represents the two sides of a discontinuity. The last node
-defines the half-space. The curve solver sorts and deduplicates periods
+defines the half-space. For the depth used in interpolation and inversion,
+see [choosing depth coordinates for a stiffness GRID](#grid-depth-coordinates).
+
+The curve solver sorts and deduplicates periods
 internally and restores input order. With this GRID and the default refinement
 limit, the examples can emit `ConvergenceWarning`. Inspect the solution
 `diagnostics` for the accepted level and estimated error. At each period,
@@ -354,12 +357,21 @@ curvature and computes directly in the reduced basis.
 | Operation | Models |
 |---|---|
 | Dispersion, curves, kernels | Layer-cake, stiffness GRID, velocity GRID |
-| Full Hessian | Layer-cake, stiffness GRID |
-| Reduced Hessian | Stiffness GRID |
-| `compute_interface_kernels` | All-solid models, either layer-cake or flat stiffness GRID |
-| `compute_interface_hessian_row` | All-solid flat stiffness GRID |
+| Full material Hessian | Layer-cake, stiffness GRID |
+| Reduced material Hessian | Stiffness GRID |
+| `compute_interface_kernels` | All-solid flat layer-cake or all-solid stiffness GRID (flat or spherical) |
+| `compute_interface_hessian_row` | All-solid stiffness GRID (flat or spherical) |
 | `compute_eigenfunctions`, `compute_energy_integrals`, `compute_frequency_curvature` | Models with a stored solution. GRID wavefields and integrals use the accepted mesh. |
 | `compute_gravity_correction` | Rayleigh in a flat, non-Cowling layer-cake model, with `region="fluid"`, `"solid"` or `"all"` |
+
+Moving a stiffness GRID interface shifts both coincident nodes together, holding
+each node's **material values in the input coordinates** fixed.
+`compute_interface_kernels` returns the phase-velocity gradient with respect to
+each interface depth. The columns of `compute_interface_hessian_row` correspond
+to the requested node-material coordinates followed by every interface depth.
+Flat GRID defaults to `variational` for the gradient and `variational_ad` for
+the Hessian row. Both spherical policies default to `ad` for both operations.
+See [choosing depth coordinates for a stiffness GRID](#grid-depth-coordinates).
 
 For a contiguous surface fluid stack over solid material, `compute_energy_integrals` with Rayleigh `integration="auto"` uses analytical integrals. The low-level point-based `compute_energy_integrals_analytical_rayleigh` accepts solid models only.
 
@@ -377,13 +389,55 @@ API for checks such as fixed-level full AD on a GRID.
 
 ## Transformations and PREM
 
-Specify spherical geometry with `Geometry("spherical_ba97")` or
-`Geometry("spherical_experimental_density", flattening_exponent=...)`.
-Interpolating in spherical geometry and interpolating between preflattened
-nodes give different GRID models. `earth_flattening_transformation` returns a
-new flat model carrying the transformation history and rejects a second application.
-Spherical layer-cake models require explicit flattening. The homogeneous
-half-space uses properties flattened at its top depth.
+<a id="grid-depth-coordinates"></a>
+
+### Choosing depth coordinates for a stiffness GRID
+
+Choose the depth in which you assume piecewise-linear stiffness and density and in which you intend to move an interface.
+Write $d$ for physical depth below the spherical surface and $z$ for flattened depth. Both are in km, positive downward. The planet radius is $R$.
+
+| Intended use | Model input | Coordinates for forward modelling and inversion |
+|---|---|---|
+| Work entirely in flat coordinates | Supply flat nodes. `Geometry("flat")` is the default. | Stiffness and density are piecewise linear in $z$. The interface gradient is $\partial c/\partial z$. |
+| Work entirely in spherical model coordinates, with internal Earth flattening (EFT) | Supply spherical nodes with `Geometry("spherical_ba97")` or `Geometry("spherical_experimental_density", flattening_exponent=...)`. | Stiffness and density are piecewise linear in $d$. MCMC proposals, the interface gradient $\partial c/\partial d$ and the Hessian use spherical model variables. |
+| Compute in flat coordinates and use spherical coordinates for input and reporting | Apply `earth_flattening_transformation` once to the spherical reference nodes and use the returned flat model. | As in the first row, proposals, gradients and Hessians use flat variables. Convert inferred nodes or individual posterior samples back to spherical coordinates for display. |
+
+For example, to predict the effect of moving an interface 1 km deeper at fixed spherical node properties, pass the spherical model directly.
+The solver subdivides each interval uniformly in $z$, maps each sublayer midpoint back to $d$, interpolates stiffness and density there and applies EFT at that radius. The half-space uses the radius at its top.
+
+Moving the interface changes sublayer thicknesses, interpolation weights and material scaling. To compute the interface gradient and Hessian row, the solver differentiates these changes and the dispersion root at each refinement level before extrapolation.
+Phase-velocity-only MCMC with direct solves evaluates the forward EFT for each proposal and skips interface derivatives.
+
+This all-solid, non-gravitating example starts from the same spherical nodes and evaluates the derivatives in each model's own depth coordinate.
+
+```python
+import disper26 as d26
+
+spherical = d26.create_grid_model(
+    [0., 18., 18., 55.], vs=[3., 3.55, 4.04, 4.55],
+    vp=[5.4, 6.3, 7.2, 8.22], rho=[2.55, 2.75, 3.05, 3.35],
+    interpolation="stiffness", geometry=d26.Geometry("spherical_ba97"),
+)
+flat = d26.earth_flattening_transformation(spherical)
+for model in (spherical, flat):
+    solution = d26.compute_dispersion(model, period=26., options=d26.Options(max_steps=8))
+    gradient = d26.compute_interface_kernels(solution)
+    row = d26.compute_interface_hessian_row(solution, interface_index=0, basis="stiffness_vti")
+    print(model.geometry.kind, solution.phase_velocity, gradient.gradient[0], row.hessian[0, -1])
+```
+
+The last column gives $\partial^2 c/\partial d^2$ and $\partial^2 c/\partial z^2$, respectively. The phase velocities in the second column are 3.865760 and 3.865075 km/s. The flat model interpolates linearly in $z$ between transformed nodes. Because $z=R\log(R/(R-d))$ is nonlinear in $d$ and material scaling depends on radius, the two models generally have different profiles between nodes.
+
+**To report a flat result in spherical coordinates**, convert each inferred depth with $d=R(1-e^{-z/R})$. To report node properties, undo the original EFT material scaling at each inferred radius $R-d$. Use the computed phase velocity $c$ directly.
+`earth_flattening_transformation` maps spherical models to flat models, records the transformation history and rejects a second application.
+
+**To express a flat model's Taylor expansion in spherical variables**, let $y=T(x)$ map spherical node depths and material values $x$ to flat values $y$.
+With $J=\partial y/\partial x$, the gradient is $g_x=J^\top g_y$ and the Hessian is $H_x=J^\top H_y J+\sum_i (g_y)_i\nabla_x^2 T_i$.
+This chain rule gives derivatives of the preflattened model. For a surrogate with linear interpolation in physical depth, compute derivatives directly from the spherical model.
+
+### Layer-cake, Q correction and PREM
+
+Flatten spherical layer-cake models explicitly before solving. The homogeneous half-space uses properties flattened at its top depth.
 
 `apply_mineos_physical_dispersion` accepts Q arrays including the half-space
 (layer count + 1 for layer-cake, node count for GRID). It stores the target
@@ -391,8 +445,9 @@ and reference periods. A corrected model is valid only at its target period
 and rejects another correction. For a curve, correct the original model
 independently at each period.
 
-The Python helpers `load_prem_spherical` and `load_prem_flat` extend the upper
-crust to the surface using bundled data. Their keyword-only controls include
+For the bundled PREM data, `load_prem_spherical` returns spherical nodes for
+internal EFT and `load_prem_flat` returns nodes flattened once for a flat solve.
+Both extend the upper crust to the surface. Their keyword-only controls include
 `max_depth_km=500.0`, `max_spacing_km=10.0` and `density_exponent=-2.275`. The mantle-side node at the core boundary (2,891 km in bundled PREM)
 can supply the halfspace. A deeper cutoff raises `ValueError`.
 

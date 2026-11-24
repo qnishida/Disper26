@@ -57,16 +57,10 @@ def _eval_datum(task):
     Branch failures are returned as {"failed": label} instead of raising, so a
     single osculation event does not abort a whole pool map; callers decide.
 
-    ``want_ad_kernels`` selects whether the AD Romberg kernel pass runs for this
-    datum. It is the expensive one -- 733 ms against about 30-77 ms for the
-    weak-form gradient plus interface K_d gradient -- and it is what produces
-    ``g_a_ad`` and, through the depth backend, ``g_inv_kernel``. Since B1
-    (pipeline.py's Jacobian moving to the weak-form + K_d route) these are no
-    longer what the Jacobian is built from; they survive as the cross-check
-    reference, present only where ``want_ad_kernels`` kept the AD pass on.
-    ``g_variational_depth`` -- the interface-depth component of the weak-form Jacobian
-    -- does not depend on this flag at all, because it needs no AD kernels in
-    the first place.
+    The optional kernel pass returns ``g_a_ad`` and, for a depth basis,
+    ``g_inv_kernel``. A flat interface supplies ``g_variational_depth`` from
+    its boundary kernel. A spherical interface supplies ``g_interface_depth``
+    from AD through EFT, reusing the depth kernel when it is available.
     """
     datum = Datum(*task[:3])
     try:
@@ -87,6 +81,7 @@ def _compute_datum(datum, c_hint, want_hessian, want_kernels, reduced_hessian,
             datum,
             c_hint=c_hint,
             minimum_trace_level=minimum_trace_level,
+            include_interface_depths=depth_backend is not None or model.refinement_policy.kind == "flat",
         )
     else:
         solution = engine.phase_velocity(
@@ -123,6 +118,13 @@ def _compute_datum(datum, c_hint, want_hessian, want_kernels, reduced_hessian,
             solution.level,
             phase_velocity_roots=solution.romberg_roots,
         )
+    elif (want_kernels or want_hessian) and hasattr(depth_backend, "depth_gradient"):
+        if kernels is None:
+            out["g_interface_depth"] = depth_backend.depth_gradient(
+                model, datum, solution.c, solution.level, solution.romberg_roots
+            )
+        else:
+            out["g_interface_depth"] = out["g_inv_kernel"][depth_backend.depth_parameter_index]
     if want_hessian:
         if reduced_hessian:
             J = _WORKER_STATE.get("J_reduced")
@@ -184,14 +186,8 @@ def map_over_data(
 
     ``ad_kernel_every`` thins the AD Romberg kernel pass: 1 (default) runs it
     for every datum as before, N runs it for every Nth, 0 skips it entirely.
-    Data it is skipped for come back without ``g_a_ad`` / ``g_inv_kernel``,
-    but with ``g_variational_depth`` (the depth backend's AD-free K_d route) regardless,
-    since that one needs nothing this flag controls. The AD pass costs 733 ms
-    against about 30-77 ms for the weak-form gradient plus K_d, so this is the
-    knob that decides how much a cross-check between the two costs. Thinning
-    keeps most of the detection: the disagreements found in 2805 saved data
-    points arrived in blocks contiguous in period, not as isolated points --
-    see docs/sensitivity_implementation_map.md.
+    Skipped data omit ``g_a_ad`` and ``g_inv_kernel``. For a depth basis the
+    default backend still returns the interface gradient for its geometry.
 
     ``reduced_hessian`` (opt-in, default off): when ``want_hessian`` and this
     are both true, the C++ side seeds ``basis``'s directions directly

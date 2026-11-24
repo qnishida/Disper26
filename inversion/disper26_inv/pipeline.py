@@ -55,7 +55,7 @@ def _config_hash(model: ForwardGridModel, basis: InversionBasis, dataset: Datase
         # The depth backend is part of the Phase-1 cache contract.  Keep the
         # production step explicit so changing it cannot reuse stale columns.
         h.update(json.dumps({
-            "depth_backend": "variational_ad",
+            "depth_backend": "variational_ad" if model.refinement_policy.kind == "flat" else "spherical_ad",
             "step_km": 0.05,
             "validation_step_km": depth_validation_step_km,
             "convergence_tolerance": 2.0e-3,
@@ -146,16 +146,12 @@ def run_phase1(
     back to the original node-space path.
 
     ``ad_kernel_every`` (default 1) controls how often the AD Romberg kernel
-    pass runs. **The Jacobian no longer comes from it.** Since the derivative
-    fix in 986b360 put the AD and weak-form dc/dp paths within 1e-08 of each
-    other, ``J`` is built from the weak-form gradient (the reduced Hessian
-    call's ``gradient_node``) plus, where a depth column is configured, the
-    variational K_d interface gradient (``VariationalAdDepthHessianBackend.
-    depth_gradient_variational``, needs no AD at all). AD now exists only to
-    populate ``consistency``: 1 runs it on every datum (full cross-check,
-    matching behaviour before this change numerically to ~1e-08), N thins it
-    to every Nth, 0 skips it entirely. ``consistency`` is NaN where AD was not
-    run for a datum -- an unmeasured check must not read as a passing one.
+    pass runs as an independent check on the material Jacobian. Production
+    uses the weak-form material gradient and, when requested, the physical
+    interface gradient: the variational boundary kernel for flat GRID and
+    secular AD through EFT for spherical GRID. A positive interval N runs
+    the kernel check every Nth datum. Zero skips it and leaves the
+    corresponding entries of ``consistency`` as NaN.
 
     The default stays 1 deliberately: the AD pass remains the intended safety
     net while confidence in the switch builds, not something turned off by
@@ -167,9 +163,7 @@ def run_phase1(
     contiguous in period, never as isolated points, so thinning keeps most of
     the detection.
 
-    If a depth column is configured with a backend that lacks
-    ``depth_gradient_variational`` (only the default 'variational_ad' backend has
-    it; 'fd' and the plain nested-AD backend do not), the depth
+    If a depth backend has no separate gradient evaluator, the depth
     component falls back to the AD kernel's ``Depth`` entry, and thinning that
     away leaves it undefined -- ``RuntimeError`` rather than a silently wrong
     Jacobian row.
@@ -219,33 +213,26 @@ def run_phase1(
         c0[i] = res["c"]
         rel_err[i] = res["rel_err"]
         asymmetry[i] = res["asymmetry_rel"]
-        # Production Jacobian: velocity components from the weak-form gradient
-        # (the reduced Hessian call's gradient_node, computed unconditionally
-        # below), depth component from the variational K_d route when the
-        # depth backend supports it. AD supplies only the cross-check, in
-        # "g_a_ad"/"g_inv_kernel", present when ad_kernel_every kept the
-        # AD pass on for this datum.
+        # Project the variational material gradient. For a moving interface,
+        # use the depth derivative in the model's coordinates. Spherical GRID
+        # reuses the AD depth entry when the material kernel check ran.
         G_hess = gradient_log(model0, res["g_a_variational"])
         J[i] = project_gradient(G_hess, basis, model=model0)
         if depth_config is not None:
-            if "g_variational_depth" in res:
+            if "g_interface_depth" in res:
+                J[i][basis.depth_parameter_index] = res["g_interface_depth"]
+            elif "g_variational_depth" in res:
                 J[i][basis.depth_parameter_index] = res["g_variational_depth"]
             elif "g_inv_kernel" in res:
-                # The configured depth backend has no depth_gradient_variational
-                # route (only the default 'variational_ad' backend does), so the
-                # depth component still needs the AD pass. Fine as long as it
-                # ran for this datum.
+                # Backends without a standalone gradient use the retained kernel.
                 J[i][basis.depth_parameter_index] = res["g_inv_kernel"][
                     basis.depth_parameter_index]
             else:
                 raise RuntimeError(
                     f"{dataset.data[i].label()}: no depth-gradient source -- "
                     "ad_kernel_every thinned the AD pass and the configured "
-                    "depth Hessian backend has no depth_gradient_variational "
-                    "route (finite_difference and the plain analytic backend "
-                    "do not; the default 'variational_ad' backend does). Use "
-                    "ad_kernel_every=1, or the 'variational_ad' depth backend, "
-                    "or both."
+                    "depth Hessian backend has no standalone gradient. Use "
+                    "ad_kernel_every=1 or the default backend for this geometry."
                 )
         if "g_a_ad" in res:
             G_kernel = gradient_log(model0, res["g_a_ad"])

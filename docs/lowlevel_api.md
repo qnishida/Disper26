@@ -344,8 +344,8 @@ the seabed as a repeated-depth discontinuity.
 
 Layer-cake $K_d$ is a kernel for each boundary. For a geometry parameter $q$,
 $dc/dq=\sum_b [K_d]_b\,dz_b/dq$. Changing layer thickness can move several
-boundaries. Moving a single interface contributes only its own term. The GRID
-interface API assembles depth derivatives for the selected discontinuity.
+boundaries. Moving a single interface contributes only its own term. The
+following GRID example uses flat depths and the variational boundary kernel.
 
 ```python
 # Layer-cake interface kernels Kd
@@ -404,11 +404,19 @@ The layer-cake flattening function transforms only the finite layers passed
 to it. The half-space requires separate treatment to complete the flat model.
 The GRID transformation includes the deepest node.
 
-Preflattening GRID nodes and interpolating with `grid_policy="flat"` describes
-a different model from supplying spherical nodes and interpolating and
-transforming at each subdivision with `grid_policy="spherical_ba97"`. Supply
-original spherical nodes for the latter. See the
-[implementation map](sensitivity_implementation_map.md).
+The GRID transformation above produces flat nodes for `grid_policy="flat"`.
+To interpolate in physical depth, pass the original nodes to the forward and
+derivative calls with the same `grid_policy="spherical_ba97"` or
+`"spherical_experimental_density"`. See [choosing depth coordinates for a stiffness GRID](public_api.md#grid-depth-coordinates).
+
+`compute_kernels_ad_grid` includes one `Depth` entry per interface. In an
+all-solid spherical stiffness GRID it carries the physical-depth derivatives
+of the requested phase velocity, group velocity and Rayleigh H/V.
+Pass `include_interface_depths=False` for material entries alone.
+Spherical interface derivatives in models containing fluid are unsupported.
+The fixed-level `compute_interface_hessian_row_ad_grid` accepts the same
+`grid_policy`, `planet_radius` and `flattening_exponent` as the forward
+calculation and takes that level's `dc_dz` as its outer root seed.
 
 Q correction also applies only to the supplied list. Apply
 `apply_mineos_physical_dispersion` separately to the half-space, and match

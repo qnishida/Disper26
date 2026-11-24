@@ -848,7 +848,7 @@ DerivativeResult compute_kernels(const ModeSolution& s,const std::string& basis,
         if(d.interpolation=="stiffness") {
             auto k=py_computeDispersionRombergWithKernels(d.depths,detail::unpack(d.materials),d.discontinuities,s.period(),s.wave(),s.phase_velocity(),"VTI",
                 s.options().max_steps,s.options().tolerance,cc,cu,ch,!cu&&!ch,cu||ch,cu||ch,true,0,
-                o.method=="ad"?"full_ad":"variational_frequency_ad",true,d.geometry.kind,d.geometry.planet_radius,d.geometry.flattening_exponent,roots,s.diagnostics().accepted_level);
+                o.method=="ad"?"full_ad":"variational_frequency_ad",true,d.geometry.kind,d.geometry.planet_radius,d.geometry.flattening_exponent,roots,s.diagnostics().accepted_level,d.geometry.kind=="flat");
             raw=std::move(std::get<5>(k));
         } else {
             auto v=detail::velocities(m);
@@ -983,19 +983,25 @@ DerivativeResult compute_hessian_reduced(const ModeSolution& s,const std::vector
 
 DerivativeResult compute_interface_kernels(const ModeSolution& s,const Options& o) {
     detail::check_options(o);detail::derivative_wave(s);const auto& m=s.model();const auto& d=m.data();
-    detail::require(o.method=="standard"||o.method=="variational","Interface kernels require variational method");
+    const bool spherical = d.kind=="grid" && d.geometry.kind!="flat";
+    const std::string method = spherical ? "ad" : "variational";
+    if(spherical && o.method=="variational") detail::unsupported("Spherical interface kernels require ad");
+    detail::require(o.method=="standard" || o.method==method,"Interface kernels require "+method+" method");
     // The interface jump uses the solid spatial Hamiltonian (sigma_zr^2/L);
     // it has no fluid form, and with fluid layers it returned nonfinite values.
     if(detail::has_fluid(m)) detail::unsupported("Interface derivatives with fluid layers are not supported");
-    DerivativeResult r;r.basis="interface_depth";r.diagnostics=detail::diagnostic("variational",o);
+    DerivativeResult r;r.basis="interface_depth";r.diagnostics=detail::diagnostic(method,o);
     r.gradients["phase_velocity"]={};
     r.diagnostics.availability["phase_velocity"]="computed";
     if(d.kind=="grid") {
-        if(d.interpolation!="stiffness"||d.geometry.kind!="flat")detail::unsupported("GRID interface derivatives currently require flat stiffness interpolation");
+        if(d.interpolation!="stiffness")detail::unsupported("GRID interface derivatives require stiffness interpolation");
         auto roots=detail::trace_roots(s,o.max_levels);int j=0;
+        if(spherical)
+            r.gradients["phase_velocity"]=spherical_interface_ad_grid(detail::grid(m),s.period(),s.wave(),
+                s.phase_velocity(),o.max_levels,roots,s.diagnostics().accepted_level,std::nullopt);
         for(size_t i=0;i<d.discontinuities.size();++i)if(d.discontinuities[i]) {
-            const double value=py_computeInterfaceGradientVariationalExtrapolated(d.depths,detail::unpack(d.materials),d.discontinuities,s.period(),s.wave(),s.phase_velocity(),j,o.max_levels,roots,s.diagnostics().accepted_level);
-            r.gradients["phase_velocity"].push_back(value);r.parameters.push_back({"Depth","interface","km",j++,true});
+            if(!spherical) r.gradients["phase_velocity"].push_back(py_computeInterfaceGradientVariationalExtrapolated(d.depths,detail::unpack(d.materials),d.discontinuities,s.period(),s.wave(),s.phase_velocity(),j,o.max_levels,roots,s.diagnostics().accepted_level));
+            r.parameters.push_back({"Depth","interface","km",j++,true});
         }
     } else {
         auto mesh=detail::mesh(m,0);
@@ -1010,13 +1016,18 @@ DerivativeResult compute_interface_kernels(const ModeSolution& s,const Options& 
 DerivativeResult compute_interface_hessian_row(const ModeSolution& s,int interface_index,const std::string& basis,const Options& o) {
     detail::check_options(o);detail::derivative_wave(s);const auto& d=s.model().data();
     detail::check_basis(s.model(),basis);
-    detail::require(o.method=="standard"||o.method=="variational_ad","Interface Hessian requires variational_ad");
+    const bool spherical = d.kind=="grid" && d.geometry.kind!="flat";
+    const std::string method = spherical ? "ad" : "variational_ad";
+    if(spherical && o.method=="variational_ad") detail::unsupported("Spherical interface Hessian requires ad");
+    detail::require(o.method=="standard" || o.method==method,"Interface Hessian requires "+method);
     if(detail::has_fluid(s.model())) detail::unsupported("Interface derivatives with fluid layers are not supported");
-    if(d.kind!="grid"||d.interpolation!="stiffness"||d.geometry.kind!="flat")detail::unsupported("Interface Hessian requires flat stiffness GRID");
+    if(d.kind!="grid"||d.interpolation!="stiffness")detail::unsupported("Interface Hessian requires stiffness GRID");
     const int ndisc=static_cast<int>(std::count(d.discontinuities.begin(),d.discontinuities.end(),true));
     detail::require(interface_index>=0&&interface_index<ndisc,"Interface index out of range");
     auto roots=detail::trace_roots(s,o.max_levels);
-    auto raw=py_computeInterfaceHessianRowVariationalExtrapolated(d.depths,detail::unpack(d.materials),d.discontinuities,s.period(),s.wave(),s.phase_velocity(),interface_index,o.max_levels,"VTI",roots,s.diagnostics().accepted_level);
+    auto raw=spherical ? spherical_interface_ad_grid(detail::grid(s.model()),s.period(),s.wave(),
+        s.phase_velocity(),o.max_levels,roots,s.diagnostics().accepted_level,interface_index)
+        : py_computeInterfaceHessianRowVariationalExtrapolated(d.depths,detail::unpack(d.materials),d.discontinuities,s.period(),s.wave(),s.phase_velocity(),interface_index,o.max_levels,"VTI",roots,s.diagnostics().accepted_level);
     const int nn=static_cast<int>(d.materials.size()),q=detail::iso_basis(basis)?3:6;
     DerivativeResult r;r.basis=basis;r.rows=1;r.cols=nn*q+ndisc;r.hessian.assign(r.cols,0);r.parameters=detail::axes(s.model(),basis,true);
     // Interface wrapper VTI rows are A,C,F,L,N,Rho, followed by depths.
@@ -1027,7 +1038,7 @@ DerivativeResult compute_interface_hessian_row(const ModeSolution& s,int interfa
         std::copy(transformed.data(),transformed.data()+q,r.hessian.begin()+i*q);
     }
     for(int j=0;j<ndisc;++j){r.hessian[nn*q+j]=raw[nn*6+j];r.parameters.push_back({"Depth","interface","km",j,true});}
-    r.diagnostics=detail::diagnostic("variational_ad",o);
+    r.diagnostics=detail::diagnostic(method,o);
     r.diagnostics.availability["hessian"]="computed";
     r.diagnostics.mode_verified=true;detail::ensure_finite(r);detail::finish(r.diagnostics,o.strict);return r;
 }
@@ -1104,6 +1115,11 @@ std::vector<Capability> get_capabilities(const Model& m,const std::string& wave)
         stiffness && d.geometry.kind=="flat"?std::string{}:
             "Interface derivatives require flat stiffness GRID or flat Layer-cake"),
         detail::has_fluid(m)?"Interface derivatives with fluid layers are not supported":std::string{});
+    const bool spherical_grid = !layer_cake && d.geometry.kind!="flat";
+    const auto spherical_reason=first_reason(first_reason(base_reason,derivative_reason),
+        !stiffness ? "GRID interface derivatives require stiffness interpolation" :
+        (detail::has_fluid(m) ? "Interface derivatives with fluid layers are not supported" : ""));
+    if(spherical_grid) add("interface_kernels","interface_depth","ad",spherical_reason);
     add("interface_kernels","interface_depth","variational",interface_reason);
     for(const auto& basis:{"velocity_iso","stiffness_iso","velocity_vti","stiffness_vti","log_velocity_vti","isotropic","stiffness"}) {
         std::string reason=first_reason(interface_reason,
@@ -1111,6 +1127,12 @@ std::vector<Capability> get_capabilities(const Model& m,const std::string& wave)
         try {detail::check_basis(m,basis);}
         catch(const std::exception& error) {reason=first_reason(reason,error.what());}
         add("interface_hessian_row",basis,"variational_ad",reason);
+        if(spherical_grid) {
+            std::string ad_reason=spherical_reason;
+            try {detail::check_basis(m,basis);}
+            catch(const std::exception& error) {ad_reason=first_reason(ad_reason,error.what());}
+            add("interface_hessian_row",basis,"ad",ad_reason);
+        }
     }
     add("eigenfunctions","","propagation",base_reason);
     add("energy_integrals","","standard",base_reason);

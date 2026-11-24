@@ -138,18 +138,16 @@ def test_only_the_variational_backend_has_the_ad_free_route():
           "'fd' does not")
 
 
-def test_depth_backends_require_a_flat_reference():
+def test_variational_depth_backend_requires_a_flat_reference():
     from disper26_inv.prem import load_prem_spherical
 
     spherical = load_prem_spherical(max_depth_km=50.)
     config = depth_backend_config(DEPTH_BASIS)
-    for backend in ("ad", "variational_ad"):
-        evaluator = make_depth_backend(None, dict(config, backend=backend))
-        with pytest.raises(ValueError, match="load_prem_flat"):
-            evaluator.interface_hessian_row(spherical, DATA.data[0], 3.)
-        if backend == "variational_ad":
-            with pytest.raises(ValueError, match="load_prem_flat"):
-                evaluator.depth_gradient_variational(spherical, DATA.data[0], 3., 0)
+    evaluator = make_depth_backend(None, dict(config, backend="variational_ad"))
+    with pytest.raises(ValueError, match="load_prem_flat"):
+        evaluator.interface_hessian_row(spherical, DATA.data[0], 3.)
+    with pytest.raises(ValueError, match="load_prem_flat"):
+        evaluator.depth_gradient_variational(spherical, DATA.data[0], 3., 0)
 
 
 def test_phase1_hash_distinguishes_hessian_modes():

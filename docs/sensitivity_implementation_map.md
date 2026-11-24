@@ -24,8 +24,9 @@ same Hessian. Here L counts layers and N counts parameter directions.
 | First derivative (dc/dp, dU/dp) | Closed-form phase gradient, or first-order AD of the energy expression `U=I₃/(c·I₁)` | First-order AD of the propagator and implicit differentiation of the root |
 | Second derivative (d²c/dp²) | First-order AD of the variational gradient, O(L·N) | Nested second-order `HessianAD<N>`, O(L·N²) |
 
-The GRID material Hessian uses the variational method. Nested AD also appears
-in `u_kernel_mode="full_ad"` for dU/dp and the full-AD layer-cake Hessian.
+The GRID material Hessian uses the variational method. Nested AD is used for
+the spherical GRID interface Hessian row, `u_kernel_mode="full_ad"` for
+dU/dp and the full-AD layer-cake Hessian.
 Computing the U value by full AD once per level took about 0.1% of the total
 time in the historical timing below.
 
@@ -80,6 +81,10 @@ request. See the [Romberg trace contract](Romberg.md) and the
 | `compute_kernels_ad_layer_cake` | Layer-cake | Full AD | Nested AD | None |
 | `compute_kernels_fd_layer_cake` | Layer-cake | Finite differences | Finite differences | Reference calculation |
 | `compute_interface_kernels_variational_rayleigh_layer_cake` / `_love_layer_cake` | Layer-cake | Boundary kernels K_d | — | None |
+
+For an all-solid spherical stiffness GRID, the `Depth` entries of
+`compute_kernels_ad_grid` use AD through EFT for the requested derivatives
+of c, U and Rayleigh H/V. The U method selector in the table applies to material entries.
 
 `compute_kernels_variational_grid` provides the standalone variational phase
 kernel for GRID. In layer-cake models, `variational_frequency_ad` supports
@@ -144,8 +149,8 @@ tests cover this method.
 | `compute_hessian_variational_fd_love_layer_cake` | Layer-cake | Finite differences of the variational gradient, O(L·N²), for comparison | None |
 | `compute_hessian_variational_ad_rayleigh_grid` / `_love_grid` | GRID | Variational, all node columns, in `grid_hessian.hpp` | Yes |
 | `..._rayleigh_grid_reduced` / `..._love_grid_reduced` | GRID | Seed only the supplied basis directions in `J` | Yes |
-| `compute_interface_hessian_row_ad_grid` | GRID | Interface-depth derivatives by nested forward AD | — |
-| `compute_interface_hessian_row_variational_ad_grid[_extrapolated]` | GRID | Variational interface Hessian row | In the suffixed variant |
+| `compute_interface_hessian_row_ad_grid` | Flat or all-solid spherical stiffness GRID | Interface row by nested forward AD in the input depth coordinate | Fixed level |
+| `compute_interface_hessian_row_variational_ad_grid[_extrapolated]` | Flat stiffness GRID | Variational interface Hessian row | In the suffixed variant |
 
 The reduced path seeds `P` basis vectors in place of `n_nodes*6` node-VTI unit
 vectors (about 19 passes in place of 528 in the measured case). It returns
@@ -186,17 +191,23 @@ comparison gave 3.4× speedup for GRID Rayleigh and agreement within 3e-12.
 
 ## The GRID phase-velocity Jacobian in inversion
 
-The pipeline builds the Jacobian from the variational gradient
-(`g_a_variational`, obtained as `gradient_node` with the reduced Hessian).
-With `depth_config`, it uses the variational K_d entry `g_variational_depth`
-for the depth component. `hessian_reduced` supplies the Hessian. The
-independent AD calculation (`compute_kernels_ad_grid`) records a consistency
-check on the points selected by `ad_kernel_every`. Other points report NaN.
-The following pseudocode shows the row comparison.
+Phase 1 uses the variational gradient and Hessian for the material coordinates.
+For an `InterfaceShiftBasis` it also needs a depth gradient and a Hessian row.
+Flat GRID uses the variational boundary kernel $K_d$. All-solid spherical
+stiffness GRID differentiates the dispersion root through interpolation and EFT
+in physical depth. The material AD check runs at the points selected by
+`ad_kernel_every`. On spherical GRID the same AD depth entry supplies the
+production Jacobian at those points. Skipped points report NaN for the check
+and evaluate the required depth gradient separately.
+See [choosing depth coordinates](public_api.md#grid-depth-coordinates).
 
 ```text
 G_hess = gradient_log(model0, res["g_a_variational"])
 J[i] = project_gradient(G_hess, basis, model=model0)
+if "g_interface_depth" in res:
+    J[i, basis.depth_parameter_index] = res["g_interface_depth"]
+elif "g_variational_depth" in res:
+    J[i, basis.depth_parameter_index] = res["g_variational_depth"]
 if "g_a_ad" in res:
     G_kernel = gradient_log(model0, res["g_a_ad"])
     ad_row = res.get("g_inv_kernel", project_gradient(G_kernel, basis, model=model0))
@@ -312,10 +323,9 @@ period, and its current observables do not use `d_U` or `d_HV`.
 `map_over_data` and `run_phase1` expose `ad_kernel_every` in `parallel.py`
 and `pipeline.py`. The default of 1 runs AD at every point for
 `consistency`. A value of 0 skips this comparison, and a positive N checks
-indices 0, N, 2N, and so on. The production Jacobian always uses the variational gradient
-and K_d. When AD is skipped, the depth backend must implement
-`depth_gradient_variational` if depth is requested. Otherwise the call
-raises `RuntimeError`.
+indices 0, N, 2N, and so on. The production Jacobian uses the variational
+material gradient. For a depth basis the default backend evaluates the flat
+boundary kernel or the spherical EFT depth gradient even on skipped data.
 
 ## Naming and migration to variational kernels
 
@@ -328,7 +338,7 @@ audit is held in the research archive.
 
 After the accuracy correction, the measured costs were 733 ms for AD and
 30–77 ms for the variational path.
-The production switch on 2026-08-11 proceeded in three steps.
+The switch for flat GRID on 2026-08-11 proceeded in three steps.
 
 1. B2 (`cfa628a`) added `ad_kernel_every` for independent comparisons,
    retaining every-point checks by default.
@@ -341,9 +351,14 @@ The production switch on 2026-08-11 proceeded in three steps.
    A backend such as `fd` or `ad` without that depth method raises if AD
    is skipped and a depth gradient is required.
 
+For all-solid spherical stiffness GRID, Phase 1 uses
+`SphericalAdDepthHessianBackend`. It differentiates each traced root through
+spherical interpolation and EFT, and extrapolates the physical depth gradient
+and mixed Hessian row. The material block continues to use the GRID weak form.
+
 `VariationalAdDepthHessianBackend.interface_hessian_row` (formerly `column`)
 reads the level and per-level roots from the supplied `ModeSolution`. It does not need
-`dc_dz`. On the default backend this avoids a separate
+`dc_dz`. On flat GRID this avoids a separate
 `phase_velocity_with_kernels` call on points that skip AD. Compute depth
 gradients only when `want_kernels or want_hessian`, so pure forward evaluations
 in the `landing.py` Levenberg–Marquardt line search avoid the cost of K_d.

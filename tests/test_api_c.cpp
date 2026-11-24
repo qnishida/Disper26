@@ -442,17 +442,21 @@ int main() {
     }
     const double interface_depths[]={0,10,10,20};
     const d26_api_material interface_nodes[]={layer,layer,halfspace,halfspace};
-    success(d26_api_create_grid_model(4,interface_depths,interface_nodes,"stiffness",nullptr,nullptr,&model,message,sizeof message));
-    success(d26_api_compute_dispersion(model,20,"Rayleigh",0,nullptr,&options,&solution,message,sizeof message));
-    success(d26_api_compute_interface_kernels(solution,&options,&info,message,sizeof message));
-    check(numeric(info,"gradient.phase_velocity").size()==1,"GRID interface count incorrect");
-    d26_api_result_release(info);
-    success(d26_api_compute_interface_hessian_row(solution,0,"stiffness",&options,&info,message,sizeof message));
-    const auto interface_row=numeric(info,"hessian",&rows,&cols);
-    check(rows==1 && cols==25 && interface_row.size()==25,"Interface Hessian row dimensions incorrect");
-    d26_api_result_release(info);
-    d26_api_solution_release(solution);
-    d26_api_model_release(model);
+    for(bool spherical : {false,true}) {
+        success(d26_api_create_grid_model(4,interface_depths,interface_nodes,"stiffness",spherical ? &geo : nullptr,nullptr,&model,message,sizeof message));
+        success(d26_api_compute_dispersion(model,20,"Rayleigh",0,nullptr,&options,&solution,message,sizeof message));
+        success(d26_api_compute_interface_kernels(solution,&options,&info,message,sizeof message));
+        const auto gradient=numeric(info,"gradient.phase_velocity");
+        check(gradient.size()==1 && std::isfinite(gradient[0]) && gradient[0]!=0,"Invalid GRID interface gradient");
+        d26_api_result_release(info);
+        success(d26_api_compute_interface_hessian_row(solution,0,"stiffness",&options,&info,message,sizeof message));
+        const auto interface_row=numeric(info,"hessian",&rows,&cols);
+        check(rows==1 && cols==25 && interface_row.size()==25,"Interface Hessian row dimensions incorrect");
+        check(std::isfinite(interface_row.back()),"Invalid interface-depth Hessian entry");
+        d26_api_result_release(info);
+        d26_api_solution_release(solution);
+        d26_api_model_release(model);
+    }
     model=nullptr;
     code=d26_api_create_grid_model(2,nullptr,nodes,"stiffness",nullptr,nullptr,&model,message,sizeof message);
     check(code==D26_API_INVALID_ARGUMENT && !model,"Invalid input must leave NULL output");

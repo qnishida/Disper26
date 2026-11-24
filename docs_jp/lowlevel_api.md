@@ -305,9 +305,9 @@ print("GRID Hessian:", H_grid.shape, parameter_labels)
 
 <a id="lowlevel-interface"></a>
 
-## 7. 界面深さ感度とヘシアン (Kd)
+## 7. 界面深さ感度とヘシアン
 
-Layer-cakeの $K_d$ は各境界のカーネルです。幾何パラメータ $q$ に対する感度は $dc/dq=\sum_b [K_d]_b\,dz_b/dq$ で、層厚変更と一つの界面だけの移動では動く境界が異なります。GRIDの界面APIは指定した不連続面の深さ微分を組み立てます。
+Layer-cakeの $K_d$ は各境界のカーネルです。幾何パラメータ $q$ に対する感度は $dc/dq=\sum_b [K_d]_b\,dz_b/dq$ で、層厚変更と一つの界面だけの移動では動く境界が異なります。以下の GRID の例は Flat の深さと変分法の境界カーネルを使います。
 
 ```python
 # Layer-cake 界面感度 Kd
@@ -363,7 +363,9 @@ corrected_layers = dp.apply_mineos_physical_dispersion_model(
 
 Layer-cakeの平坦化関数は渡した有限層だけを変換し、`half_space` を自動変換しません。上の出力だけでは半無限媒質まで平坦化した一式にはなりません。GRID関数は最深ノードも変換します。
 
-GRIDのノードを先に平坦化して `grid_policy="flat"` で補間するモデルと、球面ノードを渡して `grid_policy="spherical_ba97"` で細分点ごとに補間・変換するモデルは異なります。後者では事前のノード平坦化を重ねないでください。モデル空間の扱いは [実装マップ](sensitivity_implementation_map.md) を参照してください。
+上の GRID 変換で得たノードは `grid_policy="flat"` で使います。球面深さで補間する場合は、元の球面ノードを渡し、順計算と微分の両方に同じ `grid_policy="spherical_ba97"` または `"spherical_experimental_density"` を指定します。使い分けは[剛性 GRID の深さ座標](public_api.md#grid-depth-coordinates)を参照してください。
+
+`compute_kernels_ad_grid` は既定で界面ごとに `Depth` 成分を返します。全層が固体の非重力・球面剛性 GRID では、要求した位相速度・群速度・Rayleigh 波の H/V の球面深さ微分が入ります。物性成分だけを求めるには `include_interface_depths=False` を指定します。固定レベルの `compute_interface_hessian_row_ad_grid` には順計算と同じ `grid_policy`、`planet_radius`、`flattening_exponent` を渡し、そのレベルの位相速度の深さ微分を `dc_dz` に指定します。
 
 Q補正も渡したリストのみが対象です。半無限媒質には `apply_mineos_physical_dispersion` を別途適用します。Qのリスト長は物性リストに合わせ、各対象周期の補正は元の参照周期モデルから行います。この補正は実弾性定数の物理分散で、複素減衰波動場の計算ではありません。補正後の分散を求める場合は、その対象周期で根を計算し直します。
 

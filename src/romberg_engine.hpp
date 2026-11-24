@@ -123,9 +123,9 @@ private:
         return cached;
     }
 
-    template <typename T>
+    template <typename T, typename G>
     static PhysicalParameters<T> scale_parameters(
-        PhysicalParameters<T> p, const GridSublayerGeometry& g)
+        PhysicalParameters<T> p, const GridSublayerGeometryT<G>& g)
     {
         p.rho *= g.density_scale;
         p.c11 *= g.elastic_scale;
@@ -136,13 +136,13 @@ private:
         return p;
     }
 
-    template <typename T>
+    template <typename T, typename G>
     static PhysicalParameters<T> interpolate_scaled(
         const PhysicalParameters<T>& p1,
         const PhysicalParameters<T>& p2,
-        const GridSublayerGeometry& g)
+        const GridSublayerGeometryT<G>& g)
     {
-        const double t = g.alpha;
+        const G& t = g.alpha;
         PhysicalParameters<T> result;
         result.rho = p1.rho * (1.0 - t) + p2.rho * t;
         result.c11 = p1.c11 * (1.0 - t) + p2.c11 * t;
@@ -280,8 +280,19 @@ public:
         const std::vector<T>& node_depths
     ) const {
         if (!model_.refinement_policy.is_flat()) {
-            throw std::invalid_argument(
-                "spherical refinement is not supported when interface depths are AD variables");
+            std::vector<GridSublayerGeometryT<T>> geometry_ad;
+            refine_grid_geometry(node_depths, model_.is_discontinuity, fluid_nodes(),
+                                 refinement_level, model_.refinement_policy, geometry_ad);
+            std::vector<PhysicalParameters<T>> layers;
+            std::vector<T> thicknesses;
+            layers.reserve(geometry_ad.size());
+            thicknesses.reserve(geometry_ad.size());
+            for (const auto& g : geometry_ad) {
+                const int i = g.parent_node;
+                layers.push_back(interpolate_scaled(node_params[i], node_params[i + 1], g));
+                thicknesses.push_back(g.thickness);
+            }
+            return {std::move(layers), std::move(thicknesses)};
         }
         std::vector<PhysicalParameters<T>> layers;
         std::vector<T> thicknesses;
@@ -346,6 +357,18 @@ public:
     template <typename T>
     PhysicalParameters<T> get_halfspace_ad(const std::vector<PhysicalParameters<T>>& node_params) const {
         return scale_parameters(node_params.back(), halfspace_geometry());
+    }
+
+    template <typename T>
+    PhysicalParameters<T> get_halfspace_ad(const std::vector<PhysicalParameters<T>>& nodes,
+                                           const T& depth) const {
+        if (model_.refinement_policy.is_flat()) return get_halfspace_ad(nodes);
+        GridSublayerGeometryT<T> g;
+        const double radius = model_.refinement_policy.planet_radius;
+        g.radius_ratio = (radius - depth) / radius;
+        g.fluid = isLiquidLayer(model_.params.back());
+        grid_fill_flattening_scales(g, model_.refinement_policy);
+        return scale_parameters(nodes.back(), g);
     }
 
     // Apply J^T: convert sublayer gradient (size (N_k+1)*npl) to node gradient (size M*npl).

@@ -1948,6 +1948,31 @@ inline Eigen::VectorXd map_node_vti_gradient_to_kernel_order(
     return out;
 }
 
+// Seed only physical interface depths. Material values on both sides are held
+// fixed while their interpolation and EFT scales move with the refined mesh.
+inline void spherical_interface_kernels_at_level(
+    const GridModel& model, const Mesher& mesher, int level, int count,
+    const std::vector<PhysicalParameters<double>>& layers, const std::vector<double>& thicknesses,
+    const PhysicalParameters<double>& halfspace, double omega, double root, WaveType wave,
+    bool group, bool hv, Eigen::VectorXd& dc, Eigen::VectorXd& du, Eigen::VectorXd& dhv) {
+    using AD = Eigen::AutoDiffScalar<Eigen::VectorXd>;
+    std::vector<AD> depths;
+    std::vector<PhysicalParameters<AD>> nodes;
+    int interface = -1;
+    for (size_t i = 0; i < model.depths.size(); ++i) {
+        if (model.is_discontinuity[i]) ++interface;
+        const bool paired = model.is_discontinuity[i] || (i && model.is_discontinuity[i - 1]);
+        depths.push_back(make_ad_seeded<AD>(model.depths[i], count, paired ? interface : -1));
+        nodes.push_back(to_ad_params<AD>(model.params[i], count));
+    }
+    auto [layers_ad, thicknesses_ad] = mesher.get_refined_layers_ad_with_depths(level, nodes, depths);
+    auto halfspace_ad = mesher.get_halfspace_ad(nodes, depths.back());
+    compute_grid_level_kernels(layers, thicknesses, halfspace, layers_ad, thicknesses_ad,
+        halfspace_ad, omega, root, wave, hv, group, false, count, dc, du, dhv, false, true);
+    if (!dc.allFinite() || (group && !du.allFinite()) || (hv && !dhv.allFinite()))
+        throw std::runtime_error("Non-finite spherical interface derivative at traced root");
+}
+
 // --- GRID Mode Romberg with Node-Based Sensitivity Kernels ---
 inline std::tuple<double, double, double, int, double, std::vector<SensitivityKernel>>
 py_computeDispersionRombergWithKernels(
@@ -1974,7 +1999,8 @@ py_computeDispersionRombergWithKernels(
     double planet_radius = 6371.0,
     double flattening_exponent = std::numeric_limits<double>::quiet_NaN(),
     const std::optional<std::vector<double>>& phase_velocity_roots = std::nullopt,
-    int phase_accepted_level = -1
+    int phase_accepted_level = -1,
+    bool include_interface_depths = true
 ) {
     require_non_gravitating_derivatives(params);
     if (want_value_u != want_value_hv) {
@@ -2051,7 +2077,7 @@ py_computeDispersionRombergWithKernels(
     std::vector<int> discontinuity_pair_starts;
     const auto& discon_flags = mesher.get_discontinuities();
     for (size_t i = 0; i < discon_flags.size(); ++i) {
-        if (discon_flags[i]) {
+        if (include_interface_depths && discon_flags[i]) {
             discontinuity_pair_starts.push_back(static_cast<int>(i));
             node_to_discontinuity_idx[i] = num_discontinuities;
             if (i + 1 < node_to_discontinuity_idx.size()) {
@@ -2171,6 +2197,8 @@ py_computeDispersionRombergWithKernels(
     // kernels get Richardson/Neville-extrapolated the same way the reported
     // c/U/HV values are, instead of being frozen at the single converged-level
     // mesh (which leaves an O(h^2) truncation in the derivative).
+    const bool spherical_depths = num_discontinuities > 0 &&
+        !model.refinement_policy.is_flat() && !hasLiquidLayer(params);
     auto eval_level = [&](int k, double c_guess_k,
                           Eigen::VectorXd& dc_out, Eigen::VectorXd& dU_out,
                           Eigen::VectorXd& dHV_out) {
@@ -2249,6 +2277,15 @@ py_computeDispersionRombergWithKernels(
             }
         } else {
             evaluate_legacy(compute_u, dc_out, dU_out, dHV_out);
+        }
+        if (spherical_depths) {
+            Eigen::VectorXd dc, du, dhv;
+            spherical_interface_kernels_at_level(model, mesher, k, num_discontinuities,
+                layers_k_dbl, thick_k_dbl, halfspace_dbl, omega, c_guess_k, type,
+                compute_u, compute_hv, dc, du, dhv);
+            dc_out.tail(num_discontinuities) = dc;
+            dU_out.tail(num_discontinuities) = du;
+            dHV_out.tail(num_discontinuities) = dhv;
         }
     };
 
@@ -2349,7 +2386,9 @@ py_computeDepthHessianColumnGrid(
     int refinement_level,
     std::string sensitivity_mode_str,
     const std::optional<std::vector<double>>& phase_velocity_roots = std::nullopt,
-    int phase_accepted_level = -1
+    int phase_accepted_level = -1,
+    const std::string& grid_policy = "flat", double planet_radius = 6371.0,
+    double flattening_exponent = std::numeric_limits<double>::quiet_NaN()
 ) {
     require_non_gravitating_derivatives(params);
     if (phase_velocity_roots) {
@@ -2366,7 +2405,10 @@ py_computeDepthHessianColumnGrid(
     model.depths = depths;
     model.params = params;
     model.is_discontinuity = is_discontinuity;
+    model.refinement_policy = make_grid_refinement_policy(grid_policy, planet_radius, flattening_exponent);
     model.require_valid();
+    if (!model.refinement_policy.is_flat() && hasLiquidLayer(params))
+        throw std::invalid_argument("Interface derivatives with fluid layers are not supported");
 
     Mesher mesher(model);
     const double omega = 2.0 * M_PI / period;
@@ -2515,12 +2557,12 @@ py_computeDepthHessianColumnGrid(
 
     auto [layers_ad, thick_ad] =
         mesher.get_refined_layers_ad_with_depths(refinement_level, node_ad, node_depths_ad);
-    PhysicalParameters<Outer> hs_ad = mesher.get_halfspace_ad(node_ad);
+    PhysicalParameters<Outer> hs_ad = mesher.get_halfspace_ad(node_ad, node_depths_ad.back());
 
     Eigen::Matrix<Outer, 5, 1> seabed_ad; seabed_ad.setZero();
     auto Y_all = calculateDispersionFunction(
         layers_ad, thick_ad, hs_ad, omega_ad, c_ad, type,
-        NormalizationMode::Vertical, &seabed_ad);
+        model.refinement_policy.is_flat() ? NormalizationMode::Vertical : NormalizationMode::VectorNorm, &seabed_ad);
     Outer F = Y_all(I24);
 
     const Eigen::VectorXd dF   = F.value().derivatives();          // [F_p..., F_c]
@@ -2538,6 +2580,50 @@ py_computeDepthHessianColumnGrid(
         d2c[j] = -(dFdz(j) - (F_p / F_c) * dF_c_dz) / F_c;
     }
     return std::make_tuple(dc_dp, d2c);
+}
+
+// Each mesh owns both its traced root and the slope used to advect that root
+// in the outer AD pass. Extrapolate only after forming the full derivative.
+inline std::vector<double> spherical_interface_ad_grid(
+    const GridModel& model, double period, const std::string& wave, double phase,
+    int max_level, const std::vector<double>& roots, int accepted, std::optional<int> row) {
+    model.require_valid();
+    require_non_gravitating_derivatives(model.params);
+    if (model.refinement_policy.is_flat() || hasLiquidLayer(model.params))
+        throw std::invalid_argument("Spherical interface AD requires an all-solid spherical stiffness GRID");
+    validate_trace_phase_identity(roots, accepted, phase);
+    if (max_level < 0 || max_level >= static_cast<int>(roots.size()))
+        throw std::invalid_argument("Missing level in spherical interface root trace");
+    const int count = std::count(model.is_discontinuity.begin(), model.is_discontinuity.end(), true);
+    if (row && (*row < 0 || *row >= count)) throw std::invalid_argument("Interface index out of range");
+    if (!count) return {};
+    Mesher mesher(model);
+    const auto hs = mesher.get_halfspace();
+    const double omega = 2.0 * M_PI / period;
+    const auto type = parseWaveType(wave);
+    const auto& policy = model.refinement_policy;
+    const char* scheme = policy.kind == GridRefinementPolicyKind::SphericalBA97
+        ? "spherical_ba97" : "spherical_experimental_density";
+    std::vector<std::vector<double>> columns(row ? model.depths.size() * 6 + count : count);
+    for (int k = 0; k <= max_level; ++k) {
+        auto [layers, thicknesses] = mesher.get_refined_layers(k);
+        const double root = validated_grid_trace_root(layers, thicknesses, hs, omega, type, k, roots);
+        Eigen::VectorXd dc, du, dhv;
+        spherical_interface_kernels_at_level(model, mesher, k, count, layers, thicknesses, hs,
+            omega, root, type, false, false, dc, du, dhv);
+        if (row) {
+            const auto result = py_computeDepthHessianColumnGrid(model.depths, model.params,
+                model.is_discontinuity, period, wave, phase, dc[*row], *row, k, "VTI",
+                roots, accepted, scheme, policy.planet_radius, policy.flattening_exponent);
+            const auto& hessian = std::get<1>(result);
+            for (size_t j = 0; j < columns.size(); ++j) columns[j].push_back(hessian[j]);
+        } else {
+            for (int j = 0; j < count; ++j) columns[j].push_back(dc[j]);
+        }
+    }
+    std::vector<double> result;
+    for (const auto& values : columns) result.push_back(neville_extrapolation(values).first);
+    return result;
 }
 
 // --- Interface Hessian row via AD of the variational boundary kernel ---

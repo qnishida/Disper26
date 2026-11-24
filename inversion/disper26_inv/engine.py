@@ -553,6 +553,7 @@ class ForwardEngine:
         c_hint: float = None,
         *,
         minimum_trace_level: int = 0,
+        include_interface_depths: bool = True,
     ):
         """(ModeSolution, kernels) with node kernels in {A,C,F,L,N,Rho,Depth}.
 
@@ -560,6 +561,7 @@ class ForwardEngine:
         The velocity projection consumes the six stiffness-field entries;
         ``Depth`` entries are consumed by ``depth_hessian`` for explicit
         interface-depth parameterizations.
+        Set include_interface_depths=False for a material-only Jacobian.
         Branch resolution mirrors phase_velocity.
 
         ``kernel.d_U`` and ``kernel.d_HV`` are zero unless the engine was built
@@ -602,6 +604,7 @@ class ForwardEngine:
             initial_root_window_frac=self.initial_root_window_frac,
             phase_velocity_roots=direct_solution.romberg_roots,
             phase_accepted_level=direct_solution.level,
+            include_interface_depths=include_interface_depths,
             **model.refinement_kwargs(),
         )
         # The trace-bearing direct solve above owns the branch label and value

@@ -151,7 +151,8 @@ class LMOptimizer:
             try:
                 if with_jacobian:
                     solution, kernels = self.engine.phase_velocity_with_kernels(
-                        model, datum, c_hint=hint
+                        model, datum, c_hint=hint,
+                        include_interface_depths=self._depth_backend is not None or model.refinement_policy.kind == "flat",
                     )
                     g_a = kernels_to_stiffness_gradient(kernels, model.n_nodes)
                     if self._depth_backend is not None:

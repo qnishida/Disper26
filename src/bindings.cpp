@@ -2053,7 +2053,7 @@ PYBIND11_MODULE(disper26py, m) {
           py::arg("grid_policy") = "flat", py::arg("planet_radius") = 6371.0,
           py::arg("flattening_exponent") = std::numeric_limits<double>::quiet_NaN(),
           py::arg("phase_velocity_roots") = py::none(),
-          py::arg("phase_accepted_level") = -1,
+          py::arg("phase_accepted_level") = -1, py::arg("include_interface_depths") = true,
           "GRID-mode dispersion plus node sensitivity kernels (dc/dp, dU/dp, dHV/dp) via Romberg extrapolation.\n"
           "Returns (c, U, HV, level, rel_err, kernels); kernels is a list[SensitivityKernel] over nodes x parameters.\n"
           "sensitivity_mode: 'Isotropic' (Vs,Vp,Rho per node) or 'VTI' (A,C,F,L,N,Rho). "
@@ -2079,15 +2079,28 @@ PYBIND11_MODULE(disper26py, m) {
           py::arg("grid_policy") = "flat", py::arg("planet_radius") = 6371.0,
           py::arg("flattening_exponent") = std::numeric_limits<double>::quiet_NaN(),
           py::arg("phase_velocity_roots") = py::none(),
-          py::arg("phase_accepted_level") = -1,
+          py::arg("phase_accepted_level") = -1, py::arg("include_interface_depths") = true,
           "Deprecated alias. Use compute_kernels_ad_grid.");
+    m.def("_compute_spherical_interface_ad_grid", [](
+            const std::vector<double>& depths, const std::vector<PhysicalParameters<double>>& params,
+            const std::vector<bool>& flags, double period, const std::string& wave, double phase,
+            int level, const std::vector<double>& roots, int accepted, std::optional<int> row,
+            const std::string& scheme, double radius, double exponent) {
+        GridModel model{depths, params, flags, make_grid_refinement_policy(scheme, radius, exponent)};
+        return spherical_interface_ad_grid(model, period, wave, phase, level, roots, accepted, row);
+    }, py::arg("depths"), py::arg("params"), py::arg("is_discontinuity"), py::arg("period"),
+       py::arg("wave"), py::arg("phase"), py::arg("max_level"), py::arg("phase_velocity_roots"),
+       py::arg("phase_accepted_level"), py::arg("interface_index"), py::arg("grid_policy"),
+       py::arg("planet_radius"), py::arg("flattening_exponent"));
     m.def("compute_interface_hessian_row_ad_grid", &py_computeDepthHessianColumnGrid,
           py::arg("depths"), py::arg("params"), py::arg("is_discontinuity"), py::arg("period"),
           py::arg("wave_type"), py::arg("c_root"), py::arg("dc_dz"),
           py::arg("discontinuity_index"), py::arg("refinement_level"),
           py::arg("sensitivity_mode") = "VTI",
           py::arg("phase_velocity_roots") = py::none(),
-          py::arg("phase_accepted_level") = -1,
+          py::arg("phase_accepted_level") = -1, py::arg("grid_policy") = "flat",
+          py::arg("planet_radius") = 6371.0,
+          py::arg("flattening_exponent") = std::numeric_limits<double>::quiet_NaN(),
           "Analytic interface-depth Hessian column via nested forward AD.\n"
           "Returns (dc_dp, d2c_dpdz), both length NUM_VARS in the same variable order as\n"
           "compute_kernels_ad_grid (node params, then one entry per discontinuity).\n"
@@ -2107,7 +2120,9 @@ PYBIND11_MODULE(disper26py, m) {
           py::arg("discontinuity_index"), py::arg("refinement_level"),
           py::arg("sensitivity_mode") = "VTI",
           py::arg("phase_velocity_roots") = py::none(),
-          py::arg("phase_accepted_level") = -1,
+          py::arg("phase_accepted_level") = -1, py::arg("grid_policy") = "flat",
+          py::arg("planet_radius") = 6371.0,
+          py::arg("flattening_exponent") = std::numeric_limits<double>::quiet_NaN(),
           "Deprecated alias. Use compute_interface_hessian_row_ad_grid.");
     m.def("compute_interface_kernels_variational_rayleigh_layer_cake", &py_computeBoundaryKernelsRayleigh,
           py::arg("layers"), py::arg("thicknesses"), py::arg("half_space"),

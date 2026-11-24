@@ -227,13 +227,24 @@ def compute_hessian_reduced(solution: ModeSolution, projection: np.ndarray, *,
 
 def compute_interface_kernels(solution: ModeSolution, *,
                               options: Optional[Options] = None) -> DerivativeResult:
-    """Compute interface-depth sensitivity, distinct from layer thickness."""
+    """Return the phase-velocity gradient for each interface depth (km, positive down).
+
+    In a stiffness GRID the two interface nodes move together at fixed input
+    node properties. Spherical geometry differentiates through internal EFT
+    in physical depth. A flat model, including one flattened explicitly,
+    returns derivatives in flat depth.
+    """
     return _checked(_api.compute_interface_kernels(solution, _options(options)))
 
 
 def compute_interface_hessian_row(solution: ModeSolution, *, interface_index: int,
                                   basis: str, options: Optional[Options] = None) -> DerivativeResult:
-    """Compute one interface row; interface_index is zero-based, not a node index."""
+    """Return one phase-velocity Hessian row for an all-solid stiffness GRID.
+
+    interface_index counts discontinuities from zero. Columns correspond to
+    node materials in the requested basis, followed by all interface depths.
+    Depths use the same coordinates as compute_interface_kernels.
+    """
     return _checked(_api.compute_interface_hessian_row(
         solution, interface_index, basis, _options(options)))
 
@@ -264,7 +275,12 @@ def compute_gravity_correction(solution: ModeSolution, *, gravity: float = 9.806
 
 
 def earth_flattening_transformation(model: Model) -> Model:
-    """Return a new flat model, preserving transformation metadata."""
+    """Flatten a spherical model once and retain its transformation metadata.
+
+    For a stiffness GRID the returned model interpolates the transformed
+    nodes linearly in flat depth. Pass the original spherical model to the
+    solver to interpolate in physical depth and apply EFT inside each interval.
+    """
     return _api.earth_flattening_transformation(model)
 
 

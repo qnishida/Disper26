@@ -63,6 +63,8 @@ print(curve.periods)  # 入力の順番と重複を保持する
 GRIDは `interpolation="stiffness"` または `"velocity"` が必須。同じノード値でも
 補間する物理量が違えば異なるモデルであり、Hessianの都合で自動変換しない。
 重複する二つの深度は不連続面の上下を表す。最終ノードが半無限層となる。
+補間・逆解析に使う深さの選び方は[剛性 GRID の深さ座標](#grid-depth-coordinates)を参照。
+
 曲線は周期を内部で整列・重複除去して計算し、入力順に戻す。このGRIDを既定の細分化上限で
 計算すると、例では `ConvergenceWarning` が出ることがある。各解の `diagnostics` で採用レベルと
 推定誤差を確認できる。`mode` は各周期の
@@ -316,12 +318,17 @@ A = 2L で VTI 速度座標を選ぶには、eta を含む VTI 速度配列を�
 | 操作 | 対応 |
 |---|---|
 | 分散、曲線、カーネル | Layer-cake、剛性GRID、速度GRID |
-| フルHessian | Layer-cake、剛性GRID |
-| 縮約Hessian | 剛性GRID |
-| `compute_interface_kernels` | 全層が固体のモデル（Layer-cake または flat の剛性GRID） |
-| `compute_interface_hessian_row` | 固体のみのflatの剛性GRID |
+| 物性のフルHessian | Layer-cake、剛性GRID |
+| 物性の縮約Hessian | 剛性GRID |
+| `compute_interface_kernels` | 全層が固体の flat Layer-cake または全層が固体の剛性 GRID（flat・球面） |
+| `compute_interface_hessian_row` | 全層が固体の剛性 GRID（flat・球面） |
 | `compute_eigenfunctions`、`compute_energy_integrals`、`compute_frequency_curvature` | 解を保持する各モデル。GRIDの波動場と積分は採用メッシュ上の量 |
 | `compute_gravity_correction` | 非Cowling、flat LayerCakeのRayleigh。`region="fluid"/"solid"/"all"` |
+
+剛性 GRID で界面を動かすときは、同じ深さにある上下のノードを一緒に動かし、各ノードの**入力座標系での物性値**を固定する。
+`compute_interface_kernels` は各界面の深さに対する位相速度勾配を返す。`compute_interface_hessian_row` の各列は、指定した基底のノード物性、続いて全界面の深さに対応する。
+既定手法は flat では勾配が `variational`、Hessian 行が `variational_ad`、球面ではどちらも `ad` である。
+順計算・微分・結果表示で使う深さの選び方は[剛性 GRID の深さ座標](#grid-depth-coordinates)を参照。
 
 Rayleighの固体半無限層の上に表面流体層が連続する場合、`compute_energy_integrals` の `integration="auto"` は解析積分を選ぶ。低水準の点列版 `compute_energy_integrals_analytical_rayleigh` は固体専用である。
 
@@ -339,20 +346,62 @@ GRIDの周波数曲率は固有のRomberg停止条件を使うため、戻り値
 
 ## 変換とPREM
 
-球面モデルは `Geometry("spherical_ba97")` または
-`Geometry("spherical_experimental_density", flattening_exponent=...)` で表す。
-GRIDの球面補間と、ノードを先に平坦化してからflatで補間するモデルは同一ではない。
-`earth_flattening_transformation` は変換履歴を保持した新しい平坦モデルを返し、二重変換を拒否する。
-球面LayerCakeは明示的な平坦化が必要。
-LayerCakeの半無限層は、その上端深度で物性を平坦化した均質半無限層とする。
+<a id="grid-depth-coordinates"></a>
+
+### 剛性 GRID の深さ座標を選ぶ
+
+**どの深さで剛性・密度を区分線形と仮定し、どの深さで界面を動かすか**で選ぶ。$d$ は地表から測った球面深さ、$z$ は平坦化深さで、どちらも km、下向き正とする。$R$ は地球（または対象天体）の半径である。
+
+| 目的 | モデルの渡し方 | 順計算・逆解析で使う座標 |
+|---|---|---|
+| Flat で閉じる | Flat のノードをそのまま渡す。`Geometry("flat")` が既定 | 剛性・密度は $z$ で区分線形。界面勾配は $\partial c/\partial z$ |
+| 球面で閉じる（内部で EFT） | 球面ノードを `Geometry("spherical_ba97")` または `Geometry("spherical_experimental_density", flattening_exponent=...)` で渡す | 剛性・密度は $d$ で区分線形。MCMC の提案、界面勾配 $\partial c/\partial d$、Hessian を球面のモデル変数で扱う |
+| Flat で計算し、入出力を球面で扱う | 球面の参照ノードを最初に一度だけ `earth_flattening_transformation` で変換し、返された Flat モデルを使う | 1 行目と同じく、提案・勾配・Hessian は Flat 座標。推定したノードや各事後サンプルを、表示時に球面座標へ戻す |
+
+たとえば「球面でのノード物性を固定し、不連続面を実深さで 1 km 下げたときの位相速度」を求めるなら、球面モデルをそのまま渡す。
+ソルバーは各ノード間を $z$ で等分し、小層の中点を $d$ に戻す。その深さで剛性・密度を補間し、その半径で EFT を適用する。半無限層は上端の半径を使う。
+
+界面を動かすと小層厚、補間位置、物性の変換係数が変わる。界面の勾配と Hessian 行を要求すると、各細分化レベルでこれらの変化と分散方程式の根を自動微分し、外挿する。
+サロゲートを使わず MCMC で位相速度だけを求める場合は、各提案で順計算の EFT を行う。界面微分の計算は生じない。
+
+同じ球面ノードから、球面深さと平坦化深さに対する勾配をそれぞれ求める例を示す（非重力・全層固体）。
+
+```python
+import disper26 as d26
+
+spherical = d26.create_grid_model(
+    [0., 18., 18., 55.], vs=[3., 3.55, 4.04, 4.55],
+    vp=[5.4, 6.3, 7.2, 8.22], rho=[2.55, 2.75, 3.05, 3.35],
+    interpolation="stiffness", geometry=d26.Geometry("spherical_ba97"),
+)
+flat = d26.earth_flattening_transformation(spherical)
+for model in (spherical, flat):
+    solution = d26.compute_dispersion(model, period=26., options=d26.Options(max_steps=8))
+    gradient = d26.compute_interface_kernels(solution)
+    row = d26.compute_interface_hessian_row(solution, interface_index=0, basis="stiffness_vti")
+    print(model.geometry.kind, solution.phase_velocity, gradient.gradient[0], row.hessian[0, -1])
+```
+
+出力の最終列は、それぞれ $\partial^2 c/\partial d^2$ と $\partial^2 c/\partial z^2$ である。2 列目の位相速度は、球面モデルで 3.865760 km/s、先に平坦化したモデルで 3.865075 km/s となる。後者は変換済みのノード間を $z$ で線形補間する。$z=R\log(R/(R-d))$ は $d$ に対して非線形で、物性の変換係数も半径に依存するため、両モデルでは一般にノード間の物性分布が異なる。
+
+**結果表示だけなら**、推定深さを $d=R(1-e^{-z/R})$ で戻す。ノード物性も表示する場合は、その推定半径 $R-d$ で元と同じ EFT の係数を使い、物性の変換を逆にたどる。位相速度 $c$ は順計算の値をそのまま使う。
+`earth_flattening_transformation` は球面から Flat への変換で、返されたモデルには変換履歴が残り、二重変換を拒否する。
+
+**Flat モデルの Taylor 展開を球面変数で書き直す場合**は、深さと物性を合わせたノード変換 $y=T(x)$（球面 $x$、Flat $y$）が必要になる。
+$J=\partial y/\partial x$ とすると、$g_x=J^\top g_y$、$H_x=J^\top H_yJ+\sum_i (g_y)_i\nabla_x^2 T_i$ である。
+この連鎖律で得られるのは、先に平坦化したモデルの微分である。球面深さで線形補間するモデルのサロゲートには、球面モデルから直接得た勾配と Hessian を使う。
+
+### Layer-cake・減衰補正・PREM
+
+球面 Layer-cake は順計算前に明示的に平坦化する。均質な半無限層の物性は上端深度で平坦化する。
 
 `apply_mineos_physical_dispersion` は半無限層を含むQ配列を受け取り、補正周期と
 基準周期を保存する。LayerCakeでは層数+1、GRIDではノード数。補正済みモデルの
 再補正・別周期での利用を拒否する。周期列を計算するときは元モデルから各周期用の
 モデルを作る。
 
-Python 専用の `load_prem_spherical` / `load_prem_flat` は同梱データを使用し、
-上部地殻を地表まで延長する。キーワード専用引数 `max_depth_km=500.0`、
+同梱 PREM を使う場合、`load_prem_spherical` は内部で EFT を行うための球面ノードを、`load_prem_flat` は一度平坦化した Flat 計算用のノードを返す。
+いずれも Python 専用で、上部地殻を地表まで延長する。キーワード専用引数 `max_depth_km=500.0`、
 `max_spacing_km=10.0`、`density_exponent=-2.275` で深さ・間隔・密度指数を指定する。同梱PREMでは深さ2,891 kmまで指定でき、
 境界上ではマントル側の物性を半無限層に使う。それより深い指定では `ValueError` が発生する。
 

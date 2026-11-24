@@ -27,11 +27,10 @@ Hessian d²c/dp²) を計算する経路が複数ある。互いをクロスチ�
 | 2 階 (d²c/dp²) | **AD 1 段** — 変分勾配をもう 1 階 AD。**O(L·N)** | **AD 2 段（nested）** — `HessianAD<N>`。**O(L·N²)** |
 
 閉形式の変分勾配を微分するため、**「variational Hessian は
-2 階なのに AD 1 段」**が variational の効きどころで、`_grid` の Hessian が
-full-AD ではなく variational なのもこれが理由。
+2 階なのに AD 1 段」**で計算できる。GRID の物性 Hessian はこの変分法を使う。
 
-nested AD（AD 2 段）が今も使われているのは 2 か所だけ:
-`u_kernel_mode="full_ad"` の dU/dp と、LAYER_CAKE の `HessianAD<N>` Hessian。
+nested AD（AD 2 段）は、球面剛性 GRID の界面 Hessian 行、
+`u_kernel_mode="full_ad"` の dU/dp、LAYER_CAKE の `HessianAD<N>` Hessian などに使う。
 U の**値**も full-AD だが、これは各レベル 1 回で全体の 0.1%。
 
 ### 付随する軸
@@ -90,6 +89,8 @@ derivative 用の余分な refinement level を生成しない。詳細・評価
 | `compute_kernels_ad_layer_cake` | LAYER_CAKE | full-AD | nested AD | なし |
 | `compute_kernels_fd_layer_cake` | LAYER_CAKE | 有限差分 | 有限差分 | 参照用 |
 | `compute_interface_kernels_variational_rayleigh_layer_cake` / `_love_layer_cake` | LAYER_CAKE | 界面カーネル K_d | — | なし |
+
+全層が固体の球面剛性 GRID では、`compute_kernels_ad_grid` の `Depth` 成分に、要求した c・U・Rayleigh 波の H/V の深さ微分が入る。これらは EFT を含めて自動微分する。表の U の手法指定は物性成分に適用する。
 
 GRID の変分カーネル単独入口は `compute_kernels_variational_grid`
 （上記「埋まっていないマス」参照、2026-08-11 に追加）。
@@ -155,13 +156,13 @@ $dU/dp=U^2 d(\omega K_p/c^2)/d\omega$ でwidth-1 AD微分するため、群速�
 | `compute_hessian_variational_fd_love_layer_cake` | LAYER_CAKE | 変分勾配の有限差分。O(L·N²)、参照用 | なし |
 | `compute_hessian_variational_ad_rayleigh_grid` / `_love_grid` | GRID | variational（`grid_hessian.hpp`）。全ノード列 | あり |
 | `..._rayleigh_grid_reduced` / `..._love_grid_reduced` | GRID | **基底縮約版**。`J` を受け取り基底方向だけ seed | あり |
-| `compute_interface_hessian_row_ad_grid` | GRID | 界面深さ列（nested forward AD） | — |
-| `compute_interface_hessian_row_variational_ad_grid[_extrapolated]` | GRID | 界面 Hessian 行（variational） | 後者はあり |
+| `compute_interface_hessian_row_ad_grid` | Flat または全層固体の球面剛性 GRID | 入力深さに対する界面 Hessian 行（入れ子の前進 AD） | 固定レベル |
+| `compute_interface_hessian_row_variational_ad_grid[_extrapolated]` | Flat の剛性 GRID | 界面 Hessian 行（variational） | 後者はあり |
 
 旧 `_hybrid_love` / `_variational_love` / `debug_variational_love_hessian_breakdown`
 は2026-08-11に削除済み（下記「Love の Hessian」参照）。
 
-GRID の本番 Hessian は変分法を使う。平坦 VTI の固定レベル検算には `compute_hessian_ad_grid` を使える。
+GRID の物性 Hessian は変分法を使う。平坦 VTI の固定レベル検算には `compute_hessian_ad_grid` を使える。
 
 `_reduced` は node-VTI 単位ベクトルの代わりに基底 `J` を seed するので、AD パス数が
 `n_nodes*6` から `P` に落ちる（528 → 約 19）。C++ 側は n_nodes*6 の正方 Hessian を
@@ -192,7 +193,7 @@ variational の Hessian を組む。`wf-love-seed-gradient` で `HessianAD<80>`
 
 ここでいう **Hybrid Hessianはチェック・デバッグ専用の歴史的経路**である。
 Variational ADが安定するまでの実装確認ではFull ADとの比較に使ったが、
-`inversion/`の本番経路には入れていない。現在、Hessianの役割は
+`inversion/`の本番経路には入れていない。物性 Hessian の役割は
 「Variational ADを本番、Full ADを独立reference、必要に応じてVariational FDを
 数値検算」とする。したがって、古いテストや履歴に残る`hybrid`という名前を
 現行の推奨API・本番手法と解釈してはならない。
@@ -215,25 +216,27 @@ Variational ADが安定するまでの実装確認ではFull ADとの比較に�
 
 ## 同じ dc/dp が 2 実装ある — 本番と検算
 
-GRID の dc/dp は 2 経路あり、**パイプラインは両方を計算して突き合わせている**
-(`pipeline.py の run_phase1`):
+Phase 1（`run_phase1`）は、物性に対する Jacobian と Hessian を変分法で求める。
+`InterfaceShiftBasis` を使う場合は、界面の深さ勾配と Hessian 行も組み込む。
+Flat の剛性 GRID では境界カーネル $K_d$ を使い、全層が固体の球面剛性 GRID では、球面深さでの補間・EFT・分散方程式の根を各レベルで自動微分して外挿する。
+座標系の選び方は[剛性 GRID の深さ座標](public_api.md#grid-depth-coordinates)を参照。
 
 ```text
 G_hess = gradient_log(model0, res["g_a_variational"])
-J[i] = project_gradient(G_hess, basis, model=model0)                      # 本番は variational 側
+J[i] = project_gradient(G_hess, basis, model=model0)
+if "g_interface_depth" in res:
+    J[i, basis.depth_parameter_index] = res["g_interface_depth"]
+elif "g_variational_depth" in res:
+    J[i, basis.depth_parameter_index] = res["g_variational_depth"]
 if "g_a_ad" in res:
     G_kernel = gradient_log(model0, res["g_a_ad"])           # AD Romberg 経路
     ad_row = res.get("g_inv_kernel", project_gradient(G_kernel, basis, model=model0))
     consistency[i] = max|J[i] - ad_row| / scale              # 検算
 ```
 
-- **本番の Jacobian は variational 側** (`res["g_a_variational"]`、reduced Hessian
-  呼び出しの `gradient_node`。深さ成分は `depth_config` があるとき variational K_d
-  経路 `g_variational_depth` から)
-- **AD 経路（`compute_kernels_ad_grid`）は独立な検算**で、
-  `consistency` として記録される。`ad_kernel_every` で間引かれた点は
-  `consistency` が NaN になる
-- Hessian 本体は variational 側 (`hessian_reduced`)
+物性勾配は `ad_kernel_every` で選んだ点で `compute_kernels_ad_grid` と突き合わせる。
+球面ではこの呼び出しで得た `Depth` を本番の深さ勾配にも使う。
+間引いた点では `consistency` を NaN とし、必要な球面深さ勾配を別途計算する。
 
 コスト（shallow 24 点、逐次 1 点あたり、2026-08-11）:
 
@@ -340,7 +343,7 @@ dF/dc(計算値) ≈ s(c+ε)·F_c      dF_dp = s(c)·F_p   (同一 AD パス、�
 
 死んだコード: `computeNumericalDerivative` (`disper26.cpp`) は呼び出し 0 件。
 
-現在の既定経路では界面深さ列に `depth_gradient_variational` を使い、ADの `Depth` は独立した検算に使う。
+Flat の既定経路では界面深さ勾配に `depth_gradient_variational` を使い、AD の `Depth` で検算する。
 
 歴史的な注記: `compute_kernels_ad_grid`（旧 `compute_dispersion_romberg_with_kernels`）
 の kernel が単一レベルでしか計算されていなかったバグ (2026-07-05 `e5faa1d` で修正)
@@ -373,11 +376,10 @@ variational 側の gradient を使っていて、バグのある AD 側を通っ
 
 | 引数 | 既定 | 効果 |
 |---|---|---|
-| `ad_kernel_every` | `1`（全点で AD、旧挙動） | 0でAD検算を省略し、正のNで添字0、N、2N、…を検算する。`J` は常に variational + K_d、AD は `consistency` のためだけ |
+| `ad_kernel_every` | `1`（全点を検算） | 0 で物性カーネルの AD 検算を省略し、正の N で添字 0、N、2N、… を検算する。界面深さを推定する場合は、間引いた点でも深さ勾配を求める |
 
-`Depth` 成分は `depth_backend.depth_gradient_variational`（既定の `variational_ad`
-バックエンドが持つ）から来る。持たないバックエンドを明示選択したまま
-`ad_kernel_every` で AD を間引くと `RuntimeError`。
+`InterfaceShiftBasis` で自動選択される深さのバックエンドは Flat では `variational_ad`、球面では `spherical_ad` である。
+微分を要求しない順計算では、どちらも界面勾配や Hessian 行を計算しない。
 
 ## 命名整理
 
@@ -394,7 +396,7 @@ variational 側の gradient を使っていて、バグのある AD 側を通っ
 この文書内の関数名は現時点の正名に更新済みで、以下の「実用経路の切り替え」節も
 その表記に合わせてある。
 
-GRID の 1 階 `K_d`（界面深さ勾配 dc/dz、`compute_interface_gradient_variational_grid`）
+Flat GRID の 1 階 `K_d`（界面深さ勾配 dc/dz、`compute_interface_gradient_variational_grid`）
 の単独公開は B3（下記）で完了済み。
 
 ### 実用経路の切り替え（B1/B2/B3）— 完了 (2026-08-11)
@@ -411,7 +413,7 @@ GRID の 1 階 `K_d`（界面深さ勾配 dc/dz、`compute_interface_gradient_va
 3. **B1** — `pipeline.py` の `J[i]` を variational + K_d へ切り替え。**役割が反転**:
    本番が variational、AD は `consistency` のためだけの検算になった。
 
-**役割反転後の構成**:
+**切り替え後の Flat GRID の構成**
 
 - 速度成分: `g_a_variational`（reduced Hessian 呼び出しの `gradient_node`、常時計算）
 - 深さ成分（`depth_config` あり）: `VariationalAdDepthHessianBackend.depth_gradient_variational`

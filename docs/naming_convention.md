@@ -31,8 +31,8 @@ Established verbs for other operations include `create_*`, `search_roots`,
 | `kernels` | Depth distribution of ∂c/∂p by layer or GRID node |
 | `gradient` | Assembled vector of ∂c/∂p |
 | `hessian` | ∂²c/∂p² |
-| `interface_kernels` | Raw boundary kernels K_d for a layer-cake model |
-| `interface_gradient` | GRID depth derivative dc/dz assembled from K_d and geometric weights |
+| `interface_kernels` | Phase-velocity derivative for each interface depth. The layer-cake variational binding returns the boundary kernels $K_d$. |
+| `interface_gradient` | GRID interface-depth derivative in the model's input coordinate. The flat variational binding assembles $K_d$ with geometric weights. |
 | `interface_hessian_row` | A row of the GRID Hessian obtained by differentiating the interface gradient |
 | `eigenfunctions`, `energy_integrals`, `mode_count`, `continuous_mode_count` | Eigenfunctions, energy integrals and the two mode-count diagnostics |
 
@@ -112,7 +112,7 @@ and `compute_interface_hessian_row_variational_ad_grid_extrapolated`.
   `minimum_trace_level` specifies how far to extend the trace.
   `root_tolerance` controls root solving and `tolerance` controls phase extrapolation.
 
-The depth Hessian backend registry and its reported method use the same key.
+The historical depth Hessian backend keys and their canonical names are listed below.
 
 | Historical registry key | Historical class | Historical method string | Canonical key and method |
 |---|---|---|---|
@@ -130,7 +130,9 @@ compatibility and pass an explicit backend in new calls.
 A historical Phase-1 cache marker in `inversion/disper26_inv/pipeline.py`
 used `"depth_backend": "central_fd_of_ad_gradient"` even after the default
 changed to `"variational"` by 2026-08-11. That marker distinguished cache
-contracts. The current default registry key and method string are `"variational_ad"`.
+contracts. Phase 1 selects `"variational_ad"` for a flat interface and
+`"spherical_ad"` for a spherical one. The spherical backend reports `method="ad"`
+for the computed row.
 
 ## 5. Compatibility
 

@@ -31,8 +31,8 @@
 | `kernels` | ∂c/∂p の深さ分布（LAYER_CAKE の層別、または GRID のノード別） |
 | `gradient` | ∂c/∂p を組み上げたベクトル |
 | `hessian` | ∂²c/∂p² |
-| `interface_kernels` | 界面ごとの K_d（LAYER_CAKE、生の境界カーネル） |
-| `interface_gradient` | K_d を幾何重みで足し合わせた dc/dz（GRID、1階） |
+| `interface_kernels` | 各界面の深さに対する位相速度微分。Layer-cake の変分法では境界カーネル $K_d$ を返す |
+| `interface_gradient` | 入力 GRID の深さ座標で求めた界面深さ勾配。Flat の変分法では $K_d$ を幾何重みで足し合わせる |
 | `interface_hessian_row` | interface_gradient をもう1階微分した Hessian の行（GRID、2階）。C++ 側の「row」に統一し、Python 側の「column」呼称を退役させる（§5） |
 | `eigenfunctions` / `energy_integrals` / `mode_count` / `continuous_mode_count` | そのまま |
 
@@ -102,7 +102,7 @@ GRID Hessianのように常に外挿する関数ではこの接尾辞を省略�
   `phase_accepted_level`（direct phase の外挿 prefix 終端）を必ず組で渡す。
   追加生成深さは `minimum_trace_level`、root solve tolerance は `root_tolerance` とし、
   phase Romberg の `tolerance` と名前を分ける。
-- 深さHessianの登録キーと計算法名には同じ語を使う。
+- 深さ Hessian のバックエンドの旧名と対応する現行名は次のとおり。
 
   | 旧 registry key | 旧クラス名 | 旧 `method` 文字列 | 正 registry key = method 文字列 |
   |---|---|---|---|
@@ -112,7 +112,7 @@ GRID Hessianのように常に外挿する関数ではこの接尾辞を省略�
 
   クラス名は `<Key>DepthHessianBackend` の形（`FdDepthHessianBackend` /
   `AdDepthHessianBackend` / `VariationalAdDepthHessianBackend`）に揃える。
-- 深さHessianの既定キーは `"variational_ad"`。過去のPhase-1キャッシュ識別子には `"central_fd_of_ad_gradient"` も使われた。
+- Phase 1 は Flat の界面に `"variational_ad"`、球面の界面に `"spherical_ad"` を選ぶ。球面バックエンドが返す Hessian 行の計算法名は `method="ad"` である。過去の Phase 1 キャッシュ識別子には `"central_fd_of_ad_gradient"` も使われた。
 - 変分HessianのAD実装を選ぶ `backend` は別の設定で、低水準バインディングの既定は `"dual"`、`ForwardEngine.hessian_backend` の既定は `"vector"` である。
 
 ## 5. 旧名の扱い
