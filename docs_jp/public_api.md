@@ -2,11 +2,16 @@
 
 [English edition](../docs/public_api.md)
 
-通常の順計算は Python の `disper26`、C++ の `disper26::api`、C の `api_c.h`、Fortran の
-`disper26_api` から利用する。四つの入口は同じC++実装に委譲する。
-従来の `disper26py` と Fortran `disper26` は互換APIとして引き続き利用できる。
-順に実行するPythonの例は [練習例](../example_jp/README.md)、
-`disper26py` による検算・詳細診断は [低水準API利用ガイド](lowlevel_api.md) を参照。
+Python では、モデル作成から分散・感度・Hessian の計算まで、高水準 API（`disper26`）だけで完結する。
+球面の剛性 GRID で地球平坦化変換（EFT）を含む界面微分を求める場合も同じである。
+高水準 API の例では `import disper26 as d26` を使う。[練習例](../example_jp/README.md)を参照。
+
+細分化レベルごとの根を自分で渡す場合や、計算法ごとの結果を直接比較する場合は、
+低水準 API（`disper26py`）を使う。低水準 API の例での表記は `import disper26py as d26_lowlevel` である。
+配布パッケージ `disper26py` をインストールすると、両方の API が使える。詳しくは[低水準 API 利用ガイド](lowlevel_api.md)を参照。
+
+高水準 API は C++ の `disper26::api`、C の `api_c.h`、Fortran の `disper26_api` と同じ C++ 実装を使う。
+従来の Fortran `disper26` も互換 API として引き続き利用できる。
 
 ## 海底重力オプションの削除
 
@@ -483,7 +488,7 @@ python -m unittest discover -s tests/python -p test_model_arrays.py -v
 
 ## 容量再利用コンテキスト（2026-09-26）
 
-`context = d26.create_dispersion_context()` を作り、`compute_dispersion` または
+`context = disper26.create_dispersion_context()` を作り、`compute_dispersion` または
 `compute_dispersion_curve` の `context=context` に渡すと作業配列の容量を再利用する。
 毎回モデルから内容を作り直し、前回の根・メッシュ・予測を再利用しない。
 省略時の呼び出し方と数値・診断の契約は同じ。返却済み結果は独立に所有される。

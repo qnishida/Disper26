@@ -2,11 +2,20 @@
 
 [Japanese edition](../docs_jp/public_api.md)
 
-Python (`disper26`), C++ (`disper26::api`), C (`api_c.h`) and Fortran (`disper26_api`) use
-the same C++ implementation for forward calculations. The legacy `disper26py`
-and Fortran `disper26` interfaces remain available. For runnable Python
-examples, see the [practice guide](../examples/README.md). For method-specific
-checks and diagnostics, see the [low-level API](lowlevel_api.md).
+The high-level Python API (`disper26`) covers the full workflow from building
+a model and solving dispersion to computing sensitivities and Hessians. It also
+handles interface derivatives with internal Earth flattening on a spherical
+stiffness GRID. The examples use `import disper26 as d26`. See the
+[practice guide](../examples/README.md).
+
+Use the low-level Python API (`disper26py`) when you need to supply roots for
+individual refinement levels or compare methods directly. Those examples use
+`import disper26py as d26_lowlevel`. Installing the `disper26py` distribution
+provides both APIs. See the [low-level guide](lowlevel_api.md).
+
+The high-level Python API shares its C++ implementation with `disper26::api`
+in C++, `api_c.h` in C and `disper26_api` in Fortran. The legacy Fortran
+`disper26` interface also remains available.
 
 ## Migration from the seabed gravity option
 
@@ -531,7 +540,7 @@ excluded a Fortran rebuild.
 
 ## Reusing workspace capacity (2026-09-26)
 
-Pass `context=d26.create_dispersion_context()` to `compute_dispersion` or
+Pass `context=disper26.create_dispersion_context()` to `compute_dispersion` or
 `compute_dispersion_curve`, retaining the context for subsequent calls.
 Each call repopulates its arrays from the model. Roots, mesh contents and
 predictions are specific to the call. Previously returned results own their

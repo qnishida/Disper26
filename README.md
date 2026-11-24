@@ -24,7 +24,12 @@ For a Git clone, initialize the pinned autodiff dependency with
 described in [installation](docs/install.md). Requirements are C++17,
 CMake 3.18+, Eigen 3.4.x and, for Python, NumPy and pybind11 2.10+.
 On macOS the build requires GNU GCC/libstdc++ and Homebrew `eigen@3`.
-The Python distribution is `disper26py`. Import `disper26` for the shared API.
+The `disper26py` distribution installs both Python APIs. For model building,
+dispersion, sensitivity kernels and Hessians, use the high-level API
+(`import disper26 as d26`). This includes interface derivatives with internal
+Earth flattening on a spherical stiffness GRID. Import the low-level API
+(`import disper26py as d26_lowlevel`) when you need to supply roots for
+individual refinement levels or compare numerical methods directly.
 Use Python 3.8+ in a dedicated environment; do not install into Conda base.
 The commands below use the Python interpreter from that environment. See
 [installation](docs/install.md) for environment setup and native dependencies.

@@ -2,10 +2,14 @@
 
 [English edition](../docs/lowlevel_api.md)
 
-モデル名は `layer_cake` を正式名とします。対応する `*_pancake` は legacy alias として
-同じ引数・既定値・計算結果を維持します。新規コードでは `*_layer_cake` を使います。
+通常の分散・感度・Hessian は、高水準 API（`disper26`）でモデルや計算済みの解を渡して求めます。
+手順は[練習例](../example_jp/README.md)を参照してください。
 
-mode countを直接調べる、手法別の出力を比較する、レベル別の根を明示的に渡す場合に使います。通常の計算手順は [練習例](../example_jp/README.md) にあります。ここでは `d26.Model` や `ModeSolution` の代わりに、`disper26py.PhysicalParameters`、厚さ・深度配列、角周波数・位相速度などを各関数へ渡します。
+このガイドでは低水準 API（`disper26py`）を `d26_lowlevel` としてインポートします。
+指定した位相速度でモードカウントを調べる、手法別の出力を比較する、細分化レベルごとの根を自分で渡す、といった使い方を扱います。
+各関数には `disper26py.PhysicalParameters`、厚さ・深さの配列、周期や周波数などを直接渡します。
+層モデルの正式名は `layer_cake` です。新規コードでは `*_layer_cake` を使います。
+従来の別名 `*_pancake` でも引数・既定値・計算結果は同じです。
 
 §1–8のPythonブロックは、練習例とは独立したPythonセッションで上から順に実行できます。入力の準備も本書で完結します。
 
@@ -38,18 +42,18 @@ mode countを直接調べる、手法別の出力を比較する、レベル別�
 ```python
 import math
 import numpy as np
-import disper26py as dp
+import disper26py as d26_lowlevel
 
 # 1. 等方性媒質: create_isotropic_parameters(vs, vp, rho)
-layer_solid = dp.create_isotropic_parameters(3.2, 5.8, 2.6)
-half_space = dp.create_isotropic_parameters(4.5, 8.0, 3.3)
+layer_solid = d26_lowlevel.create_isotropic_parameters(3.2, 5.8, 2.6)
+half_space = d26_lowlevel.create_isotropic_parameters(4.5, 8.0, 3.3)
 
 # 2. 流体/海水層: create_fluid_parameters(vp, rho)
-ocean_water = dp.create_fluid_parameters(1.5, 1.0)
+ocean_water = d26_lowlevel.create_fluid_parameters(1.5, 1.0)
 
 # 3. VTI弾性層: create_vti_layer_from_depth(A, C, F, L, N, rho, top_depth, bottom_depth)
 # 戻り値: (PhysicalParameters, thickness)
-vti_layer, thick = dp.create_vti_layer_from_depth(
+vti_layer, thick = d26_lowlevel.create_vti_layer_from_depth(
     20.0, 20.0, 8.0, 4.0, 4.0, 2.5, 0.0, 10.0
 )
 
@@ -63,7 +67,7 @@ rho = [2.5, 2.7, 2.9, 3.3, 3.4]
 alpha_v = [5.5, 6.0, 6.5, 8.0, 8.1]
 beta_v = [3.2, 3.5, 3.8, 4.5, 4.6]
 is_disc = [False, False, True, False, False]  # 30 kmの浅い側をTrueにする
-grid_params = [dp.create_isotropic_parameters(b, a, r)
+grid_params = [d26_lowlevel.create_isotropic_parameters(b, a, r)
                for b, a, r in zip(beta_v, alpha_v, rho)]
 # 速度補間API用のVTI配列。この例は等方性なので水平・鉛直速度は等しい
 alpha_h = list(alpha_v)
@@ -82,10 +86,10 @@ period_layer_cake = 5.0  # s
 omega = 2.0 * math.pi / period_layer_cake
 
 # 根探索の末尾4引数は c_min, c_max, n_search, wave_type (位置引数)
-roots_rayleigh = dp.search_roots(
+roots_rayleigh = d26_lowlevel.search_roots(
     layers, thicknesses, half_space, omega, 2.0, 4.4, 200, "Rayleigh"
 )
-roots_love = dp.search_roots(
+roots_love = d26_lowlevel.search_roots(
     layers, thicknesses, half_space, omega, 3.2, 4.4, 200, "Love"
 )
 if not roots_rayleigh or not roots_love:
@@ -96,13 +100,13 @@ c_love = roots_love[0]
 # この単純モデルの基本モードを、根の両側のカウントの跳びで確認
 delta_rel = 3e-4  # 既存の分岐確認で使用する相対窓幅
 for wave, cp in (("Rayleigh", c_rayleigh), ("Love", c_love)):
-    counts = [dp.compute_mode_count(
+    counts = [d26_lowlevel.compute_mode_count(
         layers, thicknesses, half_space, omega, cp * (1.0 + sign * delta_rel), wave
     ) for sign in (-1, 1)]
     assert counts == [0, 1], (wave, counts)
 
 # 旧実装の連続カウントは診断用。整数部をモード番号として使わない
-cont_mode = dp.compute_continuous_mode_count(
+cont_mode = d26_lowlevel.compute_continuous_mode_count(
     layers, thicknesses, half_space, omega, c_rayleigh, "Rayleigh"
 )
 ```
@@ -125,7 +129,7 @@ cont_mode = dp.compute_continuous_mode_count(
 periods = [2.0, 3.0, 5.0, 8.0, 10.0, 15.0, 20.0]  # 単調な周期列
 
 # Layer-cake モデルの一括計算
-layer_cake_curve = dp.compute_dispersion_curve_layer_cake(
+layer_cake_curve = d26_lowlevel.compute_dispersion_curve_layer_cake(
     layers, thicknesses, half_space,
     periods=periods, wave_type="Rayleigh", branch=0,
     c_min=2.0, c_max=4.4, verify_branch=True
@@ -133,7 +137,7 @@ layer_cake_curve = dp.compute_dispersion_curve_layer_cake(
 c_layer_cake = layer_cake_curve["phase_velocities"]
 
 # GRID モデル (速度基底): §1で構築した入力を使う
-grid_curve = dp.compute_dispersion_curve_romberg_grid_velocity_vti(
+grid_curve = d26_lowlevel.compute_dispersion_curve_romberg_grid_velocity_vti(
     depth, rho, alpha_h, alpha_v, beta_h, beta_v, eta,
     is_disc, periods, wave_type="Rayleigh", c_guess=3.5, branch=0
 )
@@ -153,24 +157,24 @@ Layer-cakeの `branch=0` は初回・再探索時の速度順の基本モード�
 
 ```python
 # 1. 群速度 U (Full AD による厳密微分)
-U = dp.compute_group_velocity_ad(
+U = d26_lowlevel.compute_group_velocity_ad(
     layers, thicknesses, half_space, omega, c_rayleigh, "Rayleigh"
 )
 
 # 2. H/V比 (符号付き楕円率 y3/y1)
 # ※流体層が存在する場合は、自動的に海底面 (固体表面) で評価されます
-hv = dp.compute_hv_ratio(
+hv = d26_lowlevel.compute_hv_ratio(
     layers, thicknesses, half_space, omega, c_rayleigh, "Rayleigh"
 )
 
 # 3. 固有関数 (Rayleigh: ur, uz, szr, szz / Love: uy, tyz)
 # 分割数は位置引数で渡す
-ef_rayleigh = dp.compute_eigenfunctions_rayleigh(
+ef_rayleigh = d26_lowlevel.compute_eigenfunctions_rayleigh(
     layers, thicknesses, half_space, omega, c_rayleigh, 50
 )
 
 # 4. 解析的エネルギー積分 (固体モデル)
-I1, I2, I3, c_energy = dp.compute_energy_integrals_analytical_rayleigh(
+I1, I2, I3, c_energy = d26_lowlevel.compute_energy_integrals_analytical_rayleigh(
     ef_rayleigh, layers, thicknesses, half_space, omega, c_rayleigh
 )
 ```
@@ -210,7 +214,7 @@ VTI の GRID では `compute_kernels_variational_grid` と変分 Hessian のノ�
 位相速度・群速度・H/Vの感度をFull ADで計算します。LoveのH/Vは定義されず、対応する値・感度は `NaN` になります。
 
 ```python
-kernels = dp.compute_kernels_ad_layer_cake(
+kernels = d26_lowlevel.compute_kernels_ad_layer_cake(
     layers, thicknesses, half_space, omega, c_rayleigh,
     wave_type="Rayleigh",
     sensitivity_mode="Isotropic",  # または "VTI"
@@ -230,7 +234,7 @@ for k in kernels:
 ```python
 period_grid = 10.0
 derivative_level = 5
-trace = dp.compute_dispersion_romberg_levels(
+trace = d26_lowlevel.compute_dispersion_romberg_levels(
     depth, grid_params, is_disc, period=period_grid,
     wave_type="Rayleigh", c_guess=3.5, branch=0,
     max_steps=derivative_level, minimum_trace_level=derivative_level,
@@ -238,7 +242,7 @@ trace = dp.compute_dispersion_romberg_levels(
 grid_roots = trace["phase_velocity_roots"]
 accepted_level = trace["phase_accepted_level"]
 
-c_grid, U_grid, hv_grid, level, rel_err, kernels_grid = dp.compute_kernels_ad_grid(
+c_grid, U_grid, hv_grid, level, rel_err, kernels_grid = d26_lowlevel.compute_kernels_ad_grid(
     depth, grid_params, is_disc,
     period=period_grid, wave_type="Rayleigh", c_guess=trace["phase_velocity"],
     sensitivity_mode="Isotropic", max_steps=derivative_level,
@@ -268,7 +272,7 @@ Layer-cake の Hessian の軸は物性のみです。互換引数 `compute_thick
 
 ```python
 # Rayleigh波
-res_rayleigh = dp.compute_hessian_variational_ad_rayleigh_layer_cake(
+res_rayleigh = d26_lowlevel.compute_hessian_variational_ad_rayleigh_layer_cake(
     layers, thicknesses, half_space, omega, c_rayleigh,
     sensitivity_mode="Isotropic",
     use_analytical=True  # 閉形式の積分。固体上の連続した表面流体層にも対応
@@ -277,7 +281,7 @@ H = res_rayleigh["hessian"]   # 2次元 numpy array
 g = res_rayleigh["gradient"]  # 1次元 numpy array
 
 # Love波
-res_love = dp.compute_hessian_variational_ad_love_layer_cake(
+res_love = d26_lowlevel.compute_hessian_variational_ad_love_layer_cake(
     layers, thicknesses, half_space, omega, c_love,
     sensitivity_mode="Isotropic", use_analytical=True,
 )
@@ -286,7 +290,7 @@ res_love = dp.compute_hessian_variational_ad_love_layer_cake(
 ### 2. GRID モデルのヘシアン (ノードパラメータ感度)
 
 ```python
-res_grid = dp.compute_hessian_variational_ad_rayleigh_grid(
+res_grid = d26_lowlevel.compute_hessian_variational_ad_rayleigh_grid(
     depth, grid_params, is_disc,
     freq=1.0 / period_grid, c_guess=c_grid,
     sensitivity_mode="Isotropic", max_levels=derivative_level,
@@ -311,19 +315,19 @@ Layer-cakeの $K_d$ は各境界のカーネルです。幾何パラメータ $q
 
 ```python
 # Layer-cake 界面感度 Kd
-kd_rayleigh = dp.compute_interface_kernels_variational_rayleigh_layer_cake(
+kd_rayleigh = d26_lowlevel.compute_interface_kernels_variational_rayleigh_layer_cake(
     layers, thicknesses, half_space, omega, c_rayleigh
 )
 
 # 30 kmの不連続面: 不連続面番号は0、浅い側のノード番号は2
 discontinuity_index = 0
-grad_z = dp.compute_interface_gradient_variational_grid(
+grad_z = d26_lowlevel.compute_interface_gradient_variational_grid(
     depth, grid_params, is_disc,
     period=period_grid, wave_type="Rayleigh", c_root=c_grid,
     discontinuity_index=discontinuity_index, max_level=derivative_level,
     phase_velocity_roots=grid_roots, phase_accepted_level=accepted_level,
 )
-row_z = dp.compute_interface_hessian_row_variational_ad_grid_extrapolated(
+row_z = d26_lowlevel.compute_interface_hessian_row_variational_ad_grid_extrapolated(
     depth, grid_params, is_disc,
     period=period_grid, wave_type="Rayleigh", c_root=c_grid,
     discontinuity_index=discontinuity_index, max_level=derivative_level,
@@ -346,17 +350,17 @@ row_z = dp.compute_interface_hessian_row_variational_ad_grid_extrapolated(
 r_earth = 6371.0
 
 # 1. Layer-cake モデルの平坦化 (Bhattacharya & Arora 1997, デフォルト p=-2)
-flat_layers, flat_thick = dp.earth_flattening_transformation_layers(
+flat_layers, flat_thick = d26_lowlevel.earth_flattening_transformation_layers(
     layers, thicknesses, planet_radius=r_earth
 )
 
 # 2. GRID モデルの平坦化
-flat_depths, flat_params, flat_disc = dp.earth_flattening_transformation_grid(
+flat_depths, flat_params, flat_disc = d26_lowlevel.earth_flattening_transformation_grid(
     depth, grid_params, is_disc, planet_radius=r_earth
 )
 
 # 3. 元の参照周期モデルを、対象周期20秒に補正
-corrected_layers = dp.apply_mineos_physical_dispersion_model(
+corrected_layers = d26_lowlevel.apply_mineos_physical_dispersion_model(
     layers, qkappas=[57823.0], qmus=[600.0], tref_s=1.0, period_s=20.0
 )
 ```

@@ -2,6 +2,10 @@
 
 [Japanese edition](../docs_jp/naming_convention.md)
 
+In Python documentation, use **high-level API** (`disper26`) and **low-level API**
+(`disper26py`). Code examples use `import disper26 as d26` for the high-level
+API and `import disper26py as d26_lowlevel` for the low-level API.
+
 ## 1. Function names
 
 ```

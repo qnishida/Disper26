@@ -160,26 +160,27 @@ int main() {
 
 ### Python API
 
-The low-level scan below finds sign-changing Rayleigh roots between 1.6 and
-2.9 km/s. Its results are ordered within that interval. Use the shared API
-with `mode=0` to request the fundamental as in the C++ example.
+Use the high-level API (`disper26`) with `mode=0` to request the fundamental
+as in the C++ example. The low-level API (`disper26py`) can scan an explicit
+interval. This example finds sign-changing Rayleigh roots between 1.6 and
+2.9 km/s and returns them in order within that interval.
 
 ```python
-import disper26py as dp
+import disper26py as d26_lowlevel
 import math
 
 # Create fluid layer
-ocean = dp.create_fluid_parameters(vp=1.5, rho=1.0)
+ocean = d26_lowlevel.create_fluid_parameters(vp=1.5, rho=1.0)
 
 # Create solid layer
-sediment = dp.create_isotropic_parameters(vs=0.5, vp=2.0, rho=1.8)
-halfspace = dp.create_isotropic_parameters(vs=3.0, vp=5.0, rho=2.5)
+sediment = d26_lowlevel.create_isotropic_parameters(vs=0.5, vp=2.0, rho=1.8)
+halfspace = d26_lowlevel.create_isotropic_parameters(vs=3.0, vp=5.0, rho=2.5)
 
 layers = [ocean, sediment]
 thicknesses = [2.0, 1.0]  # km
 
 omega = 2.0 * math.pi * 0.5
-roots = dp.search_roots(layers, thicknesses, halfspace, omega, 1.6, 2.9, 100, "Rayleigh")
+roots = d26_lowlevel.search_roots(layers, thicknesses, halfspace, omega, 1.6, 2.9, 100, "Rayleigh")
 print(roots)  # Phase velocities in km/s at 0.5 Hz
 ```
 

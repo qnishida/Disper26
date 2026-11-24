@@ -1,7 +1,7 @@
 # Disper26 practice examples
 
-These self-contained examples use small models to demonstrate dispersion,
-sensitivity kernels and Hessians. Each script includes its inputs.
+These examples use the high-level Python API (`import disper26 as d26`) for
+dispersion, sensitivity kernels and Hessians. Each script includes its model and inputs.
 A [Japanese edition](../example_jp/README.md) is available.
 
 ## Setup

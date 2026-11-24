@@ -2,11 +2,15 @@
 
 [Japanese edition](../docs_jp/lowlevel_api.md)
 
-Use `disper26py` to inspect mode counts, compare methods or pass level-specific
-roots explicitly. The functions take `PhysicalParameters`, thickness or depth
-arrays, angular frequency and phase velocity directly. For routine calculations
-see the [practice examples](../examples/README.md). Use `*_layer_cake` in new
-code. The corresponding `*_pancake` aliases retain their arguments and defaults.
+For routine dispersion, sensitivities and Hessians, use the high-level API
+(`disper26`) with a model or a stored solution. See the [practice examples](../examples/README.md).
+
+This guide uses the low-level API (`disper26py`), imported as `d26_lowlevel`,
+to inspect a mode count at a trial phase velocity, compare methods or supply
+roots for individual refinement levels. Its functions take material properties,
+thickness or depth arrays and the frequency or period for the calculation.
+Use `*_layer_cake` in new code. The corresponding `*_pancake` aliases retain
+their arguments and defaults.
 
 Run the Python blocks in sections 1–8 in order in a fresh session. Here
 `alpha_v` and `alpha_h` are vertical and horizontal P-wave velocities, and
@@ -39,17 +43,17 @@ Use `omega = 2π / period` and `freq = 1 / period`.
 ```python
 import math
 import numpy as np
-import disper26py as dp
+import disper26py as d26_lowlevel
 
 # Isotropic material: create_isotropic_parameters(vs, vp, rho)
-layer_solid = dp.create_isotropic_parameters(3.2, 5.8, 2.6)
-half_space = dp.create_isotropic_parameters(4.5, 8.0, 3.3)
+layer_solid = d26_lowlevel.create_isotropic_parameters(3.2, 5.8, 2.6)
+half_space = d26_lowlevel.create_isotropic_parameters(4.5, 8.0, 3.3)
 
 # Fluid layer: create_fluid_parameters(vp, rho)
-ocean_water = dp.create_fluid_parameters(1.5, 1.0)
+ocean_water = d26_lowlevel.create_fluid_parameters(1.5, 1.0)
 
 # Arguments: A, C, F, L, N (GPa), density (g/cm³), top and bottom depth (km).
-vti_layer, thick = dp.create_vti_layer_from_depth(
+vti_layer, thick = d26_lowlevel.create_vti_layer_from_depth(
     20.0, 20.0, 8.0, 4.0, 4.0, 2.5, 0.0, 10.0
 )
 
@@ -63,7 +67,7 @@ rho = [2.5, 2.7, 2.9, 3.3, 3.4]
 alpha_v = [5.5, 6.0, 6.5, 8.0, 8.1]
 beta_v = [3.2, 3.5, 3.8, 4.5, 4.6]
 is_disc = [False, False, True, False, False]  # Shallow side at 30 km
-grid_params = [dp.create_isotropic_parameters(b, a, r)
+grid_params = [d26_lowlevel.create_isotropic_parameters(b, a, r)
                for b, a, r in zip(beta_v, alpha_v, rho)]
 # This isotropic example has equal horizontal and vertical velocities.
 alpha_h = list(alpha_v)
@@ -80,10 +84,10 @@ period_layer_cake = 5.0  # s
 omega = 2.0 * math.pi / period_layer_cake
 
 # The last four positional arguments are c_min, c_max, n_search and wave_type.
-roots_rayleigh = dp.search_roots(
+roots_rayleigh = d26_lowlevel.search_roots(
     layers, thicknesses, half_space, omega, 2.0, 4.4, 200, "Rayleigh"
 )
-roots_love = dp.search_roots(
+roots_love = d26_lowlevel.search_roots(
     layers, thicknesses, half_space, omega, 3.2, 4.4, 200, "Love"
 )
 if not roots_rayleigh or not roots_love:
@@ -94,13 +98,13 @@ c_love = roots_love[0]
 # Check the count jump across the fundamental root of this simple model.
 delta_rel = 3e-4  # Relative half-width used in the branch check
 for wave, cp in (("Rayleigh", c_rayleigh), ("Love", c_love)):
-    counts = [dp.compute_mode_count(
+    counts = [d26_lowlevel.compute_mode_count(
         layers, thicknesses, half_space, omega, cp * (1.0 + sign * delta_rel), wave
     ) for sign in (-1, 1)]
     assert counts == [0, 1], (wave, counts)
 
 # The legacy continuous count is a diagnostic. Its integer part is unreliable as a mode index.
-cont_mode = dp.compute_continuous_mode_count(
+cont_mode = d26_lowlevel.compute_continuous_mode_count(
     layers, thicknesses, half_space, omega, c_rayleigh, "Rayleigh"
 )
 ```
@@ -127,7 +131,7 @@ models to run in Python threads. Tracking within each curve is sequential.
 periods = [2.0, 3.0, 5.0, 8.0, 10.0, 15.0, 20.0]
 
 # Batch calculation for the layer-cake model
-layer_cake_curve = dp.compute_dispersion_curve_layer_cake(
+layer_cake_curve = d26_lowlevel.compute_dispersion_curve_layer_cake(
     layers, thicknesses, half_space,
     periods=periods, wave_type="Rayleigh", branch=0,
     c_min=2.0, c_max=4.4, verify_branch=True
@@ -135,7 +139,7 @@ layer_cake_curve = dp.compute_dispersion_curve_layer_cake(
 c_layer_cake = layer_cake_curve["phase_velocities"]
 
 # Velocity-interpolated GRID using the arrays from section 1
-grid_curve = dp.compute_dispersion_curve_romberg_grid_velocity_vti(
+grid_curve = d26_lowlevel.compute_dispersion_curve_romberg_grid_velocity_vti(
     depth, rho, alpha_h, alpha_v, beta_h, beta_v, eta,
     is_disc, periods, wave_type="Rayleigh", c_guess=3.5, branch=0
 )
@@ -160,23 +164,23 @@ error `NaN`. See the [batch and single-period regression](../tests/python/test_p
 
 ```python
 # Group velocity from full AD
-U = dp.compute_group_velocity_ad(
+U = d26_lowlevel.compute_group_velocity_ad(
     layers, thicknesses, half_space, omega, c_rayleigh, "Rayleigh"
 )
 
 # Signed ellipticity y3/y1, evaluated on the solid side of a fluid-loaded seabed
-hv = dp.compute_hv_ratio(
+hv = d26_lowlevel.compute_hv_ratio(
     layers, thicknesses, half_space, omega, c_rayleigh, "Rayleigh"
 )
 
 # Rayleigh fields: ur, uz, szr, szz. Love fields: uy, tyz.
 # Pass the subdivision count as a positional argument.
-ef_rayleigh = dp.compute_eigenfunctions_rayleigh(
+ef_rayleigh = d26_lowlevel.compute_eigenfunctions_rayleigh(
     layers, thicknesses, half_space, omega, c_rayleigh, 50
 )
 
 # Analytical energy integrals for a solid model
-I1, I2, I3, c_energy = dp.compute_energy_integrals_analytical_rayleigh(
+I1, I2, I3, c_energy = d26_lowlevel.compute_energy_integrals_analytical_rayleigh(
     ef_rayleigh, layers, thicknesses, half_space, omega, c_rayleigh
 )
 ```
@@ -226,7 +230,7 @@ Full AD gives phase-velocity, group-velocity and H/V sensitivities.
 Love H/V is undefined and its value and sensitivity are `NaN`.
 
 ```python
-kernels = dp.compute_kernels_ad_layer_cake(
+kernels = d26_lowlevel.compute_kernels_ad_layer_cake(
     layers, thicknesses, half_space, omega, c_rayleigh,
     wave_type="Rayleigh",
     sensitivity_mode="Isotropic",  # Or "VTI"
@@ -251,7 +255,7 @@ derivative calculation keeps the kernels and Hessian on the same branch.
 ```python
 period_grid = 10.0
 derivative_level = 5
-trace = dp.compute_dispersion_romberg_levels(
+trace = d26_lowlevel.compute_dispersion_romberg_levels(
     depth, grid_params, is_disc, period=period_grid,
     wave_type="Rayleigh", c_guess=3.5, branch=0,
     max_steps=derivative_level, minimum_trace_level=derivative_level,
@@ -259,7 +263,7 @@ trace = dp.compute_dispersion_romberg_levels(
 grid_roots = trace["phase_velocity_roots"]
 accepted_level = trace["phase_accepted_level"]
 
-c_grid, U_grid, hv_grid, level, rel_err, kernels_grid = dp.compute_kernels_ad_grid(
+c_grid, U_grid, hv_grid, level, rel_err, kernels_grid = d26_lowlevel.compute_kernels_ad_grid(
     depth, grid_params, is_disc,
     period=period_grid, wave_type="Rayleigh", c_guess=trace["phase_velocity"],
     sensitivity_mode="Isotropic", max_steps=derivative_level,
@@ -298,7 +302,7 @@ check.
 
 ```python
 # Rayleigh waves
-res_rayleigh = dp.compute_hessian_variational_ad_rayleigh_layer_cake(
+res_rayleigh = d26_lowlevel.compute_hessian_variational_ad_rayleigh_layer_cake(
     layers, thicknesses, half_space, omega, c_rayleigh,
     sensitivity_mode="Isotropic",
     use_analytical=True  # Closed-form integrals, including contiguous surface fluid layers over solid.
@@ -307,7 +311,7 @@ H = res_rayleigh["hessian"]   # 2-D NumPy array
 g = res_rayleigh["gradient"]  # 1-D NumPy array
 
 # Love waves
-res_love = dp.compute_hessian_variational_ad_love_layer_cake(
+res_love = d26_lowlevel.compute_hessian_variational_ad_love_layer_cake(
     layers, thicknesses, half_space, omega, c_love,
     sensitivity_mode="Isotropic", use_analytical=True,
 )
@@ -316,7 +320,7 @@ res_love = dp.compute_hessian_variational_ad_love_layer_cake(
 ### GRID node parameters
 
 ```python
-res_grid = dp.compute_hessian_variational_ad_rayleigh_grid(
+res_grid = d26_lowlevel.compute_hessian_variational_ad_rayleigh_grid(
     depth, grid_params, is_disc,
     freq=1.0 / period_grid, c_guess=c_grid,
     sensitivity_mode="Isotropic", max_levels=derivative_level,
@@ -349,19 +353,19 @@ following GRID example uses flat depths and the variational boundary kernel.
 
 ```python
 # Layer-cake interface kernels Kd
-kd_rayleigh = dp.compute_interface_kernels_variational_rayleigh_layer_cake(
+kd_rayleigh = d26_lowlevel.compute_interface_kernels_variational_rayleigh_layer_cake(
     layers, thicknesses, half_space, omega, c_rayleigh
 )
 
 # Discontinuity 0 is at 30 km. Its shallow-side node has index 2.
 discontinuity_index = 0
-grad_z = dp.compute_interface_gradient_variational_grid(
+grad_z = d26_lowlevel.compute_interface_gradient_variational_grid(
     depth, grid_params, is_disc,
     period=period_grid, wave_type="Rayleigh", c_root=c_grid,
     discontinuity_index=discontinuity_index, max_level=derivative_level,
     phase_velocity_roots=grid_roots, phase_accepted_level=accepted_level,
 )
-row_z = dp.compute_interface_hessian_row_variational_ad_grid_extrapolated(
+row_z = d26_lowlevel.compute_interface_hessian_row_variational_ad_grid_extrapolated(
     depth, grid_params, is_disc,
     period=period_grid, wave_type="Rayleigh", c_root=c_grid,
     discontinuity_index=discontinuity_index, max_level=derivative_level,
@@ -385,17 +389,17 @@ model. The flat-model solutions from the preceding sections remain available.
 r_earth = 6371.0
 
 # Flatten the layer-cake model (Bhattacharya & Arora 1997, default p=-2).
-flat_layers, flat_thick = dp.earth_flattening_transformation_layers(
+flat_layers, flat_thick = d26_lowlevel.earth_flattening_transformation_layers(
     layers, thicknesses, planet_radius=r_earth
 )
 
 # Flatten the GRID model.
-flat_depths, flat_params, flat_disc = dp.earth_flattening_transformation_grid(
+flat_depths, flat_params, flat_disc = d26_lowlevel.earth_flattening_transformation_grid(
     depth, grid_params, is_disc, planet_radius=r_earth
 )
 
 # Correct the reference-period model for a target period of 20 s.
-corrected_layers = dp.apply_mineos_physical_dispersion_model(
+corrected_layers = d26_lowlevel.apply_mineos_physical_dispersion_model(
     layers, qkappas=[57823.0], qmus=[600.0], tref_s=1.0, period_s=20.0
 )
 ```

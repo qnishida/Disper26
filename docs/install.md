@@ -85,8 +85,9 @@ path explicitly. For non-interactive Conda commands, use
 `conda run -n ENV_NAME python ...`, replacing `ENV_NAME` with your environment
 name. Python 3.8+ is supported; 3.12 above is an example choice.
 
-The distribution name is `disper26py`. It provides the shared `disper26` package
-and the low-level `disper26py` extension.
+Installing the `disper26py` distribution provides both the high-level API
+(`disper26`) for routine calculations and the low-level API (`disper26py`)
+for method-specific calls.
 
 The Python build uses CMake and the same compiler/header discovery as the C++
 build. `pyproject.toml` declares setuptools, wheel, CMake, and pybind11 as build

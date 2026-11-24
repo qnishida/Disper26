@@ -12,22 +12,24 @@ The older phase-accumulation counter is still available as a legacy diagnostic.
 
 ### Primary Counter
 
-In Python, `compute_mode_count(...)` returns the integer mode label. The
-deprecated alias `calculate_mode_count` calls the same function. See the
-[naming convention](naming_convention.md).
+To check a stored solution, pass it to the high-level Python API
+with `disper26.compute_mode_count(solution)`. To evaluate the counter at
+a specified phase velocity, use the low-level API (`disper26py`) as below.
+Its `compute_mode_count` returns the integer mode label and retains the
+deprecated alias `calculate_mode_count`. See the [naming convention](naming_convention.md).
 
 ```python
 import math
-import disper26py
+import disper26py as d26_lowlevel
 
-layers = [disper26py.create_isotropic_parameters(3.0, 5.2, 2.5)]
+layers = [d26_lowlevel.create_isotropic_parameters(3.0, 5.2, 2.5)]
 thicknesses = [10.0]  # km
-half_space = disper26py.create_isotropic_parameters(4.5, 8.0, 3.3)
+half_space = d26_lowlevel.create_isotropic_parameters(4.5, 8.0, 3.3)
 omega = 2 * math.pi / 5.0  # rad/s at a period of 5 s
-c = disper26py.search_roots(layers, thicknesses, half_space, omega,
-                            2.6, 3.0, 400, "Rayleigh")[0]
+c = d26_lowlevel.search_roots(
+    layers, thicknesses, half_space, omega, 2.6, 3.0, 400, "Rayleigh")[0]
 
-n = disper26py.compute_mode_count(
+n = d26_lowlevel.compute_mode_count(
     layers, thicknesses, half_space, omega, c, "Rayleigh")
 ```
 
@@ -67,10 +69,10 @@ been removed: the AD-z counter is the integer label, and for Love the legacy
 integer was wrong by more than an offset (see below).
 
 ```python
-n_cont = disper26py.compute_continuous_mode_count(
+n_cont = d26_lowlevel.compute_continuous_mode_count(
     layers, thicknesses, half_space, omega, c, "Rayleigh")
 
-legacy_debug = disper26py.debug_continuous_mode_count(
+legacy_debug = d26_lowlevel.debug_continuous_mode_count(
     layers, thicknesses, half_space, omega, c, "Rayleigh")
 ```
 
@@ -96,7 +98,7 @@ Use `debug_mode_count(...)` to inspect the counter
 same function under older names, kept callable as deprecated aliases):
 
 ```python
-debug = disper26py.debug_mode_count(
+debug = d26_lowlevel.debug_mode_count(
     layers, thicknesses, half_space, omega, c, "Rayleigh")
 ```
 
@@ -460,7 +462,7 @@ import math, statistics, sys, timeit
 sys.path[:0] = ["tests/python", "inversion"]
 from test_halfspace_mode_count import comparison_models
 from disper26_inv.prem import load_prem_flat
-import disper26py as dp
+import disper26py as d26_lowlevel
 
 models = [x for x in comparison_models() if x[0] in {"halfspace", "solid", "ocean", "vti"}]
 prem = load_prem_flat(max_depth_km=400., max_spacing_km=20.)
@@ -469,7 +471,7 @@ for name, layers, thicknesses, halfspace in models:
     omega = 2*math.pi*(0.05 if name == "prem" else 0.5)
     for fraction in (0.8, 0.98):
         c = fraction*math.sqrt(halfspace.c44/halfspace.rho)
-        call = lambda: dp.compute_mode_count(layers, thicknesses, halfspace, omega, c, "Rayleigh")
+        call = lambda: d26_lowlevel.compute_mode_count(layers, thicknesses, halfspace, omega, c, "Rayleigh")
         call()
         samples = timeit.repeat(call, repeat=7, number=2000)
         print(name, fraction, statistics.median(samples)*1e6/2000)

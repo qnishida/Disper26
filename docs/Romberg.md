@@ -8,22 +8,25 @@ For continuous structures (linear interpolation models), midpoint layer discreti
 
 ## Python API
 
-Run the Python blocks below in order. Depths are in km, velocities in km/s and densities in g/cm³.
+These examples use the low-level API (`disper26py`) to call the Romberg routines
+directly. For routine GRID dispersion and sensitivities, use the
+[high-level API (`disper26`)](public_api.md). Run the Python blocks below in
+order. Depths are in km, velocities in km/s and densities in g/cm³.
 
 ### Dispersion Only
 
 ```python
-import disper26py as dp
+import disper26py as d26_lowlevel
 
 depths = [0., 10., 20., 30.]
 vss = [3., 3.3, 3.6, 4.5]
 vps = [5.2, 5.8, 6.4, 8.]
 rhos = [2.5, 2.7, 2.9, 3.3]
-params = [dp.create_isotropic_parameters(vs, vp, rho)
+params = [d26_lowlevel.create_isotropic_parameters(vs, vp, rho)
           for vs, vp, rho in zip(vss, vps, rhos)]
 is_discontinuity = [False] * len(depths)
 
-c, U, HV, level, rel_err = dp.compute_dispersion_romberg(
+c, U, HV, level, rel_err = d26_lowlevel.compute_dispersion_romberg(
     depths, params, is_discontinuity,
     period=20.0,  # seconds
     wave_type="Rayleigh",
@@ -54,7 +57,7 @@ instead of a Python loop:
 
 ```python
 layers, thicknesses, half_space = [params[0]], [10.0], params[-1]
-layer_cake = dp.compute_dispersion_curve_layer_cake(
+layer_cake = d26_lowlevel.compute_dispersion_curve_layer_cake(
     layers, thicknesses, half_space,
     periods=[5.0, 6.0, 7.0, 8.0, 10.0],
     wave_type="Rayleigh",
@@ -67,7 +70,7 @@ layer_cake = dp.compute_dispersion_curve_layer_cake(
 vphs, vpvs = vps, vps
 vshs, vsvs = vss, vss
 etas = [1.0] * len(depths)
-grid = dp.compute_dispersion_curve_romberg_grid_velocity_vti(
+grid = d26_lowlevel.compute_dispersion_curve_romberg_grid_velocity_vti(
     depths, rhos, vphs, vpvs, vshs, vsvs, etas,
     is_discontinuity,
     periods=[5.0, 6.0, 7.0, 8.0, 10.0],
@@ -118,7 +121,7 @@ each refinement mesh. `compute_dispersion_romberg_levels` exposes that loop's
 raw roots without changing the established five-value API:
 
 ```python
-trace = dp.compute_dispersion_romberg_levels(
+trace = d26_lowlevel.compute_dispersion_romberg_levels(
     depths, params, is_discontinuity,
     period=20.0,
     wave_type="Love",
@@ -240,9 +243,9 @@ legacy table and stopping behavior.
 
 ### Evaluation Counters
 
-`dp.get_dispersion_eval_counts()` returns a per-thread dict
+`disper26py.get_dispersion_eval_counts()` returns a per-thread dict
 `{"total", "double", "ad"}` counting dispersion-function evaluations since the last
-`dp.reset_dispersion_eval_counts()`. `double` counts plain scalar evaluations
+`disper26py.reset_dispersion_eval_counts()`. `double` counts plain scalar evaluations
 (root scan / Brent / H/V), `ad` counts AD-typed evaluations (group velocity,
 kernels). The counter contract is covered by
 `tests/python/test_eval_counter.py`. Earlier optimization measurements are
@@ -251,7 +254,7 @@ historical research records; their benchmark scripts are not bundled here.
 ### With Sensitivity Kernels
 
 ```python
-c, U, HV, level, rel_err, kernels = dp.compute_kernels_ad_grid(
+c, U, HV, level, rel_err, kernels = d26_lowlevel.compute_kernels_ad_grid(
     depths, params, is_discontinuity,
     period=20.0,
     wave_type="Rayleigh",
@@ -270,7 +273,7 @@ c, U, HV, level, rel_err, kernels = dp.compute_kernels_ad_grid(
 Velocity-basis entry points keep the modulus-based API unchanged. Node values are interpolated linearly in velocity parameters, then each refined sublayer is converted to elastic moduli before calling the existing dispersion solver.
 
 ```python
-c, U, HV, level, rel_err = dp.compute_dispersion_romberg_velocity_iso(
+c, U, HV, level, rel_err = d26_lowlevel.compute_dispersion_romberg_velocity_iso(
     depths, rhos, vps, vss, is_discontinuity,
     period=20.0,
     wave_type="Love",
@@ -279,7 +282,7 @@ c, U, HV, level, rel_err = dp.compute_dispersion_romberg_velocity_iso(
     tolerance=1e-10
 )
 
-c, U, HV, level, rel_err, kernels = dp.compute_kernels_ad_grid_velocity_vti(
+c, U, HV, level, rel_err, kernels = d26_lowlevel.compute_kernels_ad_grid_velocity_vti(
     depths, rhos, vphs, vpvs, vshs, vsvs, etas, is_discontinuity,
     period=20.0,
     wave_type="Rayleigh",

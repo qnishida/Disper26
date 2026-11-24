@@ -2,6 +2,9 @@
 
 [English edition](../docs/naming_convention.md)
 
+Python の利用文書では **高水準 API**（`disper26`）と **低水準 API**（`disper26py`）と呼ぶ。
+コード例での表記は、高水準側が `import disper26 as d26`、低水準側が `import disper26py as d26_lowlevel` とする。
+
 ## 1. 関数名の文法
 
 ```

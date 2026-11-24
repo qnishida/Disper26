@@ -68,27 +68,34 @@ specific tolerances used in these checks.
 
 ## Unified State Evaluator
 
-The shared API returns profiles on the mesh used by a stored solution.
-For a solid layer-cake model, `disper26py.eval_global_state` can also propagate
-a supplied surface state to a depth in km. All eleven arguments are positional.
-The example evaluates a Love eigenfunction 2 km below the surface and converts
-the depth-oriented traction returned by the low-level call to the public convention.
+Use the high-level API (`disper26`) to get the eigenfunction profile on the
+mesh of a stored solution. This example computes the Love profile for a solid
+layer-cake model.
 
 ```python
-import math
-import numpy as np
 import disper26 as d26
-import disper26py as dp
 
 model = d26.create_model([0.0, 15.0], kind="layer_cake",
                          vs=[3.2, 4.5], vp=[5.8, 8.0], rho=[2.6, 3.3])
 period = 10.0  # s
 solution = d26.compute_dispersion(model, period=period, wave="Love")
 fields = d26.compute_eigenfunctions(solution).components
+```
+
+To evaluate the state at a specific depth between mesh points, continue with
+the low-level API (`disper26py`). Here `disper26py.eval_global_state` takes
+eleven positional arguments and propagates the surface state to 2 km depth.
+The sign change converts between the two traction conventions.
+
+```python
+import math
+import numpy as np
+import disper26py as d26_lowlevel
+
 surface = np.array([fields["uy"][0], -fields["tyz"][0]])
-layer = dp.create_isotropic_parameters(3.2, 5.8, 2.6)
-halfspace = dp.create_isotropic_parameters(4.5, 8.0, 3.3)
-state = dp.eval_global_state(
+layer = d26_lowlevel.create_isotropic_parameters(3.2, 5.8, 2.6)
+halfspace = d26_lowlevel.create_isotropic_parameters(4.5, 8.0, 3.3)
+state = d26_lowlevel.eval_global_state(
     [layer], [15.0], halfspace, surface, 2.0,
     2 * math.pi / period, solution.phase_velocity,  # rad/s, km/s
     "Love", "LAYER_CAKE", 5, 1e-8,
@@ -99,7 +106,7 @@ print(state[0], -state[1])  # uy, physical tyz at depth 2 km
 The final two arguments set the maximum quadrature depth and tolerance for
 `"GRID"` propagation. This low-level call takes one material per finite layer
 and uses it at both ends. For profiles in a model with depth-varying material,
-pass its GRID solution to `d26.compute_eigenfunctions`. Use that same shared
+pass its GRID solution to `disper26.compute_eigenfunctions`. Use that same shared
 API for Rayleigh depth profiles: the generic low-level Rayleigh evaluator uses
 a positive propagator increment for increasing depth, while the public
 Rayleigh reconstruction uses a negative increment for downward propagation. A surface ocean uses
