@@ -2,7 +2,7 @@
 
 [English edition](../examples/README.md)
 
-高水準 API（`import disper26 as d26`）を使い、モデルの作成から分散・感度・Hessian の計算までを小さな例で試します。
+高水準 API（`import disper26 as d26`）を使い、モデルの作成から分散曲線・固有関数・感度・Hessian の計算までを小さな例で試します。
 論文で扱う手法から日常の利用に役立つものを選んだ例で、全図の再現は目的にしていません。
 入力は各スクリプト内にあり、別の研究用リポジトリや論文ソースは不要です。
 
@@ -31,9 +31,39 @@ Rayleigh波・Love波の基本モードの位相速度を計算します。
 
 層厚やVsを変え、短周期と長周期で曲線がどう変わるかを確かめてください。
 
+![周期2〜20秒の6点で計算したRayleigh波とLove波の基本モードの位相速度](../docs/figures/examples/dispersion.png)
+
 `python -m examples.tracking_options` で[追跡の例](../examples/tracking_options.py)を実行できます。
 開始周期、初期速度範囲、両端でのモード番号の確認を指定し、違反時には `on_violation="fallback"` で再探索します。
 既定では最長周期から計算し、入力順に結果を返します。各設定でのモード確認については [共通公開API](../docs_jp/public_api.md) を参照してください。
+
+### 周期5秒のRayleigh波の固有関数
+
+分散曲線上の周期5秒の点で変位が深さとともにどう変わるかを調べます。
+この周期で求めた基本モードの解を `compute_eigenfunctions` に渡します。
+
+```python
+import disper26 as d26
+
+model = d26.create_model([0., 10.], kind="layer_cake",
+                         vs=[3., 4.5], vp=[5.2, 8.], rho=[2.5, 3.3])
+solution = d26.compute_dispersion(model, period=5., wave="Rayleigh", mode=0)
+profile = d26.compute_eigenfunctions(solution, num_sub_layers=40)
+ur, uz = profile.components["ur"], profile.components["uz"]
+```
+
+![地表から深さ10 kmの間で、Rayleigh波の水平成分は符号が変わり、鉛直成分は正に保たれる](../docs/figures/examples/rayleigh_eigenfunctions.png)
+
+地表から半無限層の上端（深さ10 km）までの間で、水平成分 `ur` は一度符号が変わり、鉛直成分 `uz` は正のままです。
+振幅比を保つため、どちらも地表の鉛直成分 `uz[0]` で割って表示しています。
+水平変位の位相因子 $i$ は `ur` の値には含まれません。[固有関数の符号・位相の規約](../docs/eigen_function.md)
+
+2枚のPNGを再生成するには、練習例に使った環境にMatplotlibを追加し、リポジトリのルートから[作図スクリプト](../examples/plot_layered_model.py)を実行します。
+
+```sh
+python -m pip install matplotlib
+python -m examples.plot_layered_model docs/figures/examples
+```
 
 ## 2. 勾配モデルと収束診断
 

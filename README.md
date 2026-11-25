@@ -52,9 +52,15 @@ solution = d26.compute_dispersion(model, period=5.)
 print(solution.phase_velocity)  # km/s
 ```
 
+![Fundamental Rayleigh and Love phase velocities increase with period in this model.](docs/figures/examples/dispersion.png)
+
+The markers show the six periods computed by the [dispersion example](examples/basic_dispersion.py)
+for the same 10 km layer over a half-space. At 5 s the Rayleigh phase velocity
+is 2.856 km/s, matching the calculation above.
+
 The [practice examples](examples/README.md) cover layered dispersion, mode
-tracking, gradient-model convergence and predictions using kernels and Hessians.
-Each script supplies its own model and inputs.
+tracking, Rayleigh eigenfunctions, gradient-model convergence and predictions
+using kernels and Hessians. All inputs are included.
 See also [installation](docs/install.md), [shared API](docs/public_api.md),
 [low-level API](docs/lowlevel_api.md), and [historical paper reproduction](paper/README.md).
 Documented low-level deprecated aliases remain callable. Method-specific

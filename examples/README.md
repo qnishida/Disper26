@@ -1,7 +1,7 @@
 # Disper26 practice examples
 
 These examples use the high-level Python API (`import disper26 as d26`) for
-dispersion, sensitivity kernels and Hessians. Each script includes its model and inputs.
+dispersion, eigenfunctions, sensitivity kernels and Hessians. All inputs are included.
 A [Japanese edition](../example_jp/README.md) is available.
 
 ## Setup
@@ -29,9 +29,42 @@ half-space. The last depth marks the top of the half-space. Depth is in km,
 velocity in km/s, density in g/cm³ and period in s. Change the layer thickness
 or Vs and compare the short- and long-period ends of each curve.
 
+![Fundamental Rayleigh and Love phase velocities at six periods between 2 and 20 s.](../docs/figures/examples/dispersion.png)
+
 Run `python -m examples.tracking_options` for the [tracking example](tracking_options.py). It sets the starting period, initial velocity interval and endpoint checks, with `on_violation="fallback"`. The default starts at the longest
 period and returns results in input order. The [shared API guide](../docs/public_api.md)
 describes the checks for each setting.
+
+### Rayleigh eigenfunctions at 5 s
+
+To see how displacement varies with depth at the 5 s point on the Rayleigh
+curve, pass the solution for that period to `compute_eigenfunctions`.
+
+```python
+import disper26 as d26
+
+model = d26.create_model([0., 10.], kind="layer_cake",
+                         vs=[3., 4.5], vp=[5.2, 8.], rho=[2.5, 3.3])
+solution = d26.compute_dispersion(model, period=5., wave="Rayleigh", mode=0)
+profile = d26.compute_eigenfunctions(solution, num_sub_layers=40)
+ur, uz = profile.components["ur"], profile.components["uz"]
+```
+
+![The horizontal Rayleigh component changes sign within the layer. The vertical component stays positive.](../docs/figures/examples/rayleigh_eigenfunctions.png)
+
+From the surface to the half-space boundary at 10 km, the horizontal component
+changes sign once and the vertical component stays positive. Both curves show
+reduced displacement divided by the surface vertical component (`uz[0]`),
+preserving their relative amplitudes. The horizontal phase factor $i$ is
+implicit in `ur`. See the [eigenfunction conventions](../docs/eigen_function.md).
+
+To regenerate both PNGs, install Matplotlib in your example environment and
+run the [plotting script](plot_layered_model.py) from the repository root.
+
+```sh
+python -m pip install matplotlib
+python -m examples.plot_layered_model docs/figures/examples
+```
 
 ## 2. Gradient model and convergence diagnostics
 
