@@ -9,6 +9,7 @@ recursive-include disper26 *.py *.pyi *.csv py.typed
 
 include README.md LICENSE NOTICE CITATION.cff AGENTS.md .gitmodules
 recursive-include docs *.md *.png
+include docs/disper26_logo.svg
 include docs_jp/grid_wf_hessian.md
 include docs_jp/grid_wf_hessian_convergence.md
 include docs_jp/lowlevel_api.md

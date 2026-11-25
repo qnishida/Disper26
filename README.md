@@ -1,4 +1,4 @@
-# Disper26
+# <img src="docs/disper26_logo.svg" alt="Disper26" width="400">
 
 Disper26 computes Rayleigh and Love surface-wave dispersion in isotropic and
 vertically transversely isotropic (VTI) layered media. Its C++, C, Fortran
