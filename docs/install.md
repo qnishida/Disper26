@@ -1,5 +1,8 @@
 # Building Disper26
 
+For a Git clone, run `git submodule update --init` from the repository root to
+initialize the pinned autodiff dependency.
+
 CMake 3.18+, a C++17 compiler, and Eigen 3.4.x are required. Linux builds
 use Eigen 3.4.x from the system package or an explicit `Eigen3_DIR`.
 On macOS, Homebrew `eigen@3` is required, and the

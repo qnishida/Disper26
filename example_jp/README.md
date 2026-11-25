@@ -24,38 +24,43 @@ python -m pip install '.[test]'
 python -m examples.basic_dispersion
 ```
 
-[basic_dispersion.py](../examples/basic_dispersion.py) は、一つの層と半無限層からなる等方モデルで
-Rayleigh波・Love波の基本モードの位相速度を計算します。
-深さはkm、速度はkm/s、密度はg/cm³、周期はsです。基本モードは `mode=0` です。
-最終の深度点から下が半無限層になります。
+[basic_dispersion.py](../examples/basic_dispersion.py) は、Rayleigh波とLove波の基本モード（`mode=0`）の位相速度を、
+周期2〜20秒、0.5秒刻みで計算します。厚さ10 kmの層とその下の等方半無限媒質を用い、上層が等方の場合と
+VTI（鉛直軸を対称軸とする横等方性）の場合を比較します。等方層の $V_S$ は3.00 km/sで、VTI層では
+$V_{SH}$ だけを3.15 km/sに上げます。両モデルとも上層の $V_{SV} = 3.00$ km/s、
+$V_{PH} = V_{PV} = 5.20$ km/s、$\eta = 1$、密度は2.5 g/cm³です。
 
-層厚やVsを変え、短周期と長周期で曲線がどう変わるかを確かめてください。
+![Rayleigh波の曲線は両モデルで重なる。Love波の位相速度はVTIモデルの方が高く、長周期側で差が縮まる。](../docs/figures/examples/dispersion.png)
 
-![周期2〜20秒の6点で計算したRayleigh波とLove波の基本モードの位相速度](../docs/figures/examples/dispersion.png)
+$V_{SH}$ だけを変えるとLove波の位相速度が変化し、Rayleigh波の曲線は重なります。
+周期5秒でLove波の位相速度は3.184 km/sから3.339 km/sに上がり、周期20秒では差が0.040 km/sに縮まります。
+図中のシンボルは1秒間隔です。
 
 `python -m examples.tracking_options` で[追跡の例](../examples/tracking_options.py)を実行できます。
 開始周期、初期速度範囲、両端でのモード番号の確認を指定し、違反時には `on_violation="fallback"` で再探索します。
 既定では最長周期から計算し、入力順に結果を返します。各設定でのモード確認については [共通公開API](../docs_jp/public_api.md) を参照してください。
 
-### 周期5秒のRayleigh波の固有関数
+### 周期8秒のRayleigh波の固有関数
 
-分散曲線上の周期5秒の点で変位が深さとともにどう変わるかを調べます。
-この周期で求めた基本モードの解を `compute_eigenfunctions` に渡します。
+等方モデルの周期8秒の点で、Rayleigh波の変位が半無限媒質内で減衰する様子を調べます。
+深さ30 kmまで変位を出力するため、深さ10〜30 kmの区間と30 km以深の半無限媒質に同じ物性を指定します。
+物性境界は深さ10 kmの一か所です。
 
 ```python
 import disper26 as d26
 
-model = d26.create_model([0., 10.], kind="layer_cake",
-                         vs=[3., 4.5], vp=[5.2, 8.], rho=[2.5, 3.3])
-solution = d26.compute_dispersion(model, period=5., wave="Rayleigh", mode=0)
+model = d26.create_model([0., 10., 30.], kind="layer_cake", vs=[3., 4.5, 4.5],
+                         vp=[5.2, 8., 8.], rho=[2.5, 3.3, 3.3])
+solution = d26.compute_dispersion(model, period=8., wave="Rayleigh", mode=0)
 profile = d26.compute_eigenfunctions(solution, num_sub_layers=40)
 ur, uz = profile.components["ur"], profile.components["uz"]
 ```
 
-![地表から深さ10 kmの間で、Rayleigh波の水平成分は符号が変わり、鉛直成分は正に保たれる](../docs/figures/examples/rayleigh_eigenfunctions.png)
+![周期8秒の水平変位は深さ約3.8 kmで符号が変わり、鉛直変位は深さ30 kmで地表の2.7%に減衰する。](../docs/figures/examples/rayleigh_eigenfunctions.png)
 
-地表から半無限層の上端（深さ10 km）までの間で、水平成分 `ur` は一度符号が変わり、鉛直成分 `uz` は正のままです。
-振幅比を保つため、どちらも地表の鉛直成分 `uz[0]` で割って表示しています。
+両成分を地表の鉛直変位 `uz[0]` で規格化し、符号と振幅比を保って表示しています。
+水平成分 `ur` は深さ約3.8 kmで符号が変わります。鉛直成分 `uz` は深さ10 kmの境界（点線）で地表の約36%、
+深さ30 kmで約2.7%まで減衰します。
 水平変位の位相因子 $i$ は `ur` の値には含まれません。[固有関数の符号・位相の規約](../docs/eigen_function.md)
 
 2枚のPNGを再生成するには、練習例に使った環境にMatplotlibを追加し、リポジトリのルートから[作図スクリプト](../examples/plot_layered_model.py)を実行します。

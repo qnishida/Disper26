@@ -14,6 +14,16 @@ def test_layered_dispersion_has_physical_fundamental_velocities():
         if wave == "Love":
             assert np.all(curve.phase_velocity > 3.0)  # Layer shear velocity.
 
+    vti = basic_dispersion.run(vti=True)
+    for wave, curve in vti.items():
+        np.testing.assert_array_equal(curve.periods, np.linspace(2., 20., 37))
+        np.testing.assert_array_equal(curve.periods, curves[wave].periods)
+        assert all(s.diagnostics.mode_verified for s in curve.solutions)
+    # Only Vsh changes. The Rayleigh roots agree to the solver's root tolerance.
+    np.testing.assert_allclose(vti["Rayleigh"].phase_velocity, curves["Rayleigh"].phase_velocity,
+                               rtol=0, atol=curves["Rayleigh"].solutions[0].options.root_tolerance)
+    assert np.all(vti["Love"].phase_velocity > curves["Love"].phase_velocity)
+
 
 def test_tracking_example_checks_endpoints_and_keeps_input_order():
     curve = tracking_options.run()
