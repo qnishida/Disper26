@@ -124,7 +124,7 @@ void bottom_moments() {
     const auto p=createIsotropicParameters(.5,1.,2.);
     constexpr double nodes[8]={.095012509837637454,.28160355077925892,.45801677765722737,.61787624440264377,.755404408355003,.86563120238783176,.9445750230732326,.98940093499164994};
     constexpr double weights[8]={.18945061045506859,.18260341504492361,.16915651939500262,.14959598881657676,.12462897125553403,.095158511682492591,.062253523938647706,.027152459411754037};
-    for (double c : {.4,.5,.7}) {
+    for (double c : {.4, std::nextafter(.5, 0.), .5, std::nextafter(.5, 1.), .7}) {
         const double omega=.7,h=.3;
         const State bottom(.7,-.2);
         double u2=0.,du2=0.;
@@ -141,6 +141,92 @@ void bottom_moments() {
         const auto down=computeLoveLayerIntegrals(top(0),top(1),p,h,omega,omega/c,LoveBranchPolicy::Auto);
         close(down.int_u2,u2,"downward top displacement moment",1e-12);
         close(down.int_dudz2,du2,"downward top gradient moment",1e-12);
+    }
+}
+
+void critical_derivatives() {
+    using T = autodiff::dual;
+    auto layer = to_dual(createIsotropicParameters(1., 2., 1.));
+    layer.c44 = 2.;
+    const T h = 1., omega = 1., k = 1.;
+    const LoveLayerState<T> bottom{.7, -.2};
+    for (double center : {-.25, -.0625, 0., .0625, .25}) {
+        for (double shift : {-1e-12, 0., 1e-12}) {
+            layer.c66 = 1. + 2. * (center + shift);
+            layer.c66.grad = 1.;
+            const T n = (layer.c66 - 1.) / layer.c44;
+            const auto top = transferLoveState(layer, omega, k, h, n, bottom, LoveBranchPolicy::Auto);
+            const auto moments = computeLoveLayerIntegralsFromBottomStateUpward(
+                bottom.u, bottom.tau, layer, h, omega, k, LoveBranchPolicy::Auto);
+
+            // Independent depth power series for u'' = n*u with u(0), u'(0)
+            // specified at the bottom. Integrate the squared polynomials.
+            std::array<T, 24> a;
+            a[0] = bottom.u;
+            a[1] = bottom.tau / layer.c44;
+            for (int j=2; j<24; ++j) a[j] = n*a[j-2] / double(j*(j-1));
+            T u=0., du=0., u2=0., du2=0.;
+            for (int j=0; j<24; ++j) {
+                u += a[j];
+                du += j*a[j];
+                for (int l=0; l<24; ++l) {
+                    u2 += a[j]*a[l] / double(j+l+1);
+                    if (j && l) du2 += j*l*a[j]*a[l] / double(j+l-1);
+                }
+            }
+            for (const auto& pair : {std::pair<T,T>{top.u,u}, {top.tau,layer.c44*du},
+                                     {moments.int_u2,u2}, {moments.int_dudz2,du2}}) {
+                close(get_val(pair.first),get_val(pair.second),"critical SH value",1e-12);
+                close(get_val(pair.first.grad),get_val(pair.second.grad),"critical SH derivative",1e-12);
+            }
+        }
+    }
+}
+
+void fallback_and_halfspace() {
+    const double omega=.7;
+    const auto layer=createIsotropicParameters(.5,1.,2.);
+    const auto hs=createIsotropicParameters(1.,2.,2.5);
+    const LoveBranchPolicy policy=LoveBranchPolicy::Auto;
+    for (double c : {.4, std::nextafter(.5,0.), .5, std::nextafter(.5,1.), .7}) {
+        const std::vector<Material> layers{layer};
+        const std::vector<double> thicknesses{.3};
+        const auto ordinary=computeLoveAnalyticalIntegralsUpward(layers,thicknesses,hs,omega,c);
+        const auto fallback=computeLoveAnalyticalIntegralsDisper80(layers,thicknesses,hs,omega,c,policy);
+        const auto group=computeLoveGroupEnergyDisper80(layers,thicknesses,hs,omega,c,policy);
+        for (const auto& terms : {fallback,group}) {
+            close(terms.I2/terms.I1,ordinary.I2/ordinary.I1,"fallback strain energy",1e-12);
+            close(terms.I3/terms.I1,ordinary.I3/ordinary.I1,"fallback group energy",1e-12);
+        }
+    }
+    for (double c : {1., std::nextafter(1.,2.)}) {
+        try {
+            computeLoveAnalyticalIntegralsUpward<double>({layer},{.3},hs,omega,c);
+            require(false,"non-decaying half-space accepted");
+        } catch (const std::domain_error&) {}
+    }
+}
+
+void strongly_decaying_field() {
+    const auto slow=createIsotropicParameters(3.,5.,2.7);
+    const auto fast=createIsotropicParameters(4.5,8.,3.3);
+    const double omega=1., c=3.5, k=omega/c;
+    const double r=std::sqrt(omega*omega/9. - k*k);
+    const double nu=std::sqrt(k*k - omega*omega/20.25);
+    // Choose a guiding-layer thickness for which c is an exact mode.
+    const double h=std::atan(fast.c44*nu/(slow.c44*r))/r;
+    for (int count : {1,20}) {
+        std::vector<Material> layers(count,fast);
+        layers.insert(layers.begin(),slow);
+        std::vector<double> thicknesses(count,40./(nu*count));
+        thicknesses.insert(thicknesses.begin(),h);
+        const auto points=computeLoveEigenfunctions(layers,thicknesses,fast,omega,c,10);
+        for (const auto& pt : points) {
+            if (pt.depth <= h) continue;
+            const double expected=std::cos(r*h)*std::exp(-nu*(pt.depth-h));
+            close(pt.uy.real()/expected,1.,"decaying SH displacement ratio");
+            close(pt.tyz.real()/(fast.c44*nu*expected),1.,"decaying SH traction ratio");
+        }
     }
 }
 
@@ -164,6 +250,7 @@ void crossing_signs() {
 }
 }
 int main() {
-    initial_and_transfer(); fields_and_boundaries(); bottom_moments(); crossing_signs();
+    initial_and_transfer(); fields_and_boundaries(); bottom_moments(); critical_derivatives();
+    fallback_and_halfspace(); strongly_decaying_field(); crossing_signs();
     std::cout << "Upward Love states, public stresses, moments and crossing signs passed\n";
 }

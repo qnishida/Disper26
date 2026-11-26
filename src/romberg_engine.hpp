@@ -265,7 +265,8 @@ public:
         for (const auto& g : geo) {
             const int i = g.parent_node;
             layers.push_back(interpolate_scaled(node_params[i], node_params[i + 1], g));
-            thicknesses.push_back(T(g.thickness));
+            // A fixed thickness still carries the node derivative width in vector_dyn.
+            thicknesses.emplace_back(make_zero_like(node_params[i].rho) + g.thickness);
         }
         return {layers, thicknesses};
     }

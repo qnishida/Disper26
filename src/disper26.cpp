@@ -1448,6 +1448,30 @@ Eigen::Matrix<T, 2, 2> computeLayerMatrixSH(
     return A;
 }
 
+// The finite-layer series uses the signed propagation distance, while the
+// choice of representation depends only on the dimensionless squared argument.
+template <typename T>
+bool loveSmallStep(const T& nu_sq, const T& dz) {
+    return std::abs(get_val(nu_sq) * get_val(dz) * get_val(dz)) <= 0.25;
+}
+
+template <typename T>
+T loveHalfspaceNuSquared(const PhysicalParameters<T>& p, const T& omega, const T& cp) {
+    using std::sqrt;
+    const T vsh = sqrt(p.c66 / p.rho);
+    const T k = omega / cp;
+    // Factor the difference so a supplied c=V_SH is exactly the endpoint.
+    return (p.rho / p.c44) * k * k * (vsh - cp) * (vsh + cp);
+}
+
+template <typename T>
+T loveHalfspaceDecay(const T& nu_sq) {
+    using std::sqrt;
+    if (!(get_val(nu_sq) > 0.0))
+        throw std::domain_error("Love energy integrals require a decaying half-space");
+    return sqrt(nu_sq);
+}
+
 // Love Wave Eigenfunction Result Structure
 template <typename T>
 struct LoveEigenfunctionPoint {
@@ -1495,6 +1519,13 @@ std::vector<LoveEigenfunctionPoint<T>> computeLoveEigenfunctions(
         return std::hypot(
             get_magnitude(value.real()), get_magnitude(value.imag()));
     };
+    using State = Eigen::Matrix<CT, 2, 1>;
+    auto scaled_upward = [](const State& bottom, const T& eta, const T& argument) -> State {
+        const T th = tanh(argument);
+        const T a = th / eta, b = eta * th;
+        return {bottom(0) + toComplex(a) * bottom(1),
+                toComplex(b) * bottom(0) + bottom(1)};
+    };
     // Stable upward pass. In an evanescent layer divide the transfer by
     // cosh(nu*h), as in DISPER80 LOVMRX; only the state ratio is needed for
     // matching the physical downward solution.
@@ -1506,33 +1537,15 @@ std::vector<LoveEigenfunctionPoint<T>> computeLoveEigenfunctions(
         // AutoDiffScalar expression yields std::complex<expression>, which will
         // not multiply with std::complex<T>.
         Eigen::Matrix<CT, 2, 1> next;
-        if (get_val(nu_sq) > 1e-10) {
+        if (get_val(nu_sq) > 0.0 && !loveSmallStep(nu_sq, h)) {
             const T nu_r = sqrt(nu_sq);
             const T eta = p.c44 * nu_r;
-            // tanh is bounded, so it is safe to differentiate directly; Eigen's
-            // AutoDiffScalar provides it. This used to read
-            //   T th = T(std::tanh(get_val(nu_r * h)))
-            // which discarded the dependence of tanh(nu*h) on the model and so
-            // returned correct values with silently wrong derivatives under AD.
-            const T th = tanh(nu_r * h);
-            const T a = th / eta;
-            const T b = eta * th;
-            next(0) = boundary[i + 1](0) + toComplex(a) * boundary[i + 1](1);
-            next(1) = toComplex(b) * boundary[i + 1](0) + boundary[i + 1](1);
-        } else if (get_val(nu_sq) < -1e-10) {
-            const T mu = sqrt(-nu_sq);
-            const T x = mu * h;
-            const T co = cos(x), si = sin(x), eta = p.c44 * mu;
-            const T a = si / eta;
-            const T b = eta * si;
-            next(0) = toComplex(co) * boundary[i + 1](0)
-                    + toComplex(a) * boundary[i + 1](1);
-            next(1) = -toComplex(b) * boundary[i + 1](0)
-                    + toComplex(co) * boundary[i + 1](1);
+            next = scaled_upward(boundary[i + 1], eta, nu_r * h);
         } else {
-            const T a = h / p.c44;
-            next(0) = boundary[i + 1](0) + toComplex(a) * boundary[i + 1](1);
-            next(1) = boundary[i + 1](1);
+            const auto a = computeLayerMatrixSH(p, WaveVariables<T>{omega, k, h});
+            const auto& bottom = boundary[i + 1];
+            next(0) = toComplex(a(0,0)) * bottom(0) + toComplex(a(0,1)) * bottom(1);
+            next(1) = toComplex(a(1,0)) * bottom(0) + toComplex(a(1,1)) * bottom(1);
         }
         const double magnitude = std::max(
             complex_magnitude(next(0)), complex_magnitude(next(1)));
@@ -1560,44 +1573,48 @@ std::vector<LoveEigenfunctionPoint<T>> computeLoveEigenfunctions(
         T thickness = thicknesses[i];
         T nu_sq = (p.c66 * k * k - p.rho * omega * omega) / p.c44;
         int adaptive_sub_layers = numSubLayers;
-        if (get_val(nu_sq) > 1e-10) {
-            T nu_r = sqrt(nu_sq);
-            double argument = std::abs(get_val(nu_r * thickness));
-            int required_sub_layers = std::max(
-                1, static_cast<int>(std::ceil(argument / 40.0)));
-            if (required_sub_layers > 4096) {
-                throw std::runtime_error(
-                    "Love eigenfunction exceeded the adaptive sublayer limit at layer " +
-                    std::to_string(i));
-            }
-            adaptive_sub_layers = std::max(
-                adaptive_sub_layers, required_sub_layers);
+        const double argument = std::sqrt(std::max(0.0, get_val(nu_sq))) * get_val(thickness);
+        if (!(argument <= 40.0 * 4096))
+            throw std::runtime_error("Love eigenfunction exceeded the adaptive sublayer limit at layer " +
+                                     std::to_string(i));
+        adaptive_sub_layers = std::max(adaptive_sub_layers, static_cast<int>(std::ceil(argument / 40.0)));
+        const T dz = thickness / T(adaptive_sub_layers);
+
+        // A relative roundoff error in downward marching grows as exp(2*nu*h).
+        // Where it can dominate the decaying solution, sample from the known
+        // bottom impedance and match its amplitude once at the top.
+        const double u_top = get_val(state(0).real()), tau_top = get_val(state(1).real());
+        const bool decreasing = (u_top > 0.0 && tau_top > 0.0) || (u_top < 0.0 && tau_top < 0.0);
+        const bool from_bottom = decreasing &&
+            2.0 * argument >= -std::log(std::numeric_limits<double>::epsilon());
+        T nu_r, eta, denominator;
+        CT amplitude;
+        Eigen::Matrix<T,2,2> step;
+        if (from_bottom) {
+            nu_r = sqrt(nu_sq);
+            eta = p.c44 * nu_r;
+            const T x = nu_r * thickness;
+            const State top = scaled_upward(boundary[i + 1], eta, x);
+            const int component = complex_magnitude(top(0)) >= complex_magnitude(top(1)) ? 0 : 1;
+            amplitude = state(component) / top(component);
+            denominator = 1.0 + exp(-2.0 * x);
+        } else {
+            step = computeLayerMatrixSH(p, WaveVariables<T>{omega, k, -dz});
         }
-        T dz = thickness / T(adaptive_sub_layers);
         for (int j = 1; j <= adaptive_sub_layers; ++j) {
-            Eigen::Matrix<CT, 2, 1> next;
-            if (get_val(nu_sq) > 1e-10) {
-                const T nu_r = sqrt(nu_sq);
-                const T x = nu_r * dz;
-                const T ch = cosh(x), sh = sinh(x), eta = p.c44 * nu_r;
-                const T a = sh / eta;
-                const T b = eta * sh;
-                next(0) = toComplex(ch) * state(0) - toComplex(a) * state(1);
-                next(1) = -toComplex(b) * state(0) + toComplex(ch) * state(1);
-            } else if (get_val(nu_sq) < -1e-10) {
-                const T mu = sqrt(-nu_sq);
-                const T x = mu * dz;
-                const T co = cos(x), si = sin(x), eta = p.c44 * mu;
-                const T a = si / eta;
-                const T b = eta * si;
-                next(0) = toComplex(co) * state(0) - toComplex(a) * state(1);
-                next(1) = toComplex(b) * state(0) + toComplex(co) * state(1);
+            if (from_bottom) {
+                const T remaining = nu_r * dz * (adaptive_sub_layers - j);
+                const T ratio = exp(-nu_r * dz * j) * (1.0 + exp(-2.0 * remaining)) / denominator;
+                const State local = scaled_upward(boundary[i + 1], eta, remaining);
+                const CT scale = amplitude * toComplex(ratio);
+                state(0) = scale * local(0);
+                state(1) = scale * local(1);
             } else {
-                const T a = dz / p.c44;
-                next(0) = state(0) - toComplex(a) * state(1);
-                next(1) = state(1);
+                State next;
+                next(0) = toComplex(step(0,0)) * state(0) + toComplex(step(0,1)) * state(1);
+                next(1) = toComplex(step(1,0)) * state(0) + toComplex(step(1,1)) * state(1);
+                state = next;
             }
-            state = next;
             currentDepth += dz;
             if (j == adaptive_sub_layers) {
                 const CT u_match = boundary[i + 1](0);
@@ -1651,22 +1668,13 @@ EnergyIntegralResult<T> computeLoveEnergyIntegrals(
     
     // Half-space (Analytic)
     T L = halfSpaceParams.c44; T N = halfSpaceParams.c66; T rho = halfSpaceParams.rho;
-    // Force the argument into a concrete T: toComplex does `T zero = val*0.0`,
-    // which fails when val is an AutoDiffScalar expression template.
-    const T num_r = N * k_sq - rho * omega * omega;
-    std::complex<T> num = toComplex(num_r);
-    std::complex<T> nu = safe_complex_sqrt(num / toComplex(L)); 
-    // Decay condition: Re(nu) > 0.
-    if (get_val(nu.real()) < 0) nu = -nu;
-    
-    T uy_0 = eigenfunctions.back().uy.real(); 
-    
-    if (get_val(nu.real()) > 1e-10) {
-        T inv_decay = 1.0 / (2.0 * nu.real());
-        res.I1 += rho * uy_0 * uy_0 * inv_decay;
-        res.I2 += (uy_0 * uy_0 * (L * std::norm(nu) ) + k_sq * N * uy_0 * uy_0) * inv_decay;
-        res.I3 += N * uy_0 * uy_0 * inv_decay;
-    }
+    const T nu = loveHalfspaceDecay(loveHalfspaceNuSquared(halfSpaceParams, omega, phaseVelocity));
+    const T u0 = eigenfunctions.back().uy.real();
+    const T u2 = u0 * u0 / (2.0 * nu);
+    const T du2 = 0.5 * nu * u0 * u0;
+    res.I1 += rho * u2;
+    res.I2 += L * du2 + k_sq * N * u2;
+    res.I3 += N * u2;
 
     // get_magnitude, not std::abs: the latter has no AutoDiffScalar overload.
     if (get_magnitude(res.I1) > 1e-20) res.groupVelocity_Energy = res.I3 / (phaseVelocity * res.I1);

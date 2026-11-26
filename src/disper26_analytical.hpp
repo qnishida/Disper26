@@ -225,24 +225,11 @@ EnergyIntegralResult<T> computeLoveEnergyIntegrals_Analytical(
         CT tyz0 = pt.tyz;
         PhysicalParameters<T> p = halfSpaceParams;
         T L = p.c44; T N = p.c66; T rho = p.rho;
-        CT nu_sq_val = (N * k_sq - rho * omega * omega) / L;
-        CT nu = std::sqrt(nu_sq_val);
-        if (nu.real() < 0) nu = -nu;
-        
-        // Only decaying mode exists.
-        // u(z) = u0 * exp(-nu * z)
-        // With local depth increasing downward, public tyz0=+L*nu*u0.
-        // If not, it means we have bits of growing mode (numerical error).
-        // We project onto decaying mode? Or just use u0?
-        // Using u0 is safer.
-        // Integral[ exp(-2*nu*z) ] from 0 to infinity = 1 / (2*nu).
-        // Assuming nu is real positive.
-        
-        CT int_fac = T(1.0) / (T(2.0) * nu);
-        CT int_uy2 = uy0 * uy0 * int_fac;
-        CT int_tyz2 = tyz0 * tyz0 * int_fac; 
-        // Ideally tyz0^2 = (L*nu*u0)^2.
-        
+        const T nu = loveHalfspaceDecay(loveHalfspaceNuSquared(p, omega, phaseVelocity));
+        const T int_fac = 0.5 / nu;
+        const CT int_uy2 = uy0 * uy0 * int_fac;
+        const CT int_tyz2 = tyz0 * tyz0 * int_fac;
+
         res.I1 += rho * int_uy2.real();
         res.I2 += (int_tyz2.real() / L) + k_sq * N * int_uy2.real();
         res.I3 += N * int_uy2.real();

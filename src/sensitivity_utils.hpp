@@ -1938,8 +1938,8 @@ inline LoveBranchRegime selectLoveBranchRegime(const T& nu_sq, LoveBranchPolicy 
     const double nu_sq_val = get_val(nu_sq);
     switch (policy) {
         case LoveBranchPolicy::Auto:
-            if (nu_sq_val > 1e-30) return LoveBranchRegime::Evanescent;
-            if (nu_sq_val < -1e-30) return LoveBranchRegime::Propagating;
+            if (nu_sq_val > 0.0) return LoveBranchRegime::Evanescent;
+            if (nu_sq_val < 0.0) return LoveBranchRegime::Propagating;
             return LoveBranchRegime::Linear;
         case LoveBranchPolicy::SignOnly:
             return (nu_sq_val >= 0.0) ? LoveBranchRegime::Evanescent : LoveBranchRegime::Propagating;
@@ -1960,6 +1960,30 @@ inline auto loveBranchSqrtAbs(const T& x) {
     return sqrt(abs(x));
 }
 
+// Transfer a physical SH state by signed distance dz (positive upward).
+template <typename T>
+LoveLayerState<T> transferLoveState(const PhysicalParameters<T>& layer, const T& omega,
+    const T& k, const T& dz, const T& nu_sq, const LoveLayerState<T>& state,
+    LoveBranchPolicy policy) {
+    if (policy == LoveBranchPolicy::Auto && loveSmallStep(nu_sq, dz)) {
+        const auto a = computeLayerMatrixSH(layer, WaveVariables<T>{omega, k, dz});
+        return {a(0,0) * state.u + a(0,1) * state.tau,
+                a(1,0) * state.u + a(1,1) * state.tau};
+    }
+    const auto regime = selectLoveBranchRegime(nu_sq, policy);
+    if (regime == LoveBranchRegime::Linear)
+        return {state.u + dz / layer.c44 * state.tau, state.tau};
+
+    const T nu = loveBranchSqrtAbs(nu_sq);
+    const T x = nu * dz, eta = layer.c44 * nu;
+    if (regime == LoveBranchRegime::Evanescent) {
+        const T ch = cosh(x), sh = sinh(x);
+        return {ch * state.u + sh / eta * state.tau, eta * sh * state.u + ch * state.tau};
+    }
+    const T co = cos(x), si = sin(x);
+    return {co * state.u + si / eta * state.tau, -eta * si * state.u + co * state.tau};
+}
+
 // Propagate Love wave eigenfunctions from surface downward.
 // Returns boundary states at surface, each layer bottom, and halfspace entry.
 // Uses real-only 2×2 layer matrices: no std::complex<T>.
@@ -1973,7 +1997,8 @@ std::vector<LoveLayerState<T>> propagateLoveEigenstates(
     T k = omega / cp;
     std::vector<LoveLayerState<T>> states;
     // Surface: u=1, τ=0
-    T u = T(1.0), tau = T(0.0);
+    T tau = make_zero_like(omega);
+    T u = tau + 1.0;
     states.push_back({u, tau});
 
     for (size_t i = 0; i < layers.size(); ++i) {
@@ -1985,51 +2010,10 @@ std::vector<LoveLayerState<T>> propagateLoveEigenstates(
         // ν² = (N·k² − ρ·ω²) / L
         T nu_sq = (N_j * k * k - rho_j * omega * omega) / L_j;
 
-        // Build 2×2 propagator and apply to [u, τ]
-        // Sign convention: downward propagation with z = -h
-        // Matrix: [[cosh(νh),  -sinh(νh)/(Lν)],
-        //          [-Lν·sinh(νh),  cosh(νh)]]
-        T u_new, tau_new;
-        switch (selectLoveBranchRegime(nu_sq, branch_policy)) {
-        case LoveBranchRegime::Evanescent: {
-            // Evanescent: ν real
-            T nu;
-            if (branch_policy == LoveBranchPolicy::ForcePropagating) {
-                nu = loveBranchSqrtAbs(-nu_sq);
-            } else {
-                nu = loveBranchSqrtAbs(nu_sq);
-            }
-            T ch = cosh(nu * h);
-            T sh = sinh(nu * h);
-            T eta = L_j * nu;
-            u_new   =  ch * u - sh / eta * tau;
-            tau_new = -eta * sh * u + ch * tau;
-            break;
-        }
-        case LoveBranchRegime::Propagating: {
-            // Propagating: ν = iμ, use cos/sin
-            T mu;
-            if (branch_policy == LoveBranchPolicy::ForceEvanescent) {
-                mu = loveBranchSqrtAbs(nu_sq);
-            } else {
-                mu = loveBranchSqrtAbs(-nu_sq);
-            }
-            T co = cos(mu * h);
-            T si = sin(mu * h);
-            T eta = L_j * mu;
-            u_new   =  co * u - si / eta * tau;
-            tau_new =  eta * si * u + co * tau;
-            break;
-        }
-        case LoveBranchRegime::Linear: {
-            // ν ≈ 0: linear approximation
-            u_new   = u - h / L_j * tau;
-            tau_new = tau;
-            break;
-        }
-        }
-        u = u_new;
-        tau = tau_new;
+        const auto next = transferLoveState<T>(layers[i], omega, k, -h, nu_sq,
+                                               {u, tau}, branch_policy);
+        u = next.u;
+        tau = next.tau;
         states.push_back({u, tau});
     }
     return states;
@@ -2132,6 +2116,20 @@ LayerIntegralResult<T> computeLoveLayerIntegrals(
     return {int_u2, int_dudz2};
 }
 
+template <typename T>
+LayerIntegralResult<T> loveHalfspaceMoments(const T& nu_sq, const T& u, LoveBranchPolicy policy) {
+    if (policy == LoveBranchPolicy::ForceLinear || policy == LoveBranchPolicy::ForcePropagating ||
+        (policy == LoveBranchPolicy::SignOnly && get_val(nu_sq) < 0.0)) {
+        const T zero = make_zero_like(nu_sq);
+        return {zero, zero};
+    }
+    const T nu = policy == LoveBranchPolicy::ForceEvanescent
+        ? T(loveBranchSqrtAbs(nu_sq)) : loveHalfspaceDecay(nu_sq);
+    const T u2 = u * u;
+    const T signed_nu = get_val(nu_sq) < 0.0 ? T(-nu) : nu;
+    return {u2 / (2.0 * nu), 0.5 * signed_nu * u2};
+}
+
 // Energy integrals I₁, I₂, I₃ computed analytically (all-real, AD-compatible).
 template <typename T>
 struct LoveEnergyTerms {
@@ -2170,31 +2168,12 @@ LoveEnergyTerms<T> computeLoveAnalyticalIntegrals(
     // Halfspace (exponential decay)
     T u0 = states.back().u;
     T L_h = halfSpace.c44, N_h = halfSpace.c66, rho_h = halfSpace.rho;
-    T nu_sq_hs = (N_h * k2 - rho_h * omega * omega) / L_h;
-    result.int_u2_hs = T(0.0);
-    result.int_dudz2_hs = T(0.0);
-
-    bool include_halfspace =
-        (branch_policy == LoveBranchPolicy::ForceLinear) ? false :
-        (branch_policy == LoveBranchPolicy::ForceEvanescent) ? true :
-        (branch_policy == LoveBranchPolicy::ForcePropagating) ? false :
-        (branch_policy == LoveBranchPolicy::SignOnly) ? (get_val(nu_sq_hs) >= 0.0) :
-        (get_val(nu_sq_hs) > 1e-10);
-    if (include_halfspace) {
-        T nu_hs;
-        if (branch_policy == LoveBranchPolicy::ForcePropagating) {
-            nu_hs = loveBranchSqrtAbs(-nu_sq_hs);
-        } else {
-            nu_hs = loveBranchSqrtAbs(nu_sq_hs);
-        }
-        T inv2nu = T(1.0) / (T(2.0) * nu_hs);
-        result.int_u2_hs = u0 * u0 * inv2nu;
-        result.int_dudz2_hs = nu_sq_hs * u0 * u0 * inv2nu;
-        result.I1 = result.I1 + rho_h * result.int_u2_hs;
-        result.I2 = result.I2 + (result.int_dudz2_hs * L_h + k2 * N_h * result.int_u2_hs);
-        result.I3 = result.I3 + N_h * result.int_u2_hs;
-    }
-
+    const auto tail = loveHalfspaceMoments(loveHalfspaceNuSquared(halfSpace, omega, cp), u0, branch_policy);
+    result.int_u2_hs = tail.int_u2;
+    result.int_dudz2_hs = tail.int_dudz2;
+    result.I1 = result.I1 + rho_h * result.int_u2_hs;
+    result.I2 = result.I2 + (L_h * result.int_dudz2_hs + k2 * N_h * result.int_u2_hs);
+    result.I3 = result.I3 + N_h * result.int_u2_hs;
     return result;
 }
 
@@ -2237,6 +2216,10 @@ LayerIntegralResult<T> computeLoveLayerIntegralsFromBottomStateUpward(
     T rho_j = layer.rho;
     T nu_sq = (N_j * k * k - rho_j * omega * omega) / L_j;
 
+    if (branch_policy == LoveBranchPolicy::Auto && loveSmallStep(nu_sq, thickness))
+        return computeLoveLayerIntegrals<T>(bottom_u, -bottom_tau, layer, thickness,
+                                            omega, k, branch_policy);
+
     switch (selectLoveBranchRegime(nu_sq, branch_policy)) {
     case LoveBranchRegime::Evanescent: {
         T nu = loveBranchSqrtAbs(nu_sq);
@@ -2244,9 +2227,7 @@ LayerIntegralResult<T> computeLoveLayerIntegralsFromBottomStateUpward(
         // S24nu=sinh(x)/(4ν), QQ=(cosh(x)-1)/(4ν), C2m1=cosh(x)-1, x=2νh.
         // Both sinh(x) and cosh(x)-1 are expressible via φ₁(x)=(e^x-1)/x:
         //   sinh(x)   = x·[φ₁(x)+φ₁(-x)]/2   cosh(x)-1 = x·[φ₁(x)-φ₁(-x)]/2
-        // so S24nu, QQ, C2m1 reduce to sums/differences of φ₁(±x) with no
-        // separate cancellation-prone Taylor branch needed (same φ₁ used by
-        // the Rayleigh ν₃≈0 fix and the Evanescent e_pp/e_mm site above).
+        // The regular moments above avoid subtracting h/2 from S24nu near zero.
         T two_nu_h = T(2.0) * nu * thickness;
         T S24nu, QQ, C2m1;
         {
@@ -2312,8 +2293,8 @@ LoveScaledBoundaryData<T> buildLoveScaledBoundaryDataUpward(
         T u_next, tau_next;
         double log_scale_extra = 0.0;
 
-        switch (selectLoveBranchRegime(nu_sq, branch_policy)) {
-        case LoveBranchRegime::Evanescent: {
+        if (selectLoveBranchRegime(nu_sq, branch_policy) == LoveBranchRegime::Evanescent &&
+            !(branch_policy == LoveBranchPolicy::Auto && loveSmallStep(nu_sq, h))) {
             T nu = loveBranchSqrtAbs(nu_sq);
             T eta = L_j * nu;
             T x = nu * h;
@@ -2338,22 +2319,10 @@ LoveScaledBoundaryData<T> buildLoveScaledBoundaryDataUpward(
                 ? std::log(std::cosh(xv))
                 : xv - std::log(2.0) + std::log1p(std::exp(-2.0 * xv));
             log_scale_extra = -log_cosh;
-            break;
-        }
-        case LoveBranchRegime::Propagating: {
-            T mu = loveBranchSqrtAbs(-nu_sq);
-            T x = mu * h;
-            T co = cos(x);
-            T si = sin(x);
-            T eta = L_j * mu;
-            u_next = co * state.u + si / eta * state.tau;
-            tau_next = -eta * si * state.u + co * state.tau;
-            break;
-        }
-        case LoveBranchRegime::Linear:
-            u_next = state.u + h / L_j * state.tau;
-            tau_next = state.tau;
-            break;
+        } else {
+            const auto next = transferLoveState(layer, omega, k, h, nu_sq, state, branch_policy);
+            u_next = next.u;
+            tau_next = next.tau;
         }
 
         const double magnitude =
@@ -2376,8 +2345,9 @@ LoveScaledBoundaryData<T> buildLoveScaledBoundaryDataUpward(
     T L_h = halfSpace.c44;
     T N_h = halfSpace.c66;
     T rho_h = halfSpace.rho;
-    T nu_sq_hs = (N_h * k * k - rho_h * omega * omega) / L_h;
-    T nu_hs = loveBranchSqrtAbs(nu_sq_hs);
+    const T nu_sq_hs = loveHalfspaceNuSquared(halfSpace, omega, cp);
+    const T nu_hs = branch_policy == LoveBranchPolicy::Auto
+        ? loveHalfspaceDecay(nu_sq_hs) : T(loveBranchSqrtAbs(nu_sq_hs));
     bool used_stable_path = false;
 
     if (provided_scale_factors) {
@@ -2395,7 +2365,7 @@ LoveScaledBoundaryData<T> buildLoveScaledBoundaryDataUpward(
         // normal kernel values and LM behavior unchanged.  Only switch to
         // the modal/logarithmic gauge when the legacy transfer actually
         // overflows or its cumulative scale leaves double precision.
-        LoveLayerState<T> state{T(1.0), L_h * nu_hs};
+        LoveLayerState<T> state{T(make_zero_like(omega) + 1.0), L_h * nu_hs};
         double legacy_log_cumulative = 0.0;
         bool use_stable_path = false;
         for (int i = nLayers - 1; i >= 0; --i) {
@@ -2406,31 +2376,8 @@ LoveScaledBoundaryData<T> buildLoveScaledBoundaryDataUpward(
             T nu_sq = (N_j * k * k - rho_j * omega * omega) / L_j;
             T u_b = state.u;
             T tau_b = state.tau;
-            T u_t, tau_t;
-            switch (selectLoveBranchRegime(nu_sq, branch_policy)) {
-            case LoveBranchRegime::Evanescent: {
-                T nu = loveBranchSqrtAbs(nu_sq);
-                T ch = cosh(nu * h);
-                T sh = sinh(nu * h);
-                T eta = L_j * nu;
-                u_t = ch * u_b + sh / eta * tau_b;
-                tau_t = eta * sh * u_b + ch * tau_b;
-                break;
-            }
-            case LoveBranchRegime::Propagating: {
-                T mu = loveBranchSqrtAbs(-nu_sq);
-                T co = cos(mu * h);
-                T si = sin(mu * h);
-                T eta = L_j * mu;
-                u_t = co * u_b + si / eta * tau_b;
-                tau_t = -eta * si * u_b + co * tau_b;
-                break;
-            }
-            case LoveBranchRegime::Linear:
-                u_t = u_b + h / L_j * tau_b;
-                tau_t = tau_b;
-                break;
-            }
+            const auto [u_t, tau_t] = transferLoveState<T>(
+                layers[i], omega, k, h, nu_sq, {u_b, tau_b}, branch_policy);
             const double m = std::abs(u_t) + std::abs(tau_t);
             const double scale = m > 1e-20 ? 1.0 / m : 1.0;
             legacy_log_cumulative += std::log(scale);
@@ -2447,7 +2394,7 @@ LoveScaledBoundaryData<T> buildLoveScaledBoundaryDataUpward(
         if (use_stable_path) {
             used_stable_path = true;
             scale_factors.clear();
-            state = {T(1.0), L_h * nu_hs};
+            state = {T(make_zero_like(omega) + 1.0), L_h * nu_hs};
             normalized_states[nLayers] = {state.u, state.tau};
             double log_cumulative = 0.0;
             for (int i = nLayers - 1; i >= 0; --i) {
@@ -2472,7 +2419,7 @@ LoveScaledBoundaryData<T> buildLoveScaledBoundaryDataUpward(
         // gauge invariant.  The overflow-prone double path above is used by
         // the grid phase-velocity kernel; AD Hessian callers retain this
         // established path and its regression tolerances.
-        LoveLayerState<T> state{T(1.0), L_h * nu_hs};
+        LoveLayerState<T> state{T(make_zero_like(omega) + 1.0), L_h * nu_hs};
         for (int i = nLayers - 1; i >= 0; --i) {
             T L_j = layers[i].c44;
             T N_j = layers[i].c66;
@@ -2481,32 +2428,8 @@ LoveScaledBoundaryData<T> buildLoveScaledBoundaryDataUpward(
             T nu_sq = (N_j * k * k - rho_j * omega * omega) / L_j;
             T u_b = state.u;
             T tau_b = state.tau;
-            T u_t, tau_t;
-
-            switch (selectLoveBranchRegime(nu_sq, branch_policy)) {
-            case LoveBranchRegime::Evanescent: {
-                T nu = loveBranchSqrtAbs(nu_sq);
-                T ch = cosh(nu * h);
-                T sh = sinh(nu * h);
-                T eta = L_j * nu;
-                u_t = ch * u_b + sh / eta * tau_b;
-                tau_t = eta * sh * u_b + ch * tau_b;
-                break;
-            }
-            case LoveBranchRegime::Propagating: {
-                T mu = loveBranchSqrtAbs(-nu_sq);
-                T co = cos(mu * h);
-                T si = sin(mu * h);
-                T eta = L_j * mu;
-                u_t = co * u_b + si / eta * tau_b;
-                tau_t = -eta * si * u_b + co * tau_b;
-                break;
-            }
-            case LoveBranchRegime::Linear:
-                u_t = u_b + h / L_j * tau_b;
-                tau_t = tau_b;
-                break;
-            }
+            const auto [u_t, tau_t] = transferLoveState<T>(
+                layers[i], omega, k, h, nu_sq, {u_b, tau_b}, branch_policy);
             state = {u_t, tau_t};
             double m = get_magnitude(state.u) + get_magnitude(state.tau);
             if (!std::isfinite(m)) {
@@ -2547,7 +2470,7 @@ LoveScaledBoundaryData<T> buildLoveScaledBoundaryDataUpward(
       }
     }
 
-    LoveLayerState<T> scaled_state{T(1.0), L_h * nu_hs};
+    LoveLayerState<T> scaled_state{T(make_zero_like(omega) + 1.0), L_h * nu_hs};
     result.states[nLayers] = {scaled_state.u, scaled_state.tau};
 
     // Store cumulative scales in log form.  The old implementation formed
@@ -2567,33 +2490,8 @@ LoveScaledBoundaryData<T> buildLoveScaledBoundaryDataUpward(
         T tau_b = scaled_state.tau;
         result.bottom_states[i] = {u_b, tau_b};
         log_cumulative_bottom[i] = log_cumulative;
-        T u_t, tau_t;
-
-        switch (selectLoveBranchRegime(nu_sq, branch_policy)) {
-        case LoveBranchRegime::Evanescent: {
-            T nu = loveBranchSqrtAbs(nu_sq);
-            T ch = cosh(nu * h);
-            T sh = sinh(nu * h);
-            T eta = L_j * nu;
-            u_t   =  ch * u_b + sh / eta * tau_b;
-            tau_t = eta * sh * u_b + ch * tau_b;
-            break;
-        }
-        case LoveBranchRegime::Propagating: {
-            T mu = loveBranchSqrtAbs(-nu_sq);
-            T co = cos(mu * h);
-            T si = sin(mu * h);
-            T eta = L_j * mu;
-            u_t   = co * u_b + si / eta * tau_b;
-            tau_t = -eta * si * u_b + co * tau_b;
-            break;
-        }
-        case LoveBranchRegime::Linear:
-            u_t = u_b + h / L_j * tau_b;
-            tau_t = tau_b;
-            break;
-        }
-
+        const auto [u_t, tau_t] = transferLoveState<T>(
+            layers[i], omega, k, h, nu_sq, {u_b, tau_b}, branch_policy);
         double scale = scale_factors[nLayers - 1 - i];
         if (!(scale > 0.0) || !std::isfinite(scale)) {
             throw std::runtime_error("Love analytical scale factor is non-finite or non-positive");
@@ -2656,19 +2554,19 @@ LoveEnergyTerms<T> computeLoveAnalyticalIntegralsDisper80(
     T L_h = halfSpace.c44;
     T N_h = halfSpace.c66;
     T rho_h = halfSpace.rho;
-    T nu_sq_hs = (N_h * k2 - rho_h * omega * omega) / L_h;
+    T nu_sq_hs = loveHalfspaceNuSquared(halfSpace, omega, cp);
     if (!(get_val(nu_sq_hs) > 0.0)) {
         throw std::runtime_error(
             "Love DISPER80 scaling requires an evanescent halfspace");
     }
     T nu_hs = loveBranchSqrtAbs(nu_sq_hs);
-    LoveLayerState<T> state{T(1.0), L_h * nu_hs};
+    LoveLayerState<T> state{T(make_zero_like(omega) + 1.0), L_h * nu_hs};
     double log_gauge = 0.0;
 
     T inv2nu = T(1.0) / (T(2.0) * nu_hs);
     LayerIntegralResult<T> hs_integral{
         state.u * state.u * inv2nu,
-        nu_sq_hs * state.u * state.u * inv2nu
+        0.5 * nu_hs * state.u * state.u
     };
     std::vector<LoveIntegralContribution<T>> contributions;
     contributions.reserve(layers.size());
@@ -2697,43 +2595,12 @@ LoveEnergyTerms<T> computeLoveAnalyticalIntegralsDisper80(
         }
         T hsub = h / T(nsub);
         for (int sub = 0; sub < nsub; ++sub) {
-            // Preserve the historical DISPER80 fallback moment: its
-            // evanescent branch used reflected bottom traction, unlike the
-            // ordinary upward energy path. Correcting that pre-existing
-            // energy discrepancy is separate from changing the SH coordinate.
-            const T moment_tau = regime == LoveBranchRegime::Evanescent
-                ? T(-state.tau) : state.tau;
             auto li = computeLoveLayerIntegralsFromBottomStateUpward<T>(
-                state.u, moment_tau, layer, hsub, omega, k, branch_policy);
+                state.u, state.tau, layer, hsub, omega, k, branch_policy);
             contributions.push_back({i, li, log_gauge});
 
-            T u_next, tau_next;
-            switch (regime) {
-            case LoveBranchRegime::Evanescent: {
-                T nu = loveBranchSqrtAbs(nu_sq);
-                T x = nu * hsub;
-                T ch = cosh(x);
-                T sh = sinh(x);
-                T eta = layer.c44 * nu;
-                u_next = ch * state.u + sh / eta * state.tau;
-                tau_next = eta * sh * state.u + ch * state.tau;
-                break;
-            }
-            case LoveBranchRegime::Propagating: {
-                T mu = loveBranchSqrtAbs(-nu_sq);
-                T x = mu * hsub;
-                T co = cos(x);
-                T si = sin(x);
-                T eta = layer.c44 * mu;
-                u_next = co * state.u + si / eta * state.tau;
-                tau_next = -eta * si * state.u + co * state.tau;
-                break;
-            }
-            case LoveBranchRegime::Linear:
-                u_next = state.u + hsub / layer.c44 * state.tau;
-                tau_next = state.tau;
-                break;
-            }
+            const auto [u_next, tau_next] = transferLoveState(
+                layer, omega, k, hsub, nu_sq, state, branch_policy);
             double magnitude = std::max(
                 std::abs(get_val(u_next)), std::abs(get_val(tau_next)));
             if (!(magnitude > 0.0) || !std::isfinite(magnitude)) {
@@ -2809,18 +2676,18 @@ LoveEnergyTerms<T> computeLoveGroupEnergyDisper80(
     T L_h = halfSpace.c44;
     T N_h = halfSpace.c66;
     T rho_h = halfSpace.rho;
-    T nu_sq_hs = (N_h * k2 - rho_h * omega * omega) / L_h;
+    T nu_sq_hs = loveHalfspaceNuSquared(halfSpace, omega, cp);
     if (!(get_val(nu_sq_hs) > 0.0)) {
         throw std::runtime_error(
             "Love DISPER80 group energy requires an evanescent halfspace");
     }
     T nu_hs = loveBranchSqrtAbs(nu_sq_hs);
-    LoveLayerState<T> state{T(1.0), L_h * nu_hs};
+    LoveLayerState<T> state{T(make_zero_like(omega) + 1.0), L_h * nu_hs};
     T inv2nu = T(1.0) / (T(2.0) * nu_hs);
 
     LoveEnergyTerms<T> result;
     result.int_u2_hs = state.u * state.u * inv2nu;
-    result.int_dudz2_hs = nu_sq_hs * state.u * state.u * inv2nu;
+    result.int_dudz2_hs = 0.5 * nu_hs * state.u * state.u;
     result.I1 = rho_h * result.int_u2_hs;
     result.I2 = L_h * result.int_dudz2_hs + k2 * N_h * result.int_u2_hs;
     result.I3 = N_h * result.int_u2_hs;
@@ -2850,40 +2717,15 @@ LoveEnergyTerms<T> computeLoveGroupEnergyDisper80(
         }
         T hsub = h / T(nsub);
         for (int sub = 0; sub < nsub; ++sub) {
-            // Same legacy fallback moment contract as the per-layer DISPER80
-            // path above; propagation itself always carries upward stress.
-            const T moment_tau = regime == LoveBranchRegime::Evanescent
-                ? T(-state.tau) : state.tau;
             auto li = computeLoveLayerIntegralsFromBottomStateUpward<T>(
-                state.u, moment_tau, layer, hsub, omega, k, branch_policy);
+                state.u, state.tau, layer, hsub, omega, k, branch_policy);
             result.I1 = result.I1 + layer.rho * li.int_u2;
             result.I2 = result.I2 + layer.c44 * li.int_dudz2
                 + k2 * layer.c66 * li.int_u2;
             result.I3 = result.I3 + layer.c66 * li.int_u2;
 
-            T u_next, tau_next;
-            switch (regime) {
-            case LoveBranchRegime::Evanescent: {
-                T nu = loveBranchSqrtAbs(nu_sq);
-                T x = nu * hsub;
-                T ch = cosh(x), sh = sinh(x), eta = layer.c44 * nu;
-                u_next = ch * state.u + sh / eta * state.tau;
-                tau_next = eta * sh * state.u + ch * state.tau;
-                break;
-            }
-            case LoveBranchRegime::Propagating: {
-                T mu = loveBranchSqrtAbs(-nu_sq);
-                T x = mu * hsub;
-                T co = cos(x), si = sin(x), eta = layer.c44 * mu;
-                u_next = co * state.u + si / eta * state.tau;
-                tau_next = -eta * si * state.u + co * state.tau;
-                break;
-            }
-            case LoveBranchRegime::Linear:
-                u_next = state.u + hsub / layer.c44 * state.tau;
-                tau_next = state.tau;
-                break;
-            }
+            const auto [u_next, tau_next] = transferLoveState(
+                layer, omega, k, hsub, nu_sq, state, branch_policy);
             double magnitude = std::max(
                 std::abs(get_val(u_next)), std::abs(get_val(tau_next)));
             if (!(magnitude > 0.0) || !std::isfinite(magnitude)) {
@@ -2930,7 +2772,8 @@ LoveEnergyTerms<T> computeLoveAnalyticalIntegralsUpward(
         T nu_sq = (layers[j].c66 * k2 - layers[j].rho * omega * omega) / layers[j].c44;
         LoveBranchRegime regime = selectLoveBranchRegime(nu_sq, branch_policy);
         T relative_scale_sq;
-        if (regime == LoveBranchRegime::Evanescent) {
+        if (regime == LoveBranchRegime::Evanescent ||
+            (branch_policy == LoveBranchPolicy::Auto && loveSmallStep(nu_sq, thicknesses[j]))) {
             li_scaled = computeLoveLayerIntegralsFromBottomStateUpward<T>(
                 scaled.bottom_states[j].u, scaled.bottom_states[j].tau,
                 layers[j], thicknesses[j], omega, k, branch_policy);
@@ -2954,32 +2797,12 @@ LoveEnergyTerms<T> computeLoveAnalyticalIntegralsUpward(
 
     T u0 = scaled.states.back().u;
     T L_h = halfSpace.c44, N_h = halfSpace.c66, rho_h = halfSpace.rho;
-    T nu_sq_hs = (N_h * k2 - rho_h * omega * omega) / L_h;
-    result.int_u2_hs = T(0.0);
-    result.int_dudz2_hs = T(0.0);
-
-    bool include_halfspace =
-        (branch_policy == LoveBranchPolicy::ForceLinear) ? false :
-        (branch_policy == LoveBranchPolicy::ForceEvanescent) ? true :
-        (branch_policy == LoveBranchPolicy::ForcePropagating) ? false :
-        (branch_policy == LoveBranchPolicy::SignOnly) ? (get_val(nu_sq_hs) >= 0.0) :
-        (get_val(nu_sq_hs) > 1e-10);
-    if (include_halfspace) {
-        T nu_hs_local;
-        if (branch_policy == LoveBranchPolicy::ForcePropagating) {
-            nu_hs_local = loveBranchSqrtAbs(-nu_sq_hs);
-        } else {
-            nu_hs_local = loveBranchSqrtAbs(nu_sq_hs);
-        }
-        T inv2nu = T(1.0) / (T(2.0) * nu_hs_local);
-        T relative_scale_sq_hs = T(scaled.relative_scale_sq.back());
-        result.int_u2_hs = u0 * u0 * inv2nu * relative_scale_sq_hs;
-        result.int_dudz2_hs = nu_sq_hs * u0 * u0 * inv2nu * relative_scale_sq_hs;
-        result.I1 = result.I1 + rho_h * result.int_u2_hs;
-        result.I2 = result.I2 + (result.int_dudz2_hs * L_h + k2 * N_h * result.int_u2_hs);
-        result.I3 = result.I3 + N_h * result.int_u2_hs;
-    }
-
+    const auto tail = loveHalfspaceMoments(loveHalfspaceNuSquared(halfSpace, omega, cp), u0, branch_policy);
+    result.int_u2_hs = tail.int_u2 * scaled.relative_scale_sq.back();
+    result.int_dudz2_hs = tail.int_dudz2 * scaled.relative_scale_sq.back();
+    result.I1 = result.I1 + rho_h * result.int_u2_hs;
+    result.I2 = result.I2 + (L_h * result.int_dudz2_hs + k2 * N_h * result.int_u2_hs);
+    result.I3 = result.I3 + N_h * result.int_u2_hs;
     return result;
 }
 
@@ -3230,42 +3053,8 @@ LoveEnergyTerms<T> computeLoveEnergyIntegrals_Trap(
             T nu_sq = (N_j * k * k - rho_j * omega * omega) / L_j;
 
             auto state_at = [&](T z) {
-                T u_z, tau_z;
-                switch (selectLoveBranchRegime(nu_sq, branch_policy)) {
-                case LoveBranchRegime::Evanescent: {
-                    T nu;
-                    if (branch_policy == LoveBranchPolicy::ForcePropagating) {
-                        nu = loveBranchSqrtAbs(-nu_sq);
-                    } else {
-                        nu = loveBranchSqrtAbs(nu_sq);
-                    }
-                    T ch = cosh(nu * z);
-                    T sh = sinh(nu * z);
-                    T eta = L_j * nu;
-                    u_z   =  ch * u_top - sh / eta * tau_top;
-                    tau_z = -eta * sh * u_top + ch * tau_top;
-                    break;
-                }
-                case LoveBranchRegime::Propagating: {
-                    T mu;
-                    if (branch_policy == LoveBranchPolicy::ForceEvanescent) {
-                        mu = loveBranchSqrtAbs(nu_sq);
-                    } else {
-                        mu = loveBranchSqrtAbs(-nu_sq);
-                    }
-                    T co = cos(mu * z);
-                    T si = sin(mu * z);
-                    T eta = L_j * mu;
-                    u_z   = co * u_top - si / eta * tau_top;
-                    tau_z = eta * si * u_top + co * tau_top;
-                    break;
-                }
-                case LoveBranchRegime::Linear:
-                    u_z = u_top - z / L_j * tau_top;
-                    tau_z = tau_top;
-                    break;
-                }
-                return LoveLayerState<T>{u_z, tau_z};
+                return transferLoveState<T>(layers[j], omega, k, -z, nu_sq,
+                                            {u_top, tau_top}, branch_policy);
             };
 
             int_u2 = T(0.0);
@@ -3293,28 +3082,12 @@ LoveEnergyTerms<T> computeLoveEnergyIntegrals_Trap(
     // Halfspace: analytical (exponential decay)
     T u0       = states.back().u;
     T L_h      = halfSpace.c44, N_h = halfSpace.c66, rho_h = halfSpace.rho;
-    T nu_sq_hs = (N_h * k2 - rho_h * omega * omega) / L_h;
-    result.int_u2_hs = T(0.0); result.int_dudz2_hs = T(0.0);
-    bool include_halfspace =
-        (branch_policy == LoveBranchPolicy::ForceLinear) ? false :
-        (branch_policy == LoveBranchPolicy::ForceEvanescent) ? true :
-        (branch_policy == LoveBranchPolicy::ForcePropagating) ? false :
-        (branch_policy == LoveBranchPolicy::SignOnly) ? (get_val(nu_sq_hs) >= 0.0) :
-        (get_val(nu_sq_hs) > 1e-10);
-    if (include_halfspace) {
-        T nu_hs;
-        if (branch_policy == LoveBranchPolicy::ForcePropagating) {
-            nu_hs = loveBranchSqrtAbs(-nu_sq_hs);
-        } else {
-            nu_hs = loveBranchSqrtAbs(nu_sq_hs);
-        }
-        T inv2nu = T(1.0) / (T(2.0) * nu_hs);
-        result.int_u2_hs    = u0 * u0 * inv2nu;
-        result.int_dudz2_hs = nu_sq_hs * u0 * u0 * inv2nu;
-        result.I1 = result.I1 + rho_h * result.int_u2_hs;
-        result.I2 = result.I2 + (result.int_dudz2_hs * L_h + k2 * N_h * result.int_u2_hs);
-        result.I3 = result.I3 + N_h * result.int_u2_hs;
-    }
+    const auto tail = loveHalfspaceMoments(loveHalfspaceNuSquared(halfSpace, omega, cp), u0, branch_policy);
+    result.int_u2_hs = tail.int_u2;
+    result.int_dudz2_hs = tail.int_dudz2;
+    result.I1 = result.I1 + rho_h * result.int_u2_hs;
+    result.I2 = result.I2 + (L_h * result.int_dudz2_hs + k2 * N_h * result.int_u2_hs);
+    result.I3 = result.I3 + N_h * result.int_u2_hs;
     return result;
 }
 
@@ -3394,24 +3167,21 @@ LoveWeakformGradientPieces<T> computeVariationalGradientLovePieces_T(
 
     // Halfspace
     int hs_base = (int)layers.size() * npl;
-    if (get_val(result.energy.int_u2_hs) > 1e-30) {
-        T raw_drho_h = -omega * omega * result.energy.int_u2_hs;
-        T raw_dL_h   = result.energy.int_dudz2_hs;
-        T raw_dN_h   = k2 * result.energy.int_u2_hs;
+    T raw_drho_h = -omega * omega * result.energy.int_u2_hs;
+    T raw_dL_h   = result.energy.int_dudz2_hs;
+    T raw_dN_h   = k2 * result.energy.int_u2_hs;
 
-        if (mode == SensitivityMode::Isotropic) {
-            T L_h = halfSpace.c44, rho_h = halfSpace.rho;
-            T Vs_h = sqrt(L_h / rho_h);
-            result.raw_gradient[hs_base + 0] = (raw_dL_h + raw_dN_h) * T(2.0) * rho_h * Vs_h;
-            result.raw_gradient[hs_base + 1] = T(0.0);
-            result.raw_gradient[hs_base + 2] = raw_drho_h + (raw_dL_h + raw_dN_h) * Vs_h * Vs_h;
-        } else {
-            result.raw_gradient[hs_base + 0] = raw_drho_h;
-            result.raw_gradient[hs_base + 4] = raw_dL_h;
-            result.raw_gradient[hs_base + 5] = raw_dN_h;
-        }
+    if (mode == SensitivityMode::Isotropic) {
+        T L_h = halfSpace.c44, rho_h = halfSpace.rho;
+        T Vs_h = sqrt(L_h / rho_h);
+        result.raw_gradient[hs_base + 0] = (raw_dL_h + raw_dN_h) * T(2.0) * rho_h * Vs_h;
+        result.raw_gradient[hs_base + 1] = T(0.0);
+        result.raw_gradient[hs_base + 2] = raw_drho_h + (raw_dL_h + raw_dN_h) * Vs_h * Vs_h;
+    } else {
+        result.raw_gradient[hs_base + 0] = raw_drho_h;
+        result.raw_gradient[hs_base + 4] = raw_dL_h;
+        result.raw_gradient[hs_base + 5] = raw_dN_h;
     }
-
     result.gradient = result.coeff * result.raw_gradient;
     return result;
 }
@@ -5068,8 +4838,7 @@ inline Eigen::VectorXd computeVariationalGradientLove(
     SensitivityMode mode,
     int /*numSubLayers*/ = 200
 ) {
-    using CT = std::complex<double>;
-    // Get eigenfunctions at layer boundaries only (numSubLayers=1)
+    // Request one sample per layer; strong decay can add interior points.
     auto ef = computeLoveEigenfunctions<double>(layers, thicknesses, halfSpace,
         omega, cp, 1);
 
@@ -5080,70 +4849,27 @@ inline Eigen::VectorXd computeVariationalGradientLove(
     int num_params = ((int)layers.size() + 1) * npl;
     Eigen::VectorXd gradient = Eigen::VectorXd::Zero(num_params);
 
-    // Analytical per-layer integrals using cosh/sinh decomposition.
-    // Within each layer the eigenfunction is:
-    //   u(z) = c_up exp(+νz) + c_dn exp(-νz)
-    // where ν² = (N·k² − ρ·ω²)/L and c_up, c_dn from boundary state.
+    // Evaluate the layer moments in the surface-normalized eigenfunction gauge.
     double I1_total = 0.0, I2_total = 0.0, I3_total = 0.0;
     struct LayerIntegral { double int_u2; double int_dudz2; };
     std::vector<LayerIntegral> layer_integrals(layers.size());
 
-    // ef[0] = surface (top of layer 0), ef[1] = bottom of layer 0 = top of layer 1, ...
+    size_t cursor = 0;
+    double top_depth = 0.0;
     for (size_t j = 0; j < layers.size(); ++j) {
         double L_j = layers[j].c44;
         double N_j = layers[j].c66;
         double rho_j = layers[j].rho;
         double h = thicknesses[j];
 
-        CT nu_sq = CT((N_j * k2 - rho_j * omega * omega) / L_j);
-        CT nu = std::sqrt(nu_sq);
-        if (nu.real() < 0) nu = -nu;
-
-        // State at top of layer j
-        CT uy_top = CT(ef[j].uy);
-        CT tyz_top = CT(ef[j].tyz);
-
-        // Decompose into up/down modes: u(z) = c_up exp(+νz) + c_dn exp(-νz)
-        // The SH matrix convention: τ = L·∂u/∂z_up = -L·∂u/∂z_depth
-        // So: u(0) = c_up + c_dn = uy_top
-        //     τ(0) = Lν(-c_up + c_dn) = tyz_top
-        // → c_up = (u - τ/(Lν))/2, c_dn = (u + τ/(Lν))/2
-        CT Lnu = CT(L_j) * nu;
-        CT c_up, c_dn;
-        if (std::abs(Lnu) > 1e-30) {
-            c_up = 0.5 * (uy_top - tyz_top / Lnu);
-            c_dn = 0.5 * (uy_top + tyz_top / Lnu);
-        } else {
-            c_up = uy_top * 0.5;
-            c_dn = uy_top * 0.5;
-        }
-
-        CT nus[2] = {nu, -nu};
-        CT coeffs[2] = {c_up, c_dn};
-        CT tyz_facs[2] = {Lnu, -Lnu};
-
-        // Integrate u² and (du/dz)² analytically
-        // u(z) = Σ c_m exp(ν_m z), τ(z) = Σ c_m·(L·ν_m)·exp(ν_m z)
-        // du/dz = τ/L = Σ c_m·ν_m·exp(ν_m z)
-        // ∫u² = ΣΣ c_m c_n ∫exp((ν_m+ν_n)z)dz  from 0 to h
-        // ∫(du/dz)² = ΣΣ c_m c_n ν_m ν_n ∫exp((ν_m+ν_n)z)dz
-        CT int_uu_c = CT(0.0), int_dudz2_c = CT(0.0);
-        for (int m = 0; m < 2; ++m) {
-            for (int n = 0; n < 2; ++n) {
-                CT nu_sum = nus[m] + nus[n];
-                CT exp_int;
-                if (std::abs(nu_sum * h) < 1e-10) {
-                    exp_int = CT(h) * (1.0 + nu_sum * CT(h) * 0.5);
-                } else {
-                    exp_int = (std::exp(nu_sum * h) - 1.0) / nu_sum;
-                }
-                int_uu_c += coeffs[m] * coeffs[n] * exp_int;
-                int_dudz2_c += coeffs[m] * coeffs[n] * nus[m] * nus[n] * exp_int;
-            }
-        }
-        double int_u2 = int_uu_c.real();
-        double int_dudz2 = int_dudz2_c.real();
+        while (cursor + 1 < ef.size() &&
+               std::abs(ef[cursor+1].depth - top_depth) < std::abs(ef[cursor].depth - top_depth))
+            ++cursor;
+        const auto li = computeLoveLayerIntegrals(ef[cursor].uy.real(), ef[cursor].tyz.real(),
+                                                  layers[j], h, omega, k, LoveBranchPolicy::Auto);
+        const double int_u2 = li.int_u2, int_dudz2 = li.int_dudz2;
         layer_integrals[j] = {int_u2, int_dudz2};
+        top_depth += h;
 
         I1_total += rho_j * int_u2;
         I2_total += (int_dudz2 * L_j + k2 * N_j * int_u2);
@@ -5153,18 +4879,11 @@ inline Eigen::VectorXd computeVariationalGradientLove(
     // Halfspace (analytical exponential decay)
     double u0 = ef.back().uy.real();
     double L_h = halfSpace.c44, N_h = halfSpace.c66, rho_h = halfSpace.rho;
-    double nu_sq_hs = (N_h * k2 - rho_h * omega * omega) / L_h;
-    CT nu_hs = std::sqrt(CT(nu_sq_hs));
-    if (nu_hs.real() < 0) nu_hs = -nu_hs;
-    double int_u2_hs = 0.0, int_dudz2_hs = 0.0;
-    if (nu_hs.real() > 1e-10) {
-        double inv2nu = 1.0 / (2.0 * nu_hs.real());
-        int_u2_hs = u0 * u0 * inv2nu;
-        int_dudz2_hs = std::norm(nu_hs) * u0 * u0 * inv2nu;
-        I1_total += rho_h * int_u2_hs;
-        I2_total += (int_dudz2_hs * L_h + k2 * N_h * int_u2_hs);
-        I3_total += N_h * int_u2_hs;
-    }
+    const auto tail = loveHalfspaceMoments(loveHalfspaceNuSquared(halfSpace, omega, cp), u0, LoveBranchPolicy::Auto);
+    const double int_u2_hs = tail.int_u2, int_dudz2_hs = tail.int_dudz2;
+    I1_total += rho_h * int_u2_hs;
+    I2_total += int_dudz2_hs * L_h + k2 * N_h * int_u2_hs;
+    I3_total += N_h * int_u2_hs;
 
     // Gradient: dc/dp = c³/(2ω²I₃) · (∂I₂/∂p − ω²∂I₁/∂p)
     double coeff = cp * cp * cp / (2.0 * omega * omega * I3_total);
@@ -5189,23 +4908,20 @@ inline Eigen::VectorXd computeVariationalGradientLove(
 
     // Halfspace gradient
     int hs_base = (int)layers.size() * npl;
-    if (nu_hs.real() > 1e-10) {
-        double dc_drho_h = coeff * (-omega * omega * int_u2_hs);
-        double dc_dL_h   = coeff * int_dudz2_hs;
-        double dc_dN_h   = coeff * k2 * int_u2_hs;
+    double dc_drho_h = coeff * (-omega * omega * int_u2_hs);
+    double dc_dL_h   = coeff * int_dudz2_hs;
+    double dc_dN_h   = coeff * k2 * int_u2_hs;
 
-        if (mode == SensitivityMode::Isotropic) {
-            double Vs_h = std::sqrt(L_h / rho_h);
-            gradient[hs_base + 0] = (dc_dL_h + dc_dN_h) * 2.0 * rho_h * Vs_h;
-            gradient[hs_base + 1] = 0.0;
-            gradient[hs_base + 2] = dc_drho_h + (dc_dL_h + dc_dN_h) * Vs_h * Vs_h;
-        } else {
-            gradient[hs_base + 0] = dc_drho_h;
-            gradient[hs_base + 4] = dc_dL_h;
-            gradient[hs_base + 5] = dc_dN_h;
-        }
+    if (mode == SensitivityMode::Isotropic) {
+        double Vs_h = std::sqrt(L_h / rho_h);
+        gradient[hs_base + 0] = (dc_dL_h + dc_dN_h) * 2.0 * rho_h * Vs_h;
+        gradient[hs_base + 1] = 0.0;
+        gradient[hs_base + 2] = dc_drho_h + (dc_dL_h + dc_dN_h) * Vs_h * Vs_h;
+    } else {
+        gradient[hs_base + 0] = dc_drho_h;
+        gradient[hs_base + 4] = dc_dL_h;
+        gradient[hs_base + 5] = dc_dN_h;
     }
-
     return gradient;
 }
 

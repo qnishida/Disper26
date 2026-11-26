@@ -43,12 +43,17 @@ conversion `tau_depth = -tyz` before forming modal amplitudes. The regular
 moments take upward `T` and convert to the downward slope `-T/L` internally.
 Trapezoidal integration squares the traction and needs no reflection.
 
-The older DISPER80 fallback energy paths retain their pre-existing moment
-values for compatibility in this coordinate-only change. Their evanescent
-bottom-state moment historically used reflected traction, whereas the usual
-upward analytical path uses physical traction. That fallback discrepancy is
-not a correction made by this refactor; the conversion is explicit at its
-moment boundary and its propagated state now uses upward `T` throughout.
+The ordinary and DISPER80-style fallback integrals both accept the physical
+bottom traction. For $|q|\le 1/4$, with $q=\nu^2h^2$ for the actual step,
+the bottom integral passes $-T_b$ to the downward-moment formula. This gives
+the upward slope $+T_b/L$. Evaluating the moments and SH transfer as functions
+of signed $q$ retains their material derivatives at $c=V_{SH}$.
+
+For a trapped mode the half-space contributes $u_0^2/(2\nu_h)$ to the
+displacement moment and $\nu_h u_0^2/2$ to the squared-gradient moment.
+Both enter the energy normalization for every positive decay constant of an
+accepted mode. At $\nu_h=0$ a nonzero boundary displacement gives a divergent
+energy integral. Direct energy evaluation requires a decaying half-space.
 
 The missing conversion was corrected in `computeLoveEnergyIntegrals_Analytical`
 on 2026-09-25, affecting both `disper26.compute_energy_integrals` with analytical
@@ -77,7 +82,7 @@ After correction, the four isotropic/VTI mode cases agree with AD within
 `fix/regular-energy-integrals-20260925` shares regular finite-layer moments
 between the public Rayleigh integrals and variational derivatives/Hessians.
 Love also uses regular moments near zero vertical wavenumber, where the public
-modal formula previously returned NaN. Halfspace decay integrals are unchanged.
+modal formula previously returned NaN. That finite-layer study used the half-space integrals available at the time.
 The four diagnosed near-Vs roots now agree with the independent group-velocity
 reference within `1.33e-15` relative; previously the error reached `4.43e-6`.
 These are historical development-branch measurements, not a statement about
