@@ -5,7 +5,7 @@ vertically transversely isotropic (VTI) layered media. Its C++, C, Fortran
 and Python interfaces provide eigenfunctions, sensitivity kernels and
 phase-velocity Hessians.
 
-**Version 0.1.104** · 26 November 2026
+**Version 0.1.105** · [Release notes](docs/release_notes.md)
 
 ## Quick start
 

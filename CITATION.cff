@@ -4,8 +4,7 @@ message: >-
   metadata below. Please also cite the accompanying paper when it is available.
 type: software
 title: Disper26
-version: 0.1.104
-date-released: 2026-11-26
+version: 0.1.105
 repository-code: "https://github.com/qnishida/Disper26"
 authors:
   - family-names: Nishida

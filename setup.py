@@ -42,7 +42,7 @@ class CMakeBuild(build_ext):
 
 setup(
     name="disper26py",
-    version="0.1.104",
+    version="0.1.105",
     author="Kiwamu Nishida",
     license="GPL-2.0-or-later",
     options={"sdist": {"owner": "root", "group": "root"}},

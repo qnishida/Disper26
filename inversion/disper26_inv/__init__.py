@@ -6,7 +6,7 @@ All public APIs take periods in seconds and km / km/s / g/cm^3 model units;
 the omega/Hz inconsistencies of the raw bindings are hidden inside engine.py.
 """
 
-__version__ = "0.1.104"
+__version__ = "0.1.105"
 
 try:
     import scipy as _scipy

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/MacOSCompiler.cmake")
-project(Disper26 VERSION 0.1.104 LANGUAGES CXX)
+project(Disper26 VERSION 0.1.105 LANGUAGES CXX)
 
 option(DISPER26_BUILD_TESTS "Build the C++ test executables" ON)
 option(DISPER26_BUILD_PYTHON "Build Python bindings when pybind11 is available" ON)
