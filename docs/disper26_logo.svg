@@ -3,15 +3,15 @@
 
   <rect x="20" y="20" width="130" height="130" rx="22" ry="22" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
   <path d="M 42 21 L 128 21 Q 149 21 149 42 L 149 46 L 21 46 L 21 42 Q 21 21 42 21 Z" fill="#bae6fd" fill-opacity="0.68"/>
-  <rect x="21" y="46" width="128" height="28" fill="#b7c6d7"/>
+  <rect x="21" y="46" width="128" height="28" fill="#eeeae5"/>
 
-  <rect x="21" y="74" width="128" height="32" fill="#e2e8f0"/>
-  <rect x="21" y="78" width="128" height="4" fill="#a8b8ca"/>
-  <rect x="21" y="86" width="128" height="4" fill="#a8b8ca"/>
-  <rect x="21" y="94" width="128" height="4" fill="#a8b8ca"/>
-  <rect x="21" y="102" width="128" height="4" fill="#a8b8ca"/>
+  <rect x="21" y="74" width="128" height="32" fill="#e6e1db"/>
+  <rect x="21" y="78" width="128" height="4" fill="#c2b4a6"/>
+  <rect x="21" y="86" width="128" height="4" fill="#c2b4a6"/>
+  <rect x="21" y="94" width="128" height="4" fill="#c2b4a6"/>
+  <rect x="21" y="102" width="128" height="4" fill="#c2b4a6"/>
 
-  <path d="M 21 106 L 149 106 L 149 128 Q 149 149 128 149 L 42 149 Q 21 149 21 128 Z" fill="#94a3b8" fill-opacity="0.36"/>
+  <path d="M 21 106 L 149 106 L 149 128 Q 149 149 128 149 L 42 149 Q 21 149 21 128 Z" fill="#ab9b8d"/>
 
   <line x1="21" y1="46" x2="149" y2="46" stroke="#0284c7" stroke-opacity="0.55" stroke-width="1.2"/>
   <line x1="21" y1="74" x2="149" y2="74" stroke="#64748b" stroke-opacity="0.45" stroke-width="1"/>
