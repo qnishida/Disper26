@@ -2,14 +2,13 @@
 #include <vector>
 #include <Eigen/Dense>
 
-// 5x5用のインデックス定義 (I34を削除)
+// Indices for the reduced 5x5 matrix. I34 is omitted.
 enum ReducedIndex {
     I12 = 0,
     I13 = 1,
     I14 = 2,
     I23 = 3,
     I24 = 4
-    // I34 は存在しない
 };
 
 struct Parameters {
@@ -23,7 +22,7 @@ struct Variables {
     double S1, S3;
 };
 
-// 5次元ベクトルと5x5行列
+// Five-component vector and 5x5 matrix.
 using Vector5d = Eigen::Matrix<double, 5, 1>;
 using Matrix5d = Eigen::Matrix<double, 5, 5>;
 
@@ -36,18 +35,17 @@ Vector5d computeInitialVectorReduced(const Parameters& p) {
     Y(I23) = -p.c33 * p.d6;
     Y(I24) = p.c44 * (p.d1 * p.d4 - p.d2 * p.d3);
     
-    // Y34 は計算不要 (Y12に含まれるとみなす)
+    // Y12 determines Y34 through Y34 = -Y12.
 
     return Y;
 }
 
 Matrix5d computeMatrixReduced(const Parameters& p, const Variables& v) {
-    // 一旦全要素の係数を計算するか、必要な部分だけ計算します。
-    // ここでは可読性のため、ロジック通り「6x6の成分」を意識して計算し、5x5に格納します。
+    // Use the 6x6 entry names when assembling the reduced 5x5 matrix.
     
     Matrix5d B = Matrix5d::Zero();
 
-    // --- 共通項計算 (省略なし版と同じ) ---
+    // Common factors from the full 6x6 formulation.
     double C1C3 = v.C1 * v.C3;
     double S1S3 = v.S1 * v.S3;
     double inv_d5 = 1.0 / p.d5;
@@ -59,7 +57,7 @@ Matrix5d computeMatrixReduced(const Parameters& p, const Variables& v) {
     double k_44_d5 = inv_c44 * inv_d5;
     double k_all   = inv_c33 * inv_c44 * inv_d5 * inv_d6;
 
-    // --- 必要な生要素の計算 (一時変数) ---
+    // Entries needed from the full matrix.
     // Col 12 and Col 34 components
     double b1234 = k_all * (2.0 * p.d1 * p.d2 * (C1C3 - 1.0) - (p.d1*p.d1 + p.d2*p.d2) * S1S3);
     double b1212 = 1.0 - b1234;
@@ -68,31 +66,31 @@ Matrix5d computeMatrixReduced(const Parameters& p, const Variables& v) {
     //                = (1 - b1234) - b1234 = 1 - 2*b1234
     B(I12, I12) = 1.0 - 2.0 * b1234;
 
-    // 他の行の第1列目 (New_Col_0 = Col_12 - Col_34)
-    // 数式から b_i_34 の関係性を見て代入
+    // For the remaining rows, form the first column as Col_12 - Col_34.
+    // Use the identities for each row's entry in column 34.
     
-    // Row 13: b1312 - b1334.  (定義より b1334 = -b1312 なので、これは 2*b1312 になる)
+    // Row 13: b1312 - b1334 = 2*b1312 because b1334 = -b1312.
     double b1224 = k_all * ((p.eps1 * p.d2 + p.eps3 * p.d1)*(1.0 - C1C3) + (p.eps1*p.d1 + p.eps3*p.d2)*S1S3);
     double b1312 = b1224; 
     B(I13, I12) = 2.0 * b1312;
 
-    // Row 14: b1412 - b1434. (b1434 = -b1412 なので 2*b1412)
+    // Row 14: b1412 - b1434 = 2*b1412 because b1434 = -b1412.
     double b1223 = k_33_d6 * (p.d1 * v.C1 * v.S3 - p.d2 * v.C3 * v.S1);
     double b1412 = b1223;
     B(I14, I12) = 2.0 * b1412;
 
-    // Row 23: b2312 - b2334. (b2334 = -b2312 なので 2*b2312)
+    // Row 23: b2312 - b2334 = 2*b2312 because b2334 = -b2312.
     double b1214 = k_44_d5 * (-p.d2 * v.C1 * v.S3 + p.d1 * v.C3 * v.S1);
     double b2312 = b1214;
     B(I23, I12) = 2.0 * b2312;
 
-    // Row 24: b2412 - b2434. (b2434 = -b1213 なので b2412 + b1213)
+    // Row 24: b2412 - b2434 = b2412 + b1213 because b2434 = -b1213.
     double b1213 = k_33_d5d6 * (p.d1*p.d2*(p.d3+p.d4)*(C1C3-1.0) - (p.d2*p.d2*p.d3+p.d1*p.d1*p.d4)*S1S3);
-    double b2412 = b1213; // 定義より
+    double b2412 = b1213; // Equal by definition.
     B(I24, I12) = 2.0 * b1213;
 
-    // --- 2列目以降 (I13, I14, I23, I24) は元の値と同じ ---
-    // ※以下、対称性などを使って埋めていきます
+    // Columns I13, I14, I23 and I24 retain their full-matrix entries.
+    // Use symmetry to fill in repeated entries.
 
     // Col 13 (Original Index 13)
     B(I12, I13) = b1213;
@@ -131,7 +129,7 @@ Matrix5d computeMatrixReduced(const Parameters& p, const Variables& v) {
 }
 
 int main() {
-    // ... パラメータ設定 (省略) ...
+    // Example parameters.
     Parameters p = { 1.0, 1.0, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 10.0, 20.0 };
     Variables v = { 0.8, 0.8, 0.6, 0.6 };
 
@@ -140,7 +138,7 @@ int main() {
 
     std::cout << "Reduced Matrix B (5x5):\n" << B_reduced << std::endl;
     
-    // 検算: Y_34 = -Y_12 が暗黙的に保持されている
+    // The reduced representation implicitly preserves Y_34 = -Y_12.
     
     return 0;
 }

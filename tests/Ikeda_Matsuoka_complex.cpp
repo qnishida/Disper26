@@ -5,7 +5,7 @@
 #include <Eigen/Dense>
 #include <unsupported/Eigen/AutoDiff>
 
-// --- 型定義 ---
+// Type definitions.
 template <typename T>
 struct PhysicalParameters {
     T rho;
@@ -28,15 +28,14 @@ struct DerivedComplexValues {
 
 enum ReducedIndex { I12=0, I13=1, I14=2, I23=3, I24=4 };
 
-// --- 【修正1】ヘルパー関数の変更 ---
-// 単に T(0.0) とすると微分サイズが0になってしまうため、
-// val * 0.0 とすることで、valの微分サイズを引き継いだまま0を作る
+// T(0.0) has an empty derivative vector for a dynamically sized AutoDiffScalar.
+// Use val * 0.0 so the imaginary part has the same derivative size as val.
 template<typename T>
 std::complex<T> toComplex(const T& val) {
     return std::complex<T>(val, val * 0.0);
 }
 
-// --- 計算ロジック ---
+// Derived wave quantities.
 
 template <typename T>
 DerivedComplexValues<T> computeDerivedValues(
@@ -52,8 +51,7 @@ DerivedComplexValues<T> computeDerivedValues(
     T c13_plus_c44 = p.c13 + p.c44;
     T term_k_sq = v.k * v.k;
 
-    // --- 【修正2】 定数の作り方を変更 ---
-    // p.rho * 0.0 で「値0かつ微分サイズが正しい変数」を作り、それに定数を足す
+    // Start from p.rho * 0.0 so the constants inherit its derivative size.
     T ref_zero = p.rho * 0.0; 
     T val_4 = ref_zero + 4.0;
     T val_2 = ref_zero + 2.0;
@@ -68,7 +66,7 @@ DerivedComplexValues<T> computeDerivedValues(
         (rho_omega2 - c44_k2) * (rho_omega2 - c11_k2)
     );
 
-    // nu の計算 (修正: T(4.0) -> val_4)
+    // Compute nu1 and nu3 using val_4 in the discriminant.
     CT discriminant = M1 * M1 - toComplex<T>(val_4 * p.c33 * p.c44) * M2;
     CT sqrt_discriminant = std::sqrt(discriminant);
 
@@ -82,7 +80,7 @@ DerivedComplexValues<T> computeDerivedValues(
     CT nu1 = std::sqrt(nu1_sq);
     CT nu3 = std::sqrt(nu3_sq);
 
-    // epsilon の計算
+    // Compute epsilon for each root.
     auto compute_epsilon = [&](CT nu, CT nu_sq) {
         CT num = toComplex<T>((p.c13 + p.c44) * v.k) * nu;
         CT den_real_part = toComplex<T>(c11_k2 - rho_omega2);
@@ -133,8 +131,7 @@ Eigen::Matrix<T, 5, 5> computeMatrixFromPhysical(
     CT C1C3 = C1 * C3;
     CT S1S3 = S1 * S3;
 
-    // --- 【修正3】 定数の作り方を変更 ---
-    // ここでも physParams.rho を基準にして、次元の合った 1.0 と 2.0 を作る
+    // Give the constants 1.0 and 2.0 the same derivative size as physParams.rho.
     T ref_zero = physParams.rho * 0.0;
     T val_1 = ref_zero + 1.0;
     T val_2 = ref_zero + 2.0;
@@ -162,7 +159,7 @@ Eigen::Matrix<T, 5, 5> computeMatrixFromPhysical(
     Eigen::Matrix<T, 5, 5> B;
     B.setZero();
 
-    // 代入時に .real() を取る
+    // Store the real part of each matrix entry.
     B(I12, I12) = (one - two * b1234).real(); 
     B(I24, I12) = (two * b1213).real();
 
@@ -173,11 +170,11 @@ int main() {
     using ADS = Eigen::AutoDiffScalar<Eigen::VectorXd>;
 
     PhysicalParameters<ADS> phys;
-    // ヘルパー関数: 値vを持ち、微分サイズ1（値0）のAutoDiffScalarを作る
+    // Create an AutoDiffScalar with value v and one zero derivative.
     auto make_const = [](double v) {
         ADS a; 
         a.value() = v; 
-        a.derivatives() = Eigen::VectorXd::Zero(1); // ここでサイズ1を確保
+        a.derivatives() = Eigen::VectorXd::Zero(1);
         return a;
     };
 
@@ -191,9 +188,9 @@ int main() {
     wave.z = make_const(1.5);
     wave.k = make_const(0.5);
 
-    // omega で微分する設定
+    // Differentiate with respect to omega by seeding d(omega)/d(omega) = 1.
     wave.omega.value() = 10.0;
-    wave.omega.derivatives() = Eigen::VectorXd::Ones(1); // サイズ1
+    wave.omega.derivatives() = Eigen::VectorXd::Ones(1);
 
     Eigen::Matrix<ADS, 5, 5> B = computeMatrixFromPhysical(phys, wave);
 

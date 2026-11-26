@@ -16,9 +16,9 @@ External-program comparison tests, reference output, and comparison benchmarks
 belong in the separate research test repository, outside this public tree.
 Keep Disper26-only regression fixtures independent of those comparisons.
 
-Markdown in this public repository must be written in English, except for
-Japanese documentation under `docs_jp/` and Japanese example guides under
-`example_jp/`. Both directories are at the repository root.
+Use English for project documentation, code comments, docstrings and user-facing
+messages, including test and diagnostic output. Keep Japanese documentation in
+`docs_jp/` and Japanese example guides in `example_jp/` at the repository root.
 
 Preserve numerical formulas, units, signs, precision, defaults, reduction order,
 seeds, tolerances and documented deprecated aliases. Follow docs/naming_convention.md.
@@ -29,8 +29,11 @@ Inside that environment, build Python with python setup.py build_ext --inplace.
 Run python -m pytest -q tests/python for regressions. For non-interactive
 commands, use conda run -n ENV_NAME with the selected environment name.
 For native checks use a fresh CMake build and ctest --output-on-failure.
-Paper inputs and reference_sources are immutable; write recomputation to a
-separate output directory. Frozen source manifests must be verified first.
+Treat the inputs and numerical results in `paper/data/` and the historical
+solver snapshots in `paper/reference_sources/` as immutable. Before building or
+using a snapshot, verify it against `paper/reference_manifest.json` as described
+in [the reproduction guide](paper/README.md). Write new results to a separate
+output directory.
 
 Original Disper26 software uses GPL-2.0-or-later. Bundled PREM tables and adapted
 model inputs use CC BY 4.0 on the policy basis recorded in NOTICE. Preserve

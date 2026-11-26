@@ -60,7 +60,7 @@ def test_convergence_history():
     
     print("=" * 70)
     print("\nInterpretation:")
-    print("  1e-10未満になったレベルで十分な精度に達しています")
+    print("  A relative change in phase velocity below 1e-10 is sufficient for this example.")
     print("  Early stopping would be optimal at the level where rel_error < 1e-10")
 
 
