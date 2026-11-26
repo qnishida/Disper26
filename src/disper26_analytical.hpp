@@ -102,28 +102,15 @@ EnergyIntegralResult<T> computeLoveEnergyIntegrals_Analytical(
             continue;
         }
 
-        // 1. Calculate Eigenvalues (nu)
-        // nu = k * sqrt(1 - c^2 * rho / c44) ? No.
-        // Love disp eq: beta = sqrt(c44/rho). 
-        // mu = c44. (VTI L)
-        // nu = k * sqrt(1 - c^2/beta^2) is for isotropic.
-        // For VTI: nu calculation.
-        // wave.z = 0 implies homogeneous coeff.
-        // From computeLayerMatrixSH:
-        // nu = k * sqrt(1 - c^2 * rho / p.c44_or_c66?)
-        // Let's copy logic from disper26.cpp strictly.
-        // c44 (L, vertical shear) governs vertical decay. c66 (N) governs horizontal.
-        // Wave eq: L u_zz + N k^2 u = -rho omega^2 u?
-        // -rho omega^2 + L nu^2 - N k^2 = 0 ?
-        // L nu^2 = N k^2 - rho omega^2
-        // nu^2 = (N k^2 - rho omega^2) / L
-        // nu = sqrt(...)
+        // For SH motion in a VTI layer, L*u_zz = (N*k^2 - rho*omega^2)*u.
+        // With L = rho*VSV^2 and N = rho*VSH^2, the vertical propagation
+        // exponent satisfies nu^2 = (N*k^2 - rho*omega^2)/L.
         
         T L = p.c44;
         T N = p.c66;
         T rho = p.rho;
         CT nu_sq_val = (N * k_sq - rho * omega * omega) / L;
-        CT nu = std::sqrt(nu_sq_val); // Standard sqrt branch?
+        CT nu = std::sqrt(nu_sq_val);
         
         // Ensure nu matches the branch used in propagation (Re(nu) >= 0 usually)
         if (nu.real() < 0) nu = -nu;
@@ -279,9 +266,8 @@ EnergyIntegralResult<T> computeRayleighEnergyIntegrals_Analytical(
     T omega,
     T phaseVelocity
 ) {
-    // Solid layers only -- the analytical form divides by c44 and assumes the
-    // P-SV eigenfunction shape, and a water layer has c44 = 0. Unguarded this
-    // returned NaN with nothing to say why. See docs/fluid_gravity_status.md.
+    // This point-based P-SV integral requires solid layers because it divides
+    // by c44. For the fluid weak-form integration route, see docs/fluid_layers.md.
     if (hasLiquidLayer(layers) || isLiquidLayer(halfSpaceParams)) {
         throw std::runtime_error(
             "Analytical Rayleigh energy integrals are not implemented for fluid "

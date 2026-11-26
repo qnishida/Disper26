@@ -4,7 +4,9 @@ This document describes the Reduced Delta Matrix (Compound Matrix) formulation u
 
 ## 1. Solid Layer Formulation
 
-The calculation is based on the method described by Ikeda & Matsuoka, using a 5x5 compound matrix formulation for vertically transversely isotropic (VTI) media (which includes isotropic media as a special case).
+For a solid layer with vertical transverse isotropy (VTI), including the
+isotropic limit, Disper26 uses the $5\times5$ reduced delta matrix of
+[Ikeda & Matsuoka (2013)](https://doi.org/10.1785/0120120207).
 
 ### 1.1 Physical Parameters
 *   $\rho$: Density
@@ -12,11 +14,15 @@ The calculation is based on the method described by Ikeda & Matsuoka, using a 5x
     *   For isotropic media: $c_{11} = c_{33} = \rho V_p^2$, $c_{44} = \rho V_s^2$, $c_{13} = c_{33} - 2c_{44}$.
 *   $\omega$: Angular frequency
 *   $k$: Horizontal wavenumber, with phase velocity $c=\omega/k$
-*   $z$: Layer thickness
+*   $z$ is the vertical coordinate, positive upward.
+*   $H=z_{\rm top}-z_{\rm bottom}>0$ is the layer thickness.
 
-### 1.2 Eigenvalue Problem (Vertical Wavenumbers)
+### 1.2 Eigenvalue Problem (Vertical Propagation Exponents)
 
-The vertical wavenumbers $\nu_1, \nu_3$ are solutions to the characteristic equation derived from the Christoffel equation.
+The vertical propagation exponents $\nu_1$ and $\nu_3$ enter the layer
+solutions through $e^{\pm\nu_j z}$. For a plane wave with vertical phase
+factor $e^{ik_z z}$, each exponent satisfies $\nu_j^2=-k_z^2$ for the
+corresponding vertical wavenumber $k_z$.
 
 Define auxiliary terms $M_1, M_2$:
 $$
@@ -26,7 +32,7 @@ $$
 M_2 = (\rho\omega^2 - c_{44}k^2)(\rho\omega^2 - c_{11}k^2)
 $$
 
-The squared vertical wavenumbers $\nu^2$ are roots of $c_{33}c_{44}(\nu^2)^2 + M_1(\nu^2) + M_2 = 0$:
+The squared exponents are the roots of the Christoffel polynomial $c_{33}c_{44}(\nu^2)^2 + M_1(\nu^2) + M_2 = 0$.
 $$
 \nu_{1,3}^2 = \frac{-M_1 \pm \sqrt{M_1^2 - 4 c_{33} c_{44} M_2}}{2 c_{33} c_{44}}
 $$
@@ -40,7 +46,7 @@ $$
 $$
 These modal expressions have removable singularities at critical speeds.
 The [finite-layer implementation](../src/dispersion_rayleigh.hpp) cancels
-vertical-wavenumber factors before evaluation. For degenerate roots or an
+factors of $\nu_i$ before evaluation. For degenerate roots or an
 unusable denominator it forms the reduced matrix directly from the regular
 four-component state propagator.
 
@@ -69,22 +75,24 @@ $$
 ### 1.5 Layer Matrix Elements (5x5)
 
 For positive layer thickness, $B$ propagates the bottom minor vector upward to
-the top. The reduced solid state is `[uz, szz, ur, szr]` with upward vertical
-coordinate. Each $I_{ij}$ is the two-by-two determinant formed from rows $i,j$
-of two independent solutions. The identity $I_{34}=-I_{12}$ leaves five
-stored components. The indices correspond to the minors:
-*   $I_{12}$ (1st)
-*   $I_{13}$ (2nd)
-*   $I_{14}$ (3rd)
-*   $I_{23}$ (4th)
-*   $I_{24}$ (5th)
+the top. The solid state is `[uz, szz, ur, szr]` with upward vertical
+coordinate. For two independent solutions that decay in the lower half-space,
+the minor formed from rows $i,j$ is
+
+$$
+Y_{ij}=y_i^{(1)}y_j^{(2)}-y_i^{(2)}y_j^{(1)}.
+$$
+
+In this component order $Y_{34}=-Y_{12}$. The columns of $B$ follow the
+order of the reduced vector $\mathbf{Y}=(Y_{12},Y_{13},Y_{14},Y_{23},Y_{24})^\mathsf{T}$.
+In C++, `I14` is the zero-based index 2, so `Y(I14)` returns $Y_{14}$.
 
 Define propagator terms:
 $$
-C_1 = \cosh(\nu_1 z), \quad S_1 = \sinh(\nu_1 z)
+C_1 = \cosh(\nu_1 H), \quad S_1 = \sinh(\nu_1 H)
 $$
 $$
-C_3 = \cosh(\nu_3 z), \quad S_3 = \sinh(\nu_3 z)
+C_3 = \cosh(\nu_3 H), \quad S_3 = \sinh(\nu_3 H)
 $$
 
 Define auxiliary scaling factors:
@@ -100,7 +108,7 @@ $$
 
 **Matrix Elements $B_{ij}$:**
 
-**Column 1 ($I_{12}$):**
+**Column 1 ($Y_{12}$):**
 $$
 b_{1234} = k_{all} \left[ 2 d_1 d_2 (C_1 C_3 - 1) - (d_1^2 + d_2^2) S_1 S_3 \right]
 $$
@@ -120,7 +128,7 @@ $$
 B_{51} = 2 k_{33}^{(d5d6)} \left[ d_1 d_2 (d_3 + d_4)(C_1 C_3 - 1) - (d_2^2 d_3 + d_1^2 d_4) S_1 S_3 \right]
 $$
 
-**Column 2 ($I_{13}$):**
+**Column 2 ($Y_{13}$):**
 $$
 B_{12} = \frac{1}{2} B_{51}
 $$
@@ -137,7 +145,7 @@ $$
 B_{52} = c_{44} k_{33}^{(d5d6)} \left[ 2 d_1 d_2 d_3 d_4 (1 - C_1 C_3) + (d_1^2 d_4^2 + d_2^2 d_3^2) S_1 S_3 \right]
 $$
 
-**Column 3 ($I_{14}$):**
+**Column 3 ($Y_{14}$):**
 $$
 B_{13} = \frac{1}{2} B_{41}
 $$
@@ -154,7 +162,7 @@ $$
 B_{53} = B_{42} \quad (\text{Symmetry})
 $$
 
-**Column 4 ($I_{23}$):**
+**Column 4 ($Y_{23}$):**
 $$
 B_{14} = \frac{1}{2} B_{31}
 $$
@@ -171,7 +179,7 @@ $$
 B_{54} = B_{32} \quad (\text{Symmetry})
 $$
 
-**Column 5 ($I_{24}$):**
+**Column 5 ($Y_{24}$):**
 $$
 B_{15} = \frac{1}{2} B_{21}
 $$
@@ -188,25 +196,33 @@ $$
 B_{55} = B_{22} \quad (\text{Symmetry})
 $$
 
-## 2. Liquid Layer Formulation
+## 2. Fluid Layer Formulation
 
-For a liquid layer (where $c_{44} \to 0$), the acoustic wave propagation is described by a 2x2 matrix for the state vector $[w, P]^T$ (upward displacement and Lagrangian normal traction $P=T_{zz}$). The matrix below propagates upward at zero gravity. At the seabed, $w=I_{14}$ and $P=I_{24}$ on the solid side. See [fluid layers](fluid_layers.md) for the boundary conditions.
+In a fluid layer ($c_{44}=0$), the $2\times2$ acoustic matrix propagates the state
+$[w,T_{zz}]^\mathsf{T}$ (upward displacement and Lagrangian normal traction).
+The matrix below propagates upward through thickness $H$ at zero gravity.
+At the seabed, choosing a common normalization gives
+$(w,T_{zz})=(Y_{14},Y_{24})$ in terms of the solid-side minors.
+See the [fluid boundary conditions](fluid_layers.md#solid-fluid-transition).
 
 ### 2.1 Parameters
 *   $V_p = \sqrt{c_{33} / \rho}$ (P-wave velocity)
-*   $\nu = \sqrt{k^2 (1 - c^2/V_p^2)}$
-    *   Note: If $c < V_p$, $\nu$ is real (evanescent/decaying). If $c > V_p$, $\nu$ is imaginary (propagating).
+*   $\nu^2 = k^2(1-c^2/V_p^2)=-k_z^2$, where $k_z^2=\omega^2/V_p^2-k^2$.
+
+For $c<V_p$, $\nu$ is real and the two solutions decay or grow exponentially
+with depth. For $c>V_p$, $\nu$ is purely imaginary and the solutions
+oscillate with depth. At $c=V_p$, $\nu=0$.
 
 ### 2.2 Matrix Elements (2x2)
 
 $$
-B_{liquid} = \begin{pmatrix}
-\cosh(\nu z) & -\frac{\nu}{\rho \omega^2} \sinh(\nu z) \\
--\frac{\rho \omega^2}{\nu} \sinh(\nu z) & \cosh(\nu z)
+B_{\mathrm{fluid}} = \begin{pmatrix}
+\cosh(\nu H) & -\frac{\nu}{\rho \omega^2} \sinh(\nu H) \\
+-\frac{\rho \omega^2}{\nu} \sinh(\nu H) & \cosh(\nu H)
 \end{pmatrix}
 $$
 
 Note: In the limit $\nu \to 0$, ratio terms are handled as:
 $$
-\lim_{\nu \to 0} \frac{\sinh(\nu z)}{\nu} = z
+\lim_{\nu \to 0} \frac{\sinh(\nu H)}{\nu} = H
 $$

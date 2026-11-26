@@ -185,9 +185,8 @@ int main() {
     // We confirm that U is calculated using AD derivatives of c w.r.t omega.
     // Differentiating U w.r.t p via FD gives accurate sensitivity.
     
-    // Let's implement H/V Sensitivity calculation (Hybrid FD of AD-HV) similarly.
-    // H/V = |I13/I23| (Rayleigh)
-    // H/V via AD (w.r.t c, w) 
+    // At a solid Rayleigh free surface with Y_14 != 0, the signed ellipticity
+    // is epsilon = -Y_12/Y_14 and the H/V amplitude is |epsilon|.
     
     return 0;
 }

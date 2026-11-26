@@ -2,7 +2,7 @@
 #include <vector>
 #include <Eigen/Dense>
 
-// Indices for the reduced 5x5 matrix. I34 is omitted.
+// Indices for the reduced 5x5 matrix. Y_34 is recovered from Y_12.
 enum ReducedIndex {
     I12 = 0,
     I13 = 1,
@@ -35,7 +35,7 @@ Vector5d computeInitialVectorReduced(const Parameters& p) {
     Y(I23) = -p.c33 * p.d6;
     Y(I24) = p.c44 * (p.d1 * p.d4 - p.d2 * p.d3);
     
-    // Y12 determines Y34 through Y34 = -Y12.
+    // Y_12 determines Y_34 through Y_34 = -Y_12.
 
     return Y;
 }

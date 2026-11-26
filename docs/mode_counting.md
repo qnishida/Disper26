@@ -138,7 +138,7 @@ test_value = conjugate * d(secular)/dz
 ```
 
 The substep size is chosen adaptively from the estimated vertical phase or
-decay scale, with extra subdivision near small vertical wavenumber.
+decay scale, with extra subdivision when a vertical propagation exponent is near zero.
 
 ### How the endpoint derivative is obtained
 
@@ -204,9 +204,9 @@ Love contribution = sign(test_value)
 ```
 
 so every oscillatory crossing contributes `-1` and every evanescent one `+1`.
-This preserves the Love signed sequence. Rayleigh and liquid crossings use
-`-sign(test_value)` in their own state conventions; that rule must not be
-applied to the upward SH state. `W` cannot vanish where `T` does except for
+This preserves the Love signed sequence. For Rayleigh waves, crossings in both
+solids and fluids use `-sign(test_value)` in their respective state conventions.
+In the upward SH state, `W` cannot vanish where `T` does except for
 the trivial solution.
 
 A layer therefore costs `O(1)` plus one propagator evaluation per crossing
@@ -221,9 +221,9 @@ tolerance at both ends and the dedup discards the duplicate -- testing it
 strictly lets rounding push an interface zero just outside both neighbours and
 lose it.
 
-The same closed form is not available for Rayleigh: the secular minor combines
-two vertical wavenumbers, `nu1` and `nu3`, so it is quasi-periodic rather than
-harmonic and its zeros have no closed form.  Rayleigh keeps the substep mesh.
+For Rayleigh waves, the secular minor combines terms from two vertical
+propagation exponents, `nu1` and `nu3`. Its zeros generally have no closed
+form, so the Rayleigh counter keeps the substep mesh.
 
 *The Rayleigh generator is z-independent.*  `A` is read off once per layer as
 the z derivative of `B` at `z = 0`, which is the one place automatic
@@ -233,8 +233,8 @@ plain `double` propagator and the product `A B(z)`.  Taking `A` from the same
 self-consistent, including the small-`nu1` regular form.  The derivative matrix
 is formed before contracting with the state rather than applying `A` to the
 propagated vector, so the near-zero secular component stays a result of the
-final cancellation instead of an input the generator would amplify.  The liquid
-`[U, P]` propagator is treated the same way.
+final cancellation instead of an input the generator would amplify.  The fluid
+`[w, Tzz]` propagator is treated the same way.
 
 ### What this does and does not preserve
 
@@ -319,16 +319,16 @@ and does not cover it.
 
 ## Rayleigh Waves in Solid Layers
 
-For solid Rayleigh layers, Disper26 uses the same Woodhouse minor pair that was
-used by the legacy phase definition:
+For Rayleigh waves in solid layers, both the mode counter and the legacy
+phase diagnostic use the Woodhouse pair
 
-```text
-secular  y = I24
-conjugate t = -(I23 + I14)
-```
+$$
+q=Y_{24},\qquad t=-(Y_{23}+Y_{14}).
+$$
 
-Here `I24` is the Rayleigh secular minor in the reduced Dunkin vector.  Crossings
-of `I24` are counted using `t * dI24/dz`.
+Here $q$ is the Rayleigh secular minor. At a simple zero of $q$, the
+signed crossing contribution is $-\operatorname{sign}(t\,dq/dz)$ for
+upward propagation.
 
 ### Analytical halfspace initialization
 
@@ -338,8 +338,8 @@ positive exponential; it introduces no depth crossings. The primary counter
 therefore uses the analytical boundary state directly, without a virtual
 halfspace segment or a halfspace root search.
 
-With the `I12 >= 0` orientation enforced by `computeInitialVector`, the
-halfspace secular minor `I24` changes from positive to negative across the
+With the $Y_{12}\ge 0$ orientation enforced by `computeInitialVector`, the
+halfspace secular minor $Y_{24}$ changes from positive to negative across the
 halfspace Rayleigh root. Its initial signed contribution is 0 below that root
 and -1 above, matching the orientation of solid-layer crossings. When there
 are no finite layers, the halfspace boundary is also the free surface, and a
@@ -355,8 +355,8 @@ must cancel together across the halfspace Rayleigh root.
 At an initial numerical zero, the first layer's derivative determines whether
 the boundary crossing lies on the interior side consistent with that seed.
 An exterior crossing is suppressed using the existing depth deduplication
-tolerance (1e-8 km). This applies to both solid and liquid first layers;
-the liquid check uses the Lagrangian normal traction extracted at the seabed.
+tolerance (1e-8 km). This applies to both solid and fluid first layers;
+the fluid check uses the Lagrangian normal traction extracted at the seabed.
 
 For an all-solid stack, the final label is
 
@@ -368,7 +368,7 @@ The existing surface depth tolerance (1e-6 km) now applies on both sides of
 the halfspace Rayleigh root. Thus the label at a resolved root remains its
 zero-based index, while values away from roots give the number of slower
 roots. For an ocean stack the initial contribution is added to the solid
-signed sum before combining the absolute solid and liquid sums; adding it
+signed sum before combining the absolute solid and fluid sums; adding it
 after taking absolute values would mishandle crossings of opposite signs.
 Love initialization and its counting algorithm are unchanged.
 
@@ -538,37 +538,34 @@ larger than the table above (1-layer thick is 29 there, 26 here).
 ## Ocean Rayleigh Models
 
 Rayleigh models with a top ocean over solid layers are supported.  Once the
-upward propagation reaches a liquid layer, the counter switches from the solid
-minor vector to the liquid state
+upward propagation reaches a fluid layer, the counter switches from the solid
+minor vector to the fluid state of upward displacement `w` and Lagrangian
+normal traction `Tzz`.
 
 ```text
-state     = [U, P]
-secular  = P
-conjugate = U
+state     = [w, Tzz]
+secular   = Tzz
+conjugate = w
 ```
 
-The solid-to-liquid transition uses the same extraction as the dispersion path:
+At the seabed, the counter uses the same normalization as the dispersion
+calculation, giving $(w,T_{zz})=(Y_{14},Y_{24})$ from the solid-side minors.
 
-```text
-U = I14
-P = I24
-```
-
-The Lagrangian normal traction is continuous at the seabed; no separate
-density-contrast gravity jump is applied before liquid propagation.
+The Lagrangian normal traction is continuous at the seabed. The fluid propagator
+uses this traction directly, without a separate density-contrast gravity jump.
 
 For ocean Rayleigh models, the final integer label combines per-regime signed
-sums, `|initial_signed_count + solid_crossings| + |liquid_crossings − surface_endpoint_contribution|`, rather than the raw signed total or
+sums, `|initial_signed_count + solid_crossings| + |fluid_crossings − surface_endpoint_contribution|`, rather than the raw signed total or
 an unsigned crossing tally.  The raw cross-regime total is unusable because
-the solid and liquid crossing orientations can have opposite signs and cancel
+the solid and fluid crossing orientations can have opposite signs and cancel
 even when the branch order is increasing correctly; a fully unsigned tally, on
 the other hand, double-counts spurious +/- crossing pairs (grazing zeros near
 mode cutoffs), which was observed to produce non-monotonic labels in
 thin-water/soft-sediment models.  Summing with sign within each regime avoids
 both failure modes.
 
-Liquid Love models and unsupported liquid-to-solid transitions are reported as
-unsupported by the AD-z counter.
+The AD-z counter reports Love models containing fluid layers and upward
+fluid-to-solid transitions as unsupported.
 
 ## Endpoint Calibration
 
@@ -583,19 +580,16 @@ models.  It is a counting convention, not a change to the dispersion equation.
 
 ## Legacy Phase Counter
 
-The legacy algorithm is the previous Woodhouse-phase accumulation method.  For
-Rayleigh waves it uses
-
-```text
-theta = atan2(I24, -(I23 + I14))
-```
+The legacy algorithm accumulates the Woodhouse phase. In solid Rayleigh
+layers it uses $\theta=\operatorname{atan2}(q,t)$ with $q=Y_{24}$ and
+$t=-(Y_{23}+Y_{14})$.
 
 It initializes from the halfspace Woodhouse phase, applies a `-0.5*pi` offset,
 uses a virtual halfspace contribution on the sub-Rayleigh side, and applies a
 supra-Rayleigh correction when the halfspace secular minor changes sign.
 
-For liquid Rayleigh layers, the legacy path uses the liquid phase pair
-`atan2(P, U)` and a liquid-layer winding count. For Love, compatibility requires
+For Rayleigh waves in fluid layers, the legacy path uses the phase pair
+`atan2(Tzz, w)` and a fluid-layer winding count. For Love, compatibility requires
 the previous angle `atan2(-T,W)` and the previous reverse-direction layer
 sampling. The physical boundary states advance upward with `A(+h)`, while the
 legacy layer diagnostic samples `A(-s)` from each bottom state. This preserves
@@ -615,15 +609,16 @@ fields are diagnostic only. `debug_mode_count` also evaluates the legacy path
 for its comparison field `legacy_continuous_count` on supported models; that
 field does not determine `n_integer`. Public names and aliases are unchanged.
 
-The angle `atan2(I24, -(I23+I14))` is undefined when both arguments vanish.
+The angle $\operatorname{atan2}(q,t)$ is undefined when both arguments vanish.
 Near that point, roundoff can dominate the angle and its accumulated winding;
 being far from an integer value of `abs(phase)/pi` does not ensure stability.
 The implementation's finite return value at a singular phase pair is not a
 well-defined mathematical phase. No new endpoint convention is imposed here.
 
-The former `tests/verify_mode_count.cpp` fixture set only `Y12=1` in the
-reduced state (`Y34=-Y12`). Besides having a zero initial phase pair, it is not
-a decomposable minor state: `Y12*Y34-Y13*Y24+Y14*Y23=-1`, rather than zero.
+The former `tests/verify_mode_count.cpp` fixture set $Y_{12}=1$ and all
+other stored components to zero, with $Y_{34}=-Y_{12}$. Its initial phase
+pair vanishes, and $Y_{12}Y_{34}-Y_{13}Y_{24}+Y_{14}Y_{23}=-1$ violates
+the Plücker relation for a decomposable minor state.
 For its isotropic material (`rho=mu=lambda=1`), `omega=1`, `k=0.5`, and
 `d=6*pi/sqrt(3/4)`, the vertical P and S phases are exactly `2*pi` and `6*pi`.
 The state propagator is therefore the identity and the final phase pair is
@@ -640,7 +635,7 @@ This is an ill-defined test input, not evidence of a changed integer-label
 convention.
 
 The replacement uses the decomposable state `(.3*e1+e2) wedge e4`, with
-`Y14=.3`, `Y24=1`. Its reference solves the isotropic four-state ODE using
+$Y_{14}=0.3$, $Y_{24}=1$. Its reference solves the isotropic four-state ODE using
 spectral projectors onto the P/S subspaces, then forms the second compound
 at each depth. It does not call the production propagator or phase-unwrapping
 helper. Direct-depth grids of 2048 and 4096 intervals verify the winding
@@ -748,8 +743,8 @@ drift apart.
 - `search_roots(...)` still finds roots of the dispersion function; the counter
   labels those roots after the fact.
 - For branch tracing, sorted roots and mode counts should be checked together.
-- Near Stoneley/Scholte-like branches or mode crossings, inspect
-  `debug_mode_count(...)` rather than relying only on the integer label.
+- Near Stoneley/Scholte-like branches or closely spaced modes, including
+  avoided crossings, inspect the crossing diagnostics from `debug_mode_count(...)`.
 - `compute_continuous_mode_count(...)` is legacy/debug information.  Its
   integer part should not be treated as the primary mode label.
 - Take the integer from `compute_mode_count(...)`.  The legacy integer

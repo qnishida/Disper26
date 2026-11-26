@@ -64,7 +64,7 @@ def layer_matrix(material, h, omega, velocity, wave):
             compound[r,col] = p[i,k0]*p[j,l0]-p[i,l0]*p[j,k0]
     out = mp.matrix(5)
     for r in range(5):
-        out[r,0] = compound[r,0]-compound[r,5]  # Y34=-Y12.
+        out[r,0] = compound[r,0]-compound[r,5]  # Y_34=-Y_12.
         for col in range(1,5):
             out[r,col] = compound[r,col]
     return out

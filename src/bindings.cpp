@@ -77,7 +77,7 @@ py::dict branModeCountResultToDict(
     d["unsupported_love"] = info.unsupported_love;
     d["nan_or_radiative"] = info.nan_or_radiative;
     // Only run the legacy counters on models the bran counter supports: the
-    // legacy Love propagation has no guard for liquid layers below solids
+    // legacy Love propagation has no guard for fluid layers below solids
     // (computeLayerMatrixSH divides by c44), so it would produce NaN there.
     if (!info.unsupported_liquid && !info.unsupported_love && !info.nan_or_radiative) {
         double legacy_continuous_count = calculateContinuousModeCount(

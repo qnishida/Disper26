@@ -9,12 +9,12 @@
 // Include the VTI Dispersion Engine
 #include "../src/disper26.cpp"
 
-// Create fluid (liquid) layer parameters
+// Create fluid layer parameters
 template <typename T>
 PhysicalParameters<T> createFluidParameters(T vp, T rho) {
     PhysicalParameters<T> p;
     p.rho = rho;
-    p.c44 = rho * T(0.0);  // No shear in liquid
+    p.c44 = rho * T(0.0);  // The fluid shear modulus is zero.
     p.c11 = rho * vp * vp;
     p.c33 = p.c11;
     p.c13 = p.c11;  // For acoustic: c13 = c11 (lambda)
@@ -33,7 +33,7 @@ int main() {
     std::cout << "=== Ocean Layer Test ===" << std::endl;
     
     // --- Simple Ocean Model ---
-    // Layer 0: Ocean (liquid) - 2 km water
+    // Layer 0: ocean, 2 km thick
     // Layer 1: Sediment (solid)
     // Half-space: Basement (solid)
     
@@ -137,7 +137,7 @@ int main() {
     
     // Now compute derivatives for group velocity
     // U = c / (1 + (omega/c) * (dF/domega) / (dF/dc))
-    // where F = I24 is the secular function
+    // F is the fluid free-surface traction residual stored in res(I24).
     
     // Set up AD variables: Index 0 = omega, Index 1 = c
     int deriv_size = 2;

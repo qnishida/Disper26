@@ -8,7 +8,7 @@
 
 #include "../src/disper26.cpp"
 
-// Create fluid (liquid) layer parameters
+// Create fluid layer parameters
 template <typename T>
 PhysicalParameters<T> createFluidParameters(T vp, T rho) {
     PhysicalParameters<T> p;
@@ -42,7 +42,7 @@ int main() {
     std::vector<PhysicalParameters<ADS>> layers;
     std::vector<ADS> thicknesses;
     
-    // Ocean layers (5 liquid layers with varying Vp)
+    // Ocean layers (5 fluid layers with varying Vp)
     double ocean_rho = 1.025;  // Standard seawater
     
     layers.push_back(createFluidParameters(make(1.52), make(ocean_rho)));  // Surface

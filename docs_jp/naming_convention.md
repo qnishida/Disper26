@@ -30,7 +30,7 @@ Python の利用文書では **高水準 API**（`disper26`）と **低水準 AP
 | `dispersion` | c（および U, H/V）をまとめて返す値 |
 | `dispersion_curve` | 単調な周期列に沿う位相速度cと収束・fallback診断の一括値 |
 | `group_velocity` / `hv_ratio` | U または H/V を単独で返す関数の量（`dispersion` の部分成分を単独公開する場合はこちらを使う） |
-| `frequency_curvature` | 実数分散branch上の dU/dω、d²k/dω²、および無次元曲率診断をまとめて返す値 |
+| `frequency_curvature` | 実数解のモードブランチ（mode branch）に沿って求めた dU/dω、d²k/dω²、および無次元曲率診断をまとめて返す値 |
 | `kernels` | ∂c/∂p の深さ分布（LAYER_CAKE の層別、または GRID のノード別） |
 | `gradient` | ∂c/∂p を組み上げたベクトル |
 | `hessian` | ∂²c/∂p² |
@@ -43,7 +43,7 @@ Python の利用文書では **高水準 API**（`disper26`）と **低水準 AP
 
 | token | 意味 | AD段数 |
 |---|---|---|
-| `variational` | 変分原理の閉形式（変位凍結、δ_uL=0） | 0 |
+| `variational` | 変位に関する停留性（$\delta_{\boldsymbol u}\mathcal L=0$）により、固有関数を固定して一次感度を評価する変分式 | 0 |
 | `variational_ad` | 変分勾配または界面カーネル K_d を1階ADで微分する（従来の弱形式Hessian） | 1 |
 | `variational_fd` | 変分勾配を有限差分で微分する | — |
 | `ad` | 伝播子をADで微分し、根に陰関数定理を適用する | 1階なら1／2階なら2（nested） |

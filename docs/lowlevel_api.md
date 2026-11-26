@@ -12,9 +12,12 @@ thickness or depth arrays and the frequency or period for the calculation.
 Use `*_layer_cake` in new code. The corresponding `*_pancake` aliases retain
 their arguments and defaults.
 
-Run the Python blocks in sections 1–8 in order in a fresh session. Here
-`alpha_v` and `alpha_h` are vertical and horizontal P-wave velocities, and
-`beta_v` and `beta_h` are the S-wave velocities. Model arrays, including
+Run the Python blocks in sections 1–8 in order in a fresh session.
+`alpha_v` ($V_{PV}$) and `alpha_h` ($V_{PH}$) are the P-wave speeds for
+vertical and horizontal propagation, respectively. For horizontally propagating
+S waves in a VTI solid, `beta_v` ($V_{SV}=\sqrt{c_{44}/\rho}$) is the speed
+for vertical polarization and `beta_h` ($V_{SH}=\sqrt{c_{66}/\rho}$) is the
+speed for horizontal polarization. Model arrays, including
 `depth`, `rho` and `eta`, are indexed by layer or node. Depth and thickness
 are in km, velocity in km/s, density in g/cm³ and stiffness in GPa.
 
@@ -69,7 +72,7 @@ beta_v = [3.2, 3.5, 3.8, 4.5, 4.6]
 is_disc = [False, False, True, False, False]  # Shallow side at 30 km
 grid_params = [d26_lowlevel.create_isotropic_parameters(b, a, r)
                for b, a, r in zip(beta_v, alpha_v, rho)]
-# This isotropic example has equal horizontal and vertical velocities.
+# In this isotropic example, VPH = VPV and VSH = VSV.
 alpha_h = list(alpha_v)
 beta_h = list(beta_v)
 eta = [1.0] * len(depth)
@@ -198,7 +201,7 @@ store y3 and y1, respectively; the horizontal phase factor i is implicit.
 
 Both layer-cake (`layer_cake`) and GRID models evaluate the solid free surface,
 or the solid side of the seabed when surface fluid layers are present.
-The common expression is -Y12/Y14, obtained from zero shear traction.
+Zero shear traction gives $\epsilon=-Y_{12}/Y_{14}$ wherever $Y_{14}\ne 0$.
 This also corrects the former seabed amplitude, which used a free-surface
 normal-traction relation under fluid loading. GRID values and gradients are
 extrapolated while signed. A uniform layer perturbation corresponds to
@@ -425,5 +428,6 @@ calculation and takes that level's `dc_dz` as its outer root seed.
 Q correction also applies only to the supplied list. Apply
 `apply_mineos_physical_dispersion` separately to the half-space, and match
 the Q array length to the material list. Start from the original reference
-model at each target period. This corrects physical dispersion of real
-stiffnesses. To obtain corrected dispersion, solve again at that period.
+model at each target period. The correction uses $Q_\kappa$ and $Q_\mu$
+to adjust the real elastic moduli for anelastic dispersion. Solve the real
+dispersion equation again with those moduli at the target period.

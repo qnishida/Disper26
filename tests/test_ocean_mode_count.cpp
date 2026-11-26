@@ -6,7 +6,7 @@
 
 #include "../src/disper26.cpp"
 
-// Create fluid (liquid) layer parameters
+// Create fluid layer parameters
 template <typename T>
 PhysicalParameters<T> createFluidParameters(T vp, T rho) {
     PhysicalParameters<T> p;
@@ -26,7 +26,7 @@ int main() {
     std::vector<PhysicalParameters<double>> layers;
     std::vector<double> thicknesses;
     
-    // Layer 0: Ocean (liquid)
+    // Layer 0: ocean
     layers.push_back(createFluidParameters(1.5, 1.0));
     thicknesses.push_back(2.0);
     

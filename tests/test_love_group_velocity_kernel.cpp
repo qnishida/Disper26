@@ -68,13 +68,7 @@ double computeDerivativeHybrid(
          // Root refinement (Newton)
          for(int k=0; k<10; ++k) {
              ADS c_ads = make_ads(c_local); c_ads.derivatives()[0] = 1.0;
-             // Love wave characteristic function is Y(1) (Stress) at surface? 
-             // calculateDispersionFunction returns 5x1.
-             // For Love: Y(0)=Disp, Y(1)=Stress, Others=0.
-             // The wrapper maps Love Y(0,1) to (I12, I24)? 
-             // Let's check calculateDispersionFunction wrapper.
-             // Line 838: Y_full(I24) = Y(1). 
-             // So I24 is still the stress component used for finding zero.
+             // The Love residual at index I24 is -T at the free surface.
              auto F = calculateDispersionFunction(ad_layers, ad_thick, ad_hs, omega_ads, c_ads, type)(I24);
              c_local -= F.value() / F.derivatives()[0];
          }

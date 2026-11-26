@@ -2,12 +2,14 @@
 
 [Japanese edition](../docs_jp/grid_wf_hessian_convergence.md)
 
-This historical experiment used a two-node gradient model (reported depth range
-0–20 km) for Love waves at 3 Hz. The recorded (Vs, Vp, ρ) values were
+This historical experiment used a two-node gradient model for Love waves at
+3 Hz. The report gives a depth range of 0–20 km and (Vs, Vp, ρ) values of
 (200, 400, 1800) at the surface and (320, 640, 2100) in the half-space.
-The public record omits the material units, whether the central-difference step
-ε was absolute or relative, and the norm used for relative error. The tables
-give the measurements as reported.
+The numerical inputs would also be consistent with a shallow model in SI units
+(depth in m, speeds in m/s, density in kg/m³). The unit system used in the
+experiment remains unconfirmed. The public record also leaves open whether the
+central-difference step ε was absolute or relative and which norm was used for
+relative error. The tables give the measurements as reported.
 
 ## Gradient
 

@@ -115,8 +115,8 @@ T make_nan() {
 template <typename T>
 struct WaveVariables {
     T omega;
-    T k; // wavenumber = omega / phase_velocity
-    T z; // thickness of the layer
+    T k; // horizontal wavenumber = omega / phase_velocity
+    T z; // signed vertical increment, +H from layer bottom to top
 };
 
 template <typename T>
@@ -135,7 +135,7 @@ struct DerivedComplexValues {
           nu1(), nu3(), nu1_sq(), nu3_sq(), nu1_sq_from_vieta(false) {}
 };
 
-// Reduced indices for the 5x5 matrix
+// Zero-based slots in the reduced vector [Y_12, Y_13, Y_14, Y_23, Y_24].
 enum ReducedIndex { I12=0, I13=1, I14=2, I23=3, I24=4 };
 
 // --- Helper Functions ---
@@ -384,7 +384,7 @@ DerivedComplexValues<T> computeDerivedValues(
     CT eps3 = compute_epsilon(nu3, nu3_sq);
 
     DerivedComplexValues<T> res;
-    // For matrix B calculation, we use z as the layer thickness
+    // Evaluate the layer propagator over the signed increment v.z.
     disper26_math::compute_cosh_sinh(nu1 * toComplex(v.z), res.C1, res.S1);
     disper26_math::compute_cosh_sinh(nu3 * toComplex(v.z), res.C3, res.S3);
 
@@ -516,7 +516,7 @@ computeRayleighStatePropagatorRegular(
 }
 
 // Second compound of the regular 4x4 propagator, reduced from the six minors
-// [12,13,14,23,24,34] with the Rayleigh invariant Y34=-Y12.  This reproduces
+// [12,13,14,23,24,34] with the Rayleigh invariant Y_34=-Y_12.  This reproduces
 // the existing five-component Dunkin state without modal divisions.
 template <typename T>
 Eigen::Matrix<T, 5, 5> computeRayleighReducedPropagatorRegular(
@@ -553,16 +553,17 @@ Eigen::Matrix<T, 5, 5> computeLayerMatrix(
     return computeRayleighReducedPropagatorEntire(physParams, waveVars);
 }
 
-// --- Liquid (Acoustic) Layer Matrix Calculation ---
+// --- Fluid (Acoustic) Layer Matrix Calculation ---
 
-// Helper to check if layer is liquid (c44 == 0)
+// Helper to check if layer is fluid (c44 == 0)
 template <typename T>
 bool isLiquidLayer(const PhysicalParameters<T>& p) {
     return get_magnitude(p.c44) < 1e-10;
 }
 
-// Compute 2x2 Layer Matrix for acoustic wave in liquid (P-wave only)
-// State vector: [U, Tzz]^T (vertical displacement, Lagrangian normal stress)
+// Compute the 2x2 propagator for an acoustic fluid layer.
+// State [w, Tzz]^T: w is upward displacement and Tzz is Lagrangian
+// normal traction, positive in tension (Lagrangian pressure change = -Tzz).
 // For raw (unscaled) variables.
 template <typename T>
 Eigen::Matrix<T, 2, 2> computeLayerMatrixLiquid(
@@ -570,10 +571,6 @@ Eigen::Matrix<T, 2, 2> computeLayerMatrixLiquid(
     const WaveVariables<T>& v
 ) {
     using CT = typename ComplexType<T>::type;
-    
-    // In liquid: only P-wave propagation
-    // nu^2 = k^2 (1 - c^2/alpha^2) where alpha = sqrt(c33/rho)
-    // c33 = rho * Vp^2 for liquid
     
     CT k_c = toComplex(v.k);
     CT omega_c = toComplex(v.omega);
@@ -586,13 +583,12 @@ Eigen::Matrix<T, 2, 2> computeLayerMatrixLiquid(
     // P-wave velocity: alpha = sqrt(c33/rho)
     CT alpha_sq = c33_c / rho_c;
     
-    // Vertical wavenumber squared: nu^2 = k^2 * (1 - c^2/alpha^2)
+    // Squared acoustic propagation exponent: nu^2 = -k_z^2 for exp(i*k_z*z).
     CT nu_sq = k_c * k_c * (toComplex(T(1.0)) - c_c * c_c / alpha_sq);
     
-    // Propagator for [U, Tzz]^T over thickness z.
-    // For g=0 this reduces to the acoustic fluid system:
-    // dU/dz = -(nu^2 / (rho omega^2)) * Tzz
-    // dTzz/dz = -rho omega^2 * U
+    // With z positive upward, the zero-gravity system is
+    // dw/dz   = -(nu^2 / (rho omega^2)) * Tzz
+    // dTzz/dz = -rho omega^2 * w
     
     CT omega_sq = omega_c * omega_c;
     CT z_c = toComplex(v.z);
@@ -601,14 +597,13 @@ Eigen::Matrix<T, 2, 2> computeLayerMatrixLiquid(
     if (get_magnitude(effective_gravity) > 0.0) {
         CT gravity_c = toComplex(effective_gravity);
         // Experimental Cowling-style constant-g fluid approximation in
-        // Lagrangian stress variables Z=[U,Tzz]^T:
+        // the state [w, Tzz]^T, with g = effective_gravity:
         //
-        //   dU/dz   = (k^2 g / omega^2) U
+        //   dw/dz   = (k^2 g / omega^2) w
         //            + (1/C - k^2/(rho omega^2)) Tzz
-        //   dTzz/dz = (-rho omega^2 + k^2 rho g^2 / omega^2) U
+        //   dTzz/dz = (-rho omega^2 + k^2 rho g^2 / omega^2) w
         //            - (k^2 g / omega^2) Tzz
-        // This is intentionally limited to liquid layers; solid P-SV propagation
-        // and the g=0 acoustic branch are unchanged.
+        // This correction acts only within fluid layers.
         CT kg = k_c * k_c * gravity_c / omega_sq;
         CT a = kg;
         CT b = -nu_sq / (rho_c * omega_sq);
@@ -652,7 +647,7 @@ Eigen::Matrix<T, 5, 1> computeInitialVector(
 ) {
     // For half-space, we don't multiply by a layer matrix. 
     // We compute the eigenvector components corresponding to decaying modes.
-    // Plan: [Y12(0), Y13(0), Y14(0), Y23(0), Y24(0)] = 
+    // Unnormalized half-space minors [Y_12, Y_13, Y_14, Y_23, Y_24] =
     //       [d2-d1, eps3-eps1, -c44*d5, -c33*d6, c44*(d1*d4-d2*d3)]
     
     DerivedComplexValues<T> v = computeDerivedValues(bottomParams, waveVars);
@@ -728,7 +723,7 @@ Eigen::Matrix<T, 5, 1> computeInitialVector(
     
     // --- Canonical Sign Enforcement ---
     // Ensure the vector doesn't arbitrarily flip sign as parameters change.
-    // We use I12 (Mixed Minor) as the anchor - proven stable for monotonic counting.
+    // Orient the half-space vector so the mixed minor Y_12 is nonnegative.
     
     if (get_val(Y0(I12)) < 0) {
         Y0 = -Y0;
@@ -740,7 +735,7 @@ Eigen::Matrix<T, 5, 1> computeInitialVector(
 // --- Main Dispersion Function ---
 
 // Returns the full vector Y at surface
-// Supports both solid and liquid (ocean) layers
+// Supports both solid and fluid (ocean) layers
 template <typename T, bool RealFiniteLayers = false>
 Eigen::Matrix<T, 5, 1> calculateRayleighDispersion(
     const std::vector<PhysicalParameters<T>>& layers,
@@ -763,7 +758,7 @@ Eigen::Matrix<T, 5, 1> calculateRayleighDispersion(
     wave.k = k;
     wave.z = make_zero_like(omega); // Temporary
     
-    // Check if we're starting from liquid half-space (not supported yet)
+    // Check if we're starting from fluid half-space (not supported yet)
         if (isLiquidLayer(halfSpaceParams)) {
         Eigen::Matrix<T, 5, 1> Y_nan;
         Y_nan.setConstant(make_nan<T>());
@@ -774,9 +769,9 @@ Eigen::Matrix<T, 5, 1> calculateRayleighDispersion(
     Eigen::Matrix<T, 5, 1> Y = computeInitialVector(halfSpaceParams, wave);
     
     // 2. Propagate up through layers (Bottom to Top)
-    // Track if we're currently in liquid mode
+    // Track if we're currently in fluid mode
     bool inLiquidMode = false;
-    Eigen::Matrix<T, 2, 1> Z;  // 2D liquid state [w, P]^T
+    Eigen::Matrix<T, 2, 1> Z;  // fluid state [w, Tzz]^T
     
     for (int i = layers.size() - 1; i >= 0; --i) {
         wave.z = thicknesses[i];
@@ -839,7 +834,7 @@ Eigen::Matrix<T, 5, 1> calculateRayleighDispersion(
             }
             
         } else if (!inLiquidMode && currentLayerIsLiquid) {
-            // Solid to Liquid Transition
+            // Solid to Fluid Transition
             if (seabedState) *seabedState = Y;
             
             // Extract 2D state from 5D minors:
@@ -849,7 +844,7 @@ Eigen::Matrix<T, 5, 1> calculateRayleighDispersion(
             Z(0) = Y(I14);
             Z(1) = Y(I24);
             
-            // Propagate through liquid layer
+            // Propagate through fluid layer
             Eigen::Matrix<T, 2, 2> B_liq = computeLayerMatrixLiquid(layers[i], wave);
             Z = B_liq * Z;
             
@@ -886,7 +881,7 @@ Eigen::Matrix<T, 5, 1> calculateRayleighDispersion(
             inLiquidMode = true;
             
         } else if (inLiquidMode && currentLayerIsLiquid) {
-            // Liquid to Liquid: 2x2 propagation
+            // Fluid to Fluid: 2x2 propagation
             Eigen::Matrix<T, 2, 2> B_liq = computeLayerMatrixLiquid(layers[i], wave);
             Z = B_liq * Z;
             
@@ -921,7 +916,7 @@ Eigen::Matrix<T, 5, 1> calculateRayleighDispersion(
             }
             
         } else {
-            // Liquid to Solid Transition (not typically needed for ocean on top)
+            // Fluid to Solid Transition (not typically needed for ocean on top)
             Eigen::Matrix<T, 5, 1> Y_nan;
             Y_nan.setConstant(make_nan<T>());
             return Y_nan;
@@ -930,8 +925,8 @@ Eigen::Matrix<T, 5, 1> calculateRayleighDispersion(
     
     // 3. Return result
     if (inLiquidMode) {
-        // Map 2D liquid state to 5D result
-        // For a liquid free surface, the default secular condition is Tzz = 0.
+        // Map 2D fluid state to 5D result
+        // For a fluid free surface, the default secular condition is Tzz = 0.
         // The optional surface scale applies an Eulerian-pressure diagnostic
         // correction only when explicitly requested.
         // Initialize with zero but preserve AD size if applicable
@@ -963,7 +958,7 @@ Eigen::Matrix<T, 5, 1> calculateRayleighDispersion(
         return Y_result;
     } else {
         // Return solid 5D vector
-        // Optionally normalize by I14 for scale-invariance in low-velocity regime
+        // Scale by |Y_14| when its magnitude is large enough for normalization.
         double i14_mag = get_magnitude(Y(I14));
         if (i14_mag > 1e-30) {
             Y = Y / T(i14_mag);
@@ -1046,8 +1041,8 @@ typename ComplexType<T>::type computeFluidHorizontalDisplacement(
     if (get_magnitude(denom) < 1e-30) return CT(T(0.0));
     T factor = k / denom;
     T gravity_coeff = layer.rho * effective_gravity;
-    // Saito's liquid relation for the Lagrangian normal-stress state:
-    // y3 = k/(rho w^2) * (rho g y1 - y2).
+    // Saito's horizontal displacement y3 = k*p'/(rho*omega^2), with
+    // Eulerian pressure p' = rho*effective_gravity*w - Tzz (w = y1, Tzz = y2).
     return toComplex(factor) * (toComplex(gravity_coeff) * uz - tzz);
 }
 
@@ -1277,8 +1272,8 @@ std::vector<RayleighEigenfunctionPoint<T>> computeRayleighEigenfunctions(
     // --- Step 2: Surface Initial Condition ---
     Vector5 Y_surf = interfaceMinors[0];
     
-    // Two equivalent traction-free states: [Y14,0,-Y12,0] and
-    // [-Y12,0,Y23,0]. Choose the larger pivot so neither a horizontal nor
+    // Two equivalent traction-free states: [Y_14,0,-Y_12,0] and
+    // [-Y_12,0,Y_23,0]. Choose the larger pivot so neither a horizontal nor
     // a vertical displacement zero collapses the initial state to 0/0.
     const bool vertical_pivot = std::abs(Y_surf(I14)) >= std::abs(Y_surf(I23));
     CT ur_surf = vertical_pivot ? -Y_surf(I12) : Y_surf(I23);
@@ -1305,7 +1300,8 @@ std::vector<RayleighEigenfunctionPoint<T>> computeRayleighEigenfunctions(
         state = computeLayerMatrixP_SV_Explicit(trace_layers[i], wave) * state;
         currentDepth += trace_thicknesses[i];
 
-        // --- Interface Stabilization (Ikeda Basis Reconstruction) ---
+        // Reconstruct the tractions from the stored minors when Y_13 is a usable
+        // pivot to suppress growth of roundoff errors in the downward pass.
         Vector5 Y_local = interfaceMinors[i+1];
         CT M13 = Y_local(I13);
         if (std::abs(M13) > 1e-15) {
@@ -1428,10 +1424,8 @@ Eigen::Matrix<T, 2, 2> computeLayerMatrixSH(
 ) {
     using CT = typename ComplexType<T>::type;
     
-    // Vertical Slowness/Wavenumber Calculation
-    // For VTI SH: c44 (d^2 u / dz^2) + (rho w^2 - c66 k^2) u = 0
-    // d^2 u / dz^2 - nu^2 u = 0
-    // nu^2 = (c66 k^2 - rho w^2) / c44
+    // VTI SH propagation obeys d^2 u / dz^2 = nu^2 u, with
+    // nu^2 = (c66 k^2 - rho omega^2) / c44 = -k_z^2.
     
     CT c44_c = toComplex(p.c44);
     CT c66_c = toComplex(p.c66);
@@ -1723,7 +1717,7 @@ Eigen::Matrix<T, 2, 1> computeInitialVectorSH(
 
 // Love Wave Logic Implementation
 // intermediateStates: physical [u_y,c44*du_y/dz] at each boundary (z upward,
-// bottom-up order). The returned I24 is the historical secular value -T.
+// bottom-up order). The return vector stores -T at index I24 for the surface residual.
 //   states[0] = halfspace initial, states[1] = after bottom layer, ..., states[N] = surface.
 template <typename T>
 Eigen::Matrix<T, 5, 1> calculateLoveDispersion(
@@ -1805,8 +1799,8 @@ Eigen::Matrix<T, 5, 1> calculateLoveDispersion(
     
     // 3. Map to 5x1 Vector Result
     // Constraint is Stress = 0 at surface.
-    // In Rayleigh vector (Dunkin), I24 (Index 4) is used as the characteristic function.
-    // Preserve the secular-function contract: old depth stress = -T.
+    // Index I24 holds the secular residual for both wave types. Its value is
+    // Y_24 for a solid Rayleigh free surface and -T at the Love free surface.
     // This reflection is only for the root residual, never intermediateStates.
     
     Eigen::Matrix<T, 5, 1> Y_full;
@@ -2014,7 +2008,7 @@ int countSignedZeroCrossings(T y1, T y2, T dy1, T dy2, T c1, T c2, T dc1, T dc2,
 }
 
 // 1. Rayleigh Wave Layer Mode Count
-// Uses Woodhouse (1988) phase definition: θ = atan2(I24, -(I23+I14))
+// Woodhouse phase theta = atan2(q, t), with q = Y_24 and t = -(Y_23 + Y_14).
 // Tracks phase accumulation through the layer with adaptive subdivision
 template <typename T>
 std::pair<int, T> countModesLayerRayleigh(
@@ -2039,11 +2033,11 @@ std::pair<int, T> countModesLayerRayleigh(
     }
 
     // Adaptive Subdivision based on expected phase change
-    // Enhanced for accuracy near critical angle (small ν)
+    // Refine near the critical angle, where the vertical wavenumber is small.
     int num_steps = 10;  // Minimum steps per layer for accuracy
     
     if (r_beta_sq > 0.0) {
-        // Propagating: use ν to estimate phase change
+        // Here the local variable nu is the real vertical wavenumber r_beta.
         T nu = std::sqrt(r_beta_sq);
         T P_est_total = nu * thickness;
         T P_est_total_mag = std::abs(P_est_total);
@@ -2054,8 +2048,7 @@ std::pair<int, T> countModesLayerRayleigh(
             steps_by_phase = static_cast<int>(P_est_total_mag / 0.02) + 1;
         }
         
-        // Extra subdivision when ν is small (near critical angle)
-        // When ν < 1, the phase behavior can be sensitive
+        // Extra subdivision for small r_beta near the critical angle.
         int steps_by_nu = 1;
         if (nu < 1.0) {
             // More steps when wave is nearly horizontal
@@ -2065,7 +2058,7 @@ std::pair<int, T> countModesLayerRayleigh(
         num_steps = std::max({num_steps, steps_by_phase, steps_by_nu});
     } else {
         // Evanescent: use decay length to subdivide
-        // Phase still rotates in (I24, -(I23+I14)) plane even when evanescent
+        // The phase pair q, t can rotate even in an evanescent layer.
         T decay_rate = std::sqrt(-r_beta_sq);  // Imaginary part of vertical wavenumber
         T decay_length = decay_rate * thickness;
         
@@ -2101,14 +2094,12 @@ std::pair<int, T> countModesLayerRayleigh(
         // Woodhouse (1988) equation 5.32 with corrected row ordering (1,3,2,4):
         // θ = -1/π * arccot((m4-m3)/m6)
         // Woodhouse uses physical ordering: (U, σxz, V, σzz) = components (1,3,2,4)
-        // m3 = det(rows 1,4) = det(comp 1,4) = I14
-        // m4 = det(rows 2,3) = det(comp 3,2) = -I23 (sign from permutation)
-        // m6 = det(rows 3,4) = det(comp 2,4) = I24 (secular function)
-        // m4-m3 = -I23 - I14 = -(I23+I14)
-        // Phase = atan2(m6, m4-m3) = atan2(I24, -(I23+I14))
+        // Woodhouse row pairs (1,4), (2,3), (3,4) correspond in our state
+        // order to (1,4), (3,2), (2,4), giving m3 = Y_14, m4 = -Y_23, m6 = Y_24.
+        // Hence q = m6 and t = m4 - m3 = -(Y_23 + Y_14).
         
         T y_b = get_val(Y_curr(I24));  // m6 = secular function
-        T x_b = -(get_val(Y_curr(I23)) + get_val(Y_curr(I14)));  // m4-m3 = -(I23+I14)
+        T x_b = -(get_val(Y_curr(I23)) + get_val(Y_curr(I14)));  // t = m4 - m3
         T th_b = std::atan2(y_b, x_b);
         
         T y_t = get_val(Y_next(I24));  // m6
@@ -2142,9 +2133,9 @@ std::pair<int, T> countModesLayerRayleigh(
 }
 
 
-// 2. Liquid Layer Mode Count (Rayleigh in Ocean)
-// Uses phase θ = atan2(P, w) for [w, P]^T state vector
-// P = 0 at free surface is the secular condition
+// 2. Fluid Layer Mode Count (Rayleigh in Ocean)
+// The legacy diagnostic tracks theta = atan2(Tzz, w) for the state [w, Tzz]^T.
+// The default free-surface condition is Tzz = 0.
 template <typename T>
 std::pair<int, T> countModesLayerLiquid(
     const Eigen::Matrix<T, 2, 1>& Z_bot,
@@ -2156,9 +2147,6 @@ std::pair<int, T> countModesLayerLiquid(
 ) {
     int total_N = 0;
     T total_delta = 0.0;
-    
-    // For liquid layer, the phase is θ = atan2(P, w)
-    // Zero crossing of P (with w as reference) defines modes
     
     // Number of sub-layers for phase tracking
     int n_sublayers = std::max(1, static_cast<int>(std::ceil(get_val(thickness) * get_val(k) / 0.5)));
@@ -2647,7 +2635,7 @@ BranModeCountResult calculateBranModeCountRayleighSolid(
         out.second = ops.derivative * Y0;
         return out;
     };
-    // Same generator argument as the solid propagator, for the [U, P] state.
+    // Same generator argument as the solid propagator, for the [w, Tzz] state.
     auto make_liquid_generator = [&](const PhysicalParameters<double>& layer) {
         PhysicalParameters<AD1> p_ad = make_ad_params(layer);
         WaveVariables<AD1> wave_ad;
@@ -2689,7 +2677,7 @@ BranModeCountResult calculateBranModeCountRayleighSolid(
     // propagator: depth only multiplies it by a positive exponential. It has
     // no depth crossings to discover by inverse-propagating a virtual layer
     // (that ill-conditioned operation can instead create spurious crossings).
-    // With computeInitialVector's I12 >= 0 orientation, I24 changes from
+    // With computeInitialVector's Y_12 >= 0 orientation, Y_24 changes from
     // positive to negative across the halfspace Rayleigh root. The halfspace
     // then contributes -1, the same signed convention as solid-layer crossings.
     // Keep this boundary contribution separate from the actual crossing log.
@@ -2720,7 +2708,7 @@ BranModeCountResult calculateBranModeCountRayleighSolid(
         }
     };
     bool in_liquid_mode = false;
-    // Liquid-regime share of signed_count. The solid and liquid regimes use
+    // Fluid-regime share of signed_count. The solid and fluid regimes use
     // different state variables whose crossing orientations can differ, so the
     // ocean label combines per-regime signed sums instead of one global sum.
     int signed_liquid = 0;
@@ -2854,13 +2842,13 @@ BranModeCountResult calculateBranModeCountRayleighSolid(
     }
     if (in_liquid_mode) {
         // Combine per-regime signed sums: the raw cross-regime total can
-        // cancel between the solid minors and the liquid [U, P] state, but a
+        // cancel between the solid minors and the fluid [w, Tzz] state, but a
         // signed sum within each regime still cancels spurious +/- crossing
         // pairs (e.g. grazing zeros) that an unsigned tally would count.
         int s_solid = result.initial_signed_count + result.signed_count - signed_liquid;
         int s_liquid = signed_liquid;
         if (endpoint_correction != 0 && !result.crossings.empty()) {
-            // The free-surface crossing (layer 0) belongs to the liquid regime.
+            // The free-surface crossing (layer 0) belongs to the fluid regime.
             s_liquid -= result.crossings.back().contribution;
         }
         int crossing_count = std::abs(s_solid) + std::abs(s_liquid);
@@ -2996,7 +2984,7 @@ BranModeCountResult calculateBranModeCountLoveSolid(
     // at a zero of T, test_value = W dT/ds = -c44 r^2 W^2. Love uses
     // contribution=sign(test_value): every oscillatory crossing contributes -1
     // and every evanescent one +1. This preserves the Love signed sequence;
-    // Rayleigh/liquid use the opposite sign rule in countBranHermiteCrossings.
+    // Solid and fluid Rayleigh states use the opposite sign rule in countBranHermiteCrossings.
     // W cannot vanish where T does
     // except for the trivial solution.
     //
@@ -3176,7 +3164,7 @@ T calculateTotalPhaseAccumulationWithDebug(
         //    near the radiative cutoff (c → Vs)
         {
             // 1. Analytical Initial Phase from Y₀
-            // Woodhouse phase = atan2(I24, -(I23+I14))
+            // Woodhouse phase atan2(Y_24, -(Y_23 + Y_14)).
             T y_init = get_val(Y(I24));
             T x_init = -(get_val(Y(I23)) + get_val(Y(I14)));
             T theta_init = std::atan2(y_init, x_init);
@@ -3327,9 +3315,9 @@ T calculateTotalPhaseAccumulationWithDebug(
             // For radiative case (kappa_sq <= 0), just use the theta_init based value
         }
 
-        // Track whether we're in liquid mode (similar to calculateRayleighDispersion)
+        // Track whether we're in fluid mode (similar to calculateRayleighDispersion)
         bool inLiquidMode = false;
-        Eigen::Matrix<T, 2, 1> Z;  // 2D state for liquid [w, P]^T
+        Eigen::Matrix<T, 2, 1> Z;  // fluid state [w, Tzz]^T
         T layer_phase_sum = 0.0;
         
         for (int i = layers.size() - 1; i >= 0; --i) {
@@ -3359,10 +3347,10 @@ T calculateTotalPhaseAccumulationWithDebug(
                 }
                 
             } else if (!inLiquidMode && currentLayerIsLiquid) {
-                // Solid to Liquid transition
-                // Extract [w, P] from the 5D minor vector
-                Z(0) = Y(I14);  // w component
-                Z(1) = Y(I24);  // P component
+                // Solid to Fluid transition
+                // Extract [w, Tzz] from the solid minors at the seabed.
+                Z(0) = Y(I14);
+                Z(1) = Y(I24);
                 
                 Eigen::Matrix<T, 2, 1> Z_bot = Z;
                 Eigen::Matrix<T, 2, 2> B_liq = computeLayerMatrixLiquid(layers[i], wave);
@@ -3385,7 +3373,7 @@ T calculateTotalPhaseAccumulationWithDebug(
                 }
                 
             } else if (inLiquidMode && currentLayerIsLiquid) {
-                // Liquid to Liquid
+                // Fluid to Fluid
                 Eigen::Matrix<T, 2, 1> Z_bot = Z;
                 Eigen::Matrix<T, 2, 2> B_liq = computeLayerMatrixLiquid(layers[i], wave);
                 Z = B_liq * Z;
@@ -3405,7 +3393,7 @@ T calculateTotalPhaseAccumulationWithDebug(
                 }
                 
             } else {
-                // Liquid to Solid (not typically used)
+                // Fluid to Solid (not typically used)
                 // Return invalid
                 return -1;
             }
@@ -3896,7 +3884,7 @@ T calculateGroupVelocityInternal(
     }
 
     Eigen::Matrix<ADS, 5, 1> res_omega_vec = calculateDispersionFunction(layers_ad, thick_ad, hs_ad, omega_ad, c_const, type);
-    double dF_dw = res_omega_vec(I24).derivatives()[0]; // Use I24 (Characteristic)
+    double dF_dw = res_omega_vec(I24).derivatives()[0]; // The secular residual is stored at index I24.
 
     // 2. Calculate dF/dc (holding omega constant)
     ADS c_ad;

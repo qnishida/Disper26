@@ -115,8 +115,8 @@ EnergyIntegrals compute_energy_integrals(const ModeSolution& solution,
         const auto points = computeRayleighEigenfunctions(stack.layers,
             stack.thicknesses, stack.halfspace, omega, root, options.num_sub_layers);
         if (analytical && fluid) {
-            // The point-based analytical routine is solid-only; liquid layers
-            // use the boundary-state moments shared with the variational kernels.
+            // Fluid layers use the boundary-state moments shared with the
+            // variational kernels. The point-based analytical routine requires solids.
             const auto states = propagateRayleighEigenstates<double>(stack.layers,
                 stack.thicknesses, stack.halfspace, omega, root, 1, false);
             const auto energy = computeRayleighEnergyIntegrals_Analytical<double>(states,

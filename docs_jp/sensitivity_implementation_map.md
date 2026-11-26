@@ -29,7 +29,7 @@ Hessian d²c/dp²) を計算する経路が複数ある。互いをクロスチ�
 閉形式の変分勾配を微分するため、**「variational Hessian は
 2 階なのに AD 1 段」**で計算できる。GRID の物性 Hessian はこの変分法を使う。
 
-nested AD（AD 2 段）は、球面剛性 GRID の界面 Hessian 行、
+nested AD（AD 2 段）は、球面の弾性定数補間 GRID の界面 Hessian 行、
 `u_kernel_mode="full_ad"` の dU/dp、LAYER_CAKE の `HessianAD<N>` Hessian などに使う。
 U の**値**も full-AD だが、これは各レベル 1 回で全体の 0.1%。
 
@@ -68,11 +68,11 @@ Hessian 関数を副産物目的で呼ぶ必要は無い。
 accepted prefix の外挿値を direct phase velocity と照合した後、この $c_k$ を残差検証して
 直接使う。外挿後の $c$ から各 mesh で Newton/scan をやり直さない。
 
-これは単なる cache ではなく branch identity の契約である。direct が Love0 を
+これにより、順計算と微分で同じモードブランチ（mode branch）を使う。direct が Love0 を
 選んだ既知点で、旧 variational の level-0 局所窓は Love0 を含まず Love1 を選んだ。
 trace が短い、accepted phase が一致しない、または direct と同じ $|F|<0.1$ の残差契約を
-満たさない場合は fail closed とし、別 root を勝手に探して継続しない。追加 level は
-branch 指定を必須として mode order で生成する。public caller は配列を継ぎ合わせず同じ
+満たさない場合は fail closed とし、別 root を勝手に探して継続しない。追加レベルでは
+モードブランチの指定を必須とし、モード次数に従って根を求める。public caller は配列を継ぎ合わせず同じ
 direct solution 由来の trace を渡す。`ForwardEngine` は `ModeSolution` 内でこの
 provenance を保持する。trace API v1 は外挿開始 level 0 のみを受理し、通常 forward は
 derivative 用の余分な refinement level を生成しない。詳細・評価回数・回帰条件は
@@ -90,7 +90,7 @@ derivative 用の余分な refinement level を生成しない。詳細・評価
 | `compute_kernels_fd_layer_cake` | LAYER_CAKE | 有限差分 | 有限差分 | 参照用 |
 | `compute_interface_kernels_variational_rayleigh_layer_cake` / `_love_layer_cake` | LAYER_CAKE | 界面カーネル K_d | — | なし |
 
-全層が固体の球面剛性 GRID では、`compute_kernels_ad_grid` の `Depth` 成分に、要求した c・U・Rayleigh 波の H/V の深さ微分が入る。これらは EFT を含めて自動微分する。表の U の手法指定は物性成分に適用する。
+弾性定数補間 GRID（球面・全層固体） では、`compute_kernels_ad_grid` の `Depth` 成分に、要求した c・U・Rayleigh 波の H/V の深さ微分が入る。これらは EFT を含めて自動微分する。表の U の手法指定は物性成分に適用する。
 
 GRID の変分カーネル単独入口は `compute_kernels_variational_grid`
 （上記「埋まっていないマス」参照、2026-08-11 に追加）。
@@ -107,7 +107,7 @@ LAYER_CAKE の `variational_frequency_ad` は Rayleigh の解析積分と Love �
 | `compute_c` / `want_kernel_u` / `want_kernel_hv` | `True` | dc/dp, dU/dp, d(H/V)/dp。U/HVの未要求部分をゲートし、出力は0にする（dUには内部dc/dpが必要） |
 | `u_kernel_mode` | `"variational_frequency_ad"` | dU/dp の解法。`"variational"` は旧parameter-width energy-integral AD |
 | `compute_thickness` | `False` | 固定層厚の微分。Loveでは要求時に厚さ成分のみ旧経路を使う |
-| `use_analytical` | `False` | Rayleigh層内積分。周波数ADは `True` の固体モデル、および非重力の表面流体層（`compute_thickness=False`）に対応 |
+| `use_analytical` | `False` | Rayleigh層内積分。周波数ADは `True` の固体モデル、および重力を無視した表面流体層（`compute_thickness=False`）に対応 |
 
 ### GRID kernel 経路のスイッチ
 
@@ -156,8 +156,8 @@ $dU/dp=U^2 d(\omega K_p/c^2)/d\omega$ でwidth-1 AD微分するため、群速�
 | `compute_hessian_variational_fd_love_layer_cake` | LAYER_CAKE | 変分勾配の有限差分。O(L·N²)、参照用 | なし |
 | `compute_hessian_variational_ad_rayleigh_grid` / `_love_grid` | GRID | variational（`grid_hessian.hpp`）。全ノード列 | あり |
 | `..._rayleigh_grid_reduced` / `..._love_grid_reduced` | GRID | **基底縮約版**。`J` を受け取り基底方向だけ seed | あり |
-| `compute_interface_hessian_row_ad_grid` | Flat または全層固体の球面剛性 GRID | 入力深さに対する界面 Hessian 行（入れ子の前進 AD） | 固定レベル |
-| `compute_interface_hessian_row_variational_ad_grid[_extrapolated]` | Flat の剛性 GRID | 界面 Hessian 行（variational） | 後者はあり |
+| `compute_interface_hessian_row_ad_grid` | 弾性定数補間 GRID（Flat、または全層固体の球面モデル） | 入力深さに対する界面 Hessian 行（入れ子の前進 AD） | 固定レベル |
+| `compute_interface_hessian_row_variational_ad_grid[_extrapolated]` | Flat の弾性定数補間 GRID | 界面 Hessian 行（variational） | 後者はあり |
 
 旧 `_hybrid_love` / `_variational_love` / `debug_variational_love_hessian_breakdown`
 は2026-08-11に削除済み（下記「Love の Hessian」参照）。
@@ -218,8 +218,8 @@ Variational ADが安定するまでの実装確認ではFull ADとの比較に�
 
 Phase 1（`run_phase1`）は、物性に対する Jacobian と Hessian を変分法で求める。
 `InterfaceShiftBasis` を使う場合は、界面の深さ勾配と Hessian 行も組み込む。
-Flat の剛性 GRID では境界カーネル $K_d$ を使い、全層が固体の球面剛性 GRID では、球面深さでの補間・EFT・分散方程式の根を各レベルで自動微分して外挿する。
-座標系の選び方は[剛性 GRID の深さ座標](public_api.md#grid-depth-coordinates)を参照。
+Flat の弾性定数補間 GRID では境界カーネル $K_d$ を使い、弾性定数補間 GRID（球面・全層固体） では、球面深さでの補間・EFT・分散方程式の根を各レベルで自動微分して外挿する。
+座標系の選び方は[弾性定数補間 GRID の深さ座標](public_api.md#grid-depth-coordinates)を参照。
 
 ```text
 G_hess = gradient_log(model0, res["g_a_variational"])
@@ -278,7 +278,7 @@ p50 の 5.9e-08 は「両者が各自の精度限界まで一致」を意味す�
   外れ値が孤立せず周期方向に滑らかな山を描くことも、飛びとは整合しない。
 - **`c≈Vs` の条件数崖でもない。** 悪い点が層 Vs に近いとは限らず、良好点のほうが
   近い場合すらある。L1_10s では `|c-Vs|/c = 0.65` で無関係。
-- **すべて branch 1 (1 次オーバートーン)。** 基本モードは事実上すべて健全。
+- **すべて 1 次オーバートーン（`branch=1`）。** 基本モードは事実上すべて健全。
 
 有限差分を第三の基準に立てると、どちらが誤っているかが決まる (L1_10s, 18 基底方向):
 

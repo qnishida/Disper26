@@ -129,11 +129,12 @@ void same_small(const CT& q,const CT& h,CT& cc,CT& cs,CT& ss) {
     ss=ad_const(zero,2.)*h*h*h*sinhc_tail(CT(four*q));
 }
 
-// Quadratic moments of the liquid state [U,Tzz] over a homogeneous layer,
-// integrated over local downward depth from the state at the layer top.
-// The coefficient matrix G=[[a,b],[c,-a]] is that of computeLayerMatrixLiquid;
+// Quadratic moments of the fluid state [w, Tzz], integrated downward from
+// the layer top. Arguments u and t are the top displacement and traction,
+// respectively. The argument w is angular frequency.
+// The coefficient matrix G=[[a,b],[c,-a]] from computeLayerMatrixLiquid obeys
 // G^2=delta^2 I, so the state at depth x is C*y0-x*S*(G*y0) with the entire
-// C,S of delta^2 x^2. No vertical-wavenumber root is formed.
+// C,S of delta^2 x^2, evaluated directly from the squared propagation exponent.
 template<class T>
 void fluid_moments(const PhysicalParameters<T>& p,T h,T w,T k,
     const typename ComplexType<T>::type& u,const typename ComplexType<T>::type& t,

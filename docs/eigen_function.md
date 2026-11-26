@@ -1,13 +1,21 @@
 # Eigenfunction Calculation Methodology
 
-This document describes the methodology used in **Disper26** to calculate eigenfunctions (displacement and stress profiles) for Rayleigh and Love waves. The implementation aims for high numerical stability and consistency with the legacy **Disper80C** (Saito) algorithm.
+This document describes how **Disper26** calculates displacement and stress profiles for Rayleigh and Love waves. The Rayleigh reconstruction follows the two-pass method used in Disper80C, a C port of Saito's flat-layer DISPER80 code.
 
 ## Two-pass reconstruction for solid Rayleigh waves
 
 We employ a robust **Two-Pass Integration Method** to determine the eigenfunctions. This approach separates the root-finding phase (which uses stable 5x5 Minor Matrices) from the eigenfunction reconstruction phase (which uses 4x4 Propagator Matrices).
 
 ### 1. Root Finding (Standard)
-The phase velocity $c$ is first determined using the **Saito/Dunkin** method with 5x5 Minor Matrices (for Rayleigh) or 2x2 matrices (for Love). This ensures numerical stability even for high frequencies and thick layers, avoiding the "large exponent" problem.
+
+For Rayleigh waves, the Saito/Dunkin method finds the phase velocity $c$ using
+$5\times5$ reduced compound matrices. At high frequencies or in thick layers,
+large exponential terms in a direct propagator can cancel, causing a loss of
+precision in the dispersion function. Propagating the minors reduces this
+cancellation. Rescaling the state between layers limits amplitude growth,
+but an individual layer propagator can still overflow if its exponential
+terms exceed the floating-point range. The Love-wave calculation uses a
+$2\times2$ SH propagator.
 
 ### 2. Eigenfunction Pass 1: Upward Propagation (Minors)
 Once the phase velocity $c$ is known, we perform an upward integration of the **5x5 Minor Matrix** from the bottom half-space to the surface.
@@ -17,31 +25,41 @@ Once the phase velocity $c$ is known, we perform an upward integration of the **
 ### 3. Eigenfunction Pass 2: Downward Integration (Reconstruction)
 
 At a solid free surface, the implementation selects the larger pivot from
-`[Y14, 0, -Y12, 0]` and `[-Y12, 0, Y23, 0]` before normalization. These
+$[Y_{14},0,-Y_{12},0]$ and $[-Y_{12},0,Y_{23},0]$ before normalization. These
 represent the same traction-free state at a root; selecting the pivot avoids
 a vanishing initial vector at either horizontal or vertical displacement zeros.
 
 With the Minors stored, we perform a **Downward Integration** of the four-component state vector from the surface to the bottom half-space.
 *   **Initial Condition**: The surface state $(u_r, u_z)$ is derived from the Surface Minor Vector to strictly satisfy the Stress-Free Boundary Condition $(\sigma_{zz}=0, \sigma_{zr}=0)$.
-*   **Interface Stabilization**: At each layer interface, instead of simply propagating the state, we **reconstruct** the stress components $(\sigma_{zz}, \sigma_{zr})$ using the stored Minor Vector and the current displacements $(u_r, u_z)$.
-    *   This technique (adopted from **Disper80C**) prevents the "Large Exponent Problem" where the numerical solution can drift onto a growing non-physical mode.
-    *   Formula: $\sigma_{zz}, \sigma_{zr}$ are calculated algebraically from $u_r, u_z$ and the Minors $Y_{ij}$ using Plucker relations.
+*   **Interface stabilization.** When the stored minor $Y_{13}$ is large
+    enough to use as a pivot, the Plücker coordinates $Y_{ij}$ and the
+    propagated displacements $(u_r,u_z)$ determine the interface tractions
+    $(\sigma_{zz},\sigma_{zr})$. Reconstructing the tractions this way limits
+    contamination by the parasitic growing solution excited by roundoff
+    during downward propagation.
 *   **Sublayer Integration**: Within each layer, standard 4x4 propagation is used to obtain high-resolution profiles.
 
 > [!NOTE]
-> **Variable Definitions & Consistency**:
-> *   **Disper80C (Saito)** uses variables $y_1=u_r, y_3=u_z$. Thus, the ellipticity `ELIP` in legacy code corresponds to $V/H = u_z/u_r$.
-> *   **Disper26 (Ikeda)** returns the reduced amplitudes `uz=y1`, `ur=y3`. For $e^{i(kx-\omega t)}$ and upward $z$, the physical horizontal displacement is $u_x=i y_3 e^{i(kx-\omega t)}$. Thus signed ellipticity is $y_3/y_1$, with negative retrograde and positive prograde motion for $k>0$.
-> *   The Disper26 implementation internally handles this mapping, ensuring that the stabilized reconstruction formulas are physically consistent with the Ikeda basis.
+> In Saito's DISPER80 FLAT-VER.1 and its C port, $y_1$ is the vertical displacement amplitude and $y_3$ is the reduced horizontal amplitude along the propagation direction. At a solid free surface, `ELIP` is the signed horizontal-to-vertical ratio $H/V=y_3/y_1=-Y_{12}/Y_{14}$, where the uppercase $Y_{ij}$ are minors. See the `RAYINT` routine in [Saito's Fortran listing](https://www.jsce.or.jp/library/eq10/book/49198/3-0000.pdf).
+>
+> Disper26 returns the same reduced amplitudes as `uz` ($y_1$) and `ur` ($y_3$). With $z$ positive upward and phase factor $e^{i(kx-\omega t)}$, the complex displacement amplitudes are $y_1$ vertically and $i y_3$ horizontally. For $k>0$, negative $y_3/y_1$ indicates retrograde motion and positive $y_3/y_1$ indicates prograde motion.
 
 ## Verification Results
 
 The public regression suite checks energy balance, group-velocity consistency,
 and eigenfunction boundary conditions; see the test scripts below.
 
-### Energy Integral Balance
-A stringent test of eigenfunction accuracy is the **Energy Integral Balance**:
-$$ \frac{\text{Potential Energy Integral } (I_2)}{\omega^2 \cdot \text{Kinetic Energy Integral } (I_1)} \approx 1.0 $$
+### Kinetic and potential energy equipartition
+
+For each normal mode of a lossless elastic model without gravity, the
+cycle-averaged kinetic energy equals the cycle-averaged strain energy after
+integration over the full depth, including the half-space. At the eigenfrequency,
+Rayleigh's variational principle gives $I_2=\omega^2 I_1$. We check the
+computed eigenfunction using the dimensionless ratio
+
+$$
+\frac{I_2}{\omega^2 I_1} \approx 1.
+$$
 
 The original convergence studies reported typical errors $< 10^{-6}$ for
 Rayleigh waves and $< 10^{-8}$ for Love waves. Their diagnostic scripts are

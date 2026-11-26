@@ -85,7 +85,7 @@ double computeDerivativeHybrid(
         // Simple Newton Refinement (Assumption: root_c is close)
         for(int k=0; k<10; ++k) {
             ADS c_ads = make_ads(c_local); c_ads.derivatives()[0] = 1.0;
-            // Use I24 for Rayleigh, Y(1) -> I24 for Love (via wrapper)
+            // The residual at index I24 is Y_24 for solid Rayleigh or -T for Love.
             auto F = calculateDispersionFunction(ad_layers, ad_thick, ad_hs, omega_ads, c_ads, type)(I24);
             c_local -= F.value() / F.derivatives()[0];
         }

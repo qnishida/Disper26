@@ -16,9 +16,9 @@ struct SensitivityKernel {
 // z is upward, exp(i(kx-omega*t)), u_z=y1 and u_x=i*y3 (phase omitted).
 // epsilon=y3/y1: negative is retrograde, positive is prograde for k>0.
 // At zero shear traction the solid state is proportional to
-// [Y14, Y24, -Y12, 0]. This applies at a solid free surface and on the
-// solid side of a fluid/solid interface, where Y24 need not vanish.
-// Unlike -Y23/Y12, this ratio remains regular when y3 crosses zero.
+// [Y_14, Y_24, -Y_12, 0]. This applies at a solid free surface and on the
+// solid side of a fluid/solid interface, where Y_24 need not vanish.
+// Unlike -Y_23/Y_12, this ratio remains regular when y3 crosses zero.
 template <typename T>
 T calculateHVRatio(const Eigen::Matrix<T, 5, 1>& Y_surface) {
     if (get_magnitude(Y_surface(I14)) < 1e-20) {
@@ -4303,7 +4303,7 @@ std::vector<RayleighStatePoint<T>> propagateRayleighEigenstates(
     return results;
 }
 
-// Shared analytical moments, regular in either squared vertical wavenumber.
+// Analytical layer moments remain regular when a vertical propagation exponent vanishes.
 template <typename T>
 RayleighLayerIntegrals<T> computeRayleighLayerIntegrals_Analytical(
     T uz_top, T szz_top, T ur_top, T szr_top,
@@ -4312,8 +4312,8 @@ RayleighLayerIntegrals<T> computeRayleighLayerIntegrals_Analytical(
 ) {
     using CT = typename ComplexType<T>::type;
     if (isLiquidLayer(layer)) {
-        // Acoustic layer: only [U,Tzz] propagate. ur follows from Saito's
-        // liquid relation (computeFluidHorizontalDisplacement) and szr = 0.
+        // Acoustic layer: only [w, Tzz] propagate. ur follows from Saito's
+        // fluid relation (computeFluidHorizontalDisplacement) and szr = 0.
         CT uu, ut, tt;
         disper26_energy::fluid_moments(layer,h,omega,k,
             toComplex(uz_top),toComplex(szz_top),uu,ut,tt);
@@ -4343,10 +4343,10 @@ RayleighEnergyResult<T> computeRayleighEnergyIntegrals_Analytical(
     T omega, T phaseVelocity,
     bool useAdaptiveSplit = true
 ) {
-    // Liquid layers at the model top use the acoustic moments of
+    // Fluid layers at the model top use the acoustic moments of
     // computeRayleighLayerIntegrals_Analytical; the half-space modal integral
-    // below divides by c44 and has no liquid form.
-    // See docs/fluid_gravity_status.md.
+    // below divides by c44 and has no fluid form.
+    // See docs/fluid_layers.md.
     if (isLiquidLayer(halfSpaceParams)) {
         throw std::runtime_error(
             "Analytical Rayleigh energy integrals are not implemented for a "
@@ -4393,8 +4393,8 @@ RayleighEnergyResult<T> computeRayleighEnergyIntegrals_Analytical(
     int M = static_cast<int>(virtual_layers.layers.size());
     int usable_layers = std::min(M, static_cast<int>(boundary_states.size()) - 1);
     // propagateRayleighEigenstates repeats the state at the bottom of every
-    // top liquid layer (the horizontal displacement jumps there), so the top
-    // of layer i is entry 2i in the liquid stack and i+L below it.
+    // top fluid layer (the horizontal displacement jumps there), so the top
+    // of layer i is entry 2i in the fluid stack and i+L below it.
     const int liquid_count = hasLiquidLayer(virtual_layers.layers)
         ? countTopLiquidLayersOrThrow(virtual_layers.layers) : 0;
     if (liquid_count > 0) {
@@ -4645,6 +4645,8 @@ Eigen::Matrix<T, Eigen::Dynamic, 1> computeVariationalGradientRayleigh_T(
         const auto& p = (j < N) ? layers[j] : halfSpace;
 
         if (isLiquidLayer(p)) {
+            // For zero gravity, K_rho and K_C differentiate I2 - omega^2*I1
+            // at fixed displacement, k and omega. Multiplying by coeff gives dc/dm.
             T K_rho = -omega * omega * lint.int_uz2_ur2;
             T C_j = p.c33;
             T K_C = lint.int_szz2 / (C_j * C_j);

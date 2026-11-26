@@ -313,10 +313,15 @@ is_discontinuity = [False, False, True, False, False]
 
 ### Node-Based Sensitivity Kernels
 
-AD variables are defined only at grid node positions. Sublayer values are computed via interpolation (part of the AD computation graph):
+At fixed node depths, each interpolated material parameter has a piecewise
+linear profile. Its node values are the coefficients of linear hat functions
+(degree-1 B-splines). The nodes on either side of a discontinuity carry
+independent values.
 
-- **Number of AD Variables**: O(N), fixed (independent of refinement level).
-- **B-spline Interpretation**: Partial derivatives at nodes correspond to sensitivities to B-spline expansion coefficients.
+Automatic differentiation propagates changes in these coefficients through
+sublayer interpolation. With $N$ nodes there are $O(N)$ material variables
+at every refinement level. Gradients requested
+in a different material basis include the chain rule for that change of variables.
 
 ### Convergence Verification
 

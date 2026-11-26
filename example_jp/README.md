@@ -76,9 +76,9 @@ python -m examples.plot_layered_model docs/figures/examples
 python -m examples.gradient_convergence
 ```
 
-[gradient_convergence.py](../examples/gradient_convergence.py) は、深度ノード間で剛性を補間する
-GRIDモデル（`kind="grid"`）を作り、Rombergの最大レベル `Options.max_steps` を変えた結果を表示します。
-速度を補間するモデルとは異なるため、`interpolation="stiffness"` を明示しています。
+[gradient_convergence.py](../examples/gradient_convergence.py) は `kind="grid"`、`interpolation="stiffness"` で
+弾性定数補間 GRID を作ります。深度ノード間で弾性定数と密度を線形補間し、
+Romberg の最大レベル `Options.max_steps` ごとに計算結果を表示します。
 
 位相速度に加え、採用レベル、推定相対誤差、収束状態を確認します。
 小さいレベル上限での未収束は意図したものです。表に状態を表示するため、この例では

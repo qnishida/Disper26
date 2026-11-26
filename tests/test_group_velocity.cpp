@@ -146,7 +146,7 @@ int main() {
     // Run dispersion function with derivatives
     Eigen::Matrix<ADS, 5, 1> res = calculateDispersionFunction(layers, thicknesses, halfSpace, omega_ad, c_ad);
     
-    // Extract characteristic function Delta = Y24
+    // Extract characteristic function Delta = Y_24
     ADS Delta = res(I24);
     
     double Delta_val = Delta.value();

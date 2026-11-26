@@ -3,7 +3,7 @@
 [English edition](../docs/public_api.md)
 
 Python では、モデル作成から分散・感度・Hessian の計算まで、高水準 API（`disper26`）だけで完結する。
-球面の剛性 GRID で地球平坦化変換（EFT）を含む界面微分を求める場合も同じである。
+球面の弾性定数補間 GRID で地球平坦化変換（EFT）を含む界面微分を求める場合も同じである。
 高水準 API の例では `import disper26 as d26` を使う。[練習例](../example_jp/README.md)を参照。
 
 細分化レベルごとの根を自分で渡す場合や、計算法ごとの結果を直接比較する場合は、
@@ -15,11 +15,11 @@ Python では、モデル作成から分散・感度・Hessian の計算まで�
 
 ## 海底重力オプションの削除
 
-未検証の追加 traction ジャンプを導入する `gravity_seabed_scale` は削除した。
+海底で法線応力に未検証の跳びを加える `gravity_seabed_scale` は削除した。
 低水準 Python の `create_fluid_parameters` の `seabed_scale` 引数も削除したため、
 旧呼び出しでは該当キーワードまたは第6位置引数を除く。
 `Material` の `gravity_seabed_scale` キーワード・第10位置引数、物性への同名フィールド設定も除く。
-海底では法線変位と Lagrangian 法線 traction の連続条件を使用する。
+海底では鉛直変位 $w$ と法線応力のラグランジュ摂動 $T_{zz}$ がそれぞれ連続する。
 旧値がゼロの計算の数値動作は維持し、非ゼロ値の追加ジャンプは提供しない。
 
 C++・C・Fortran の物性型は9成分となるため、利用側も再コンパイルが必要。
@@ -67,8 +67,8 @@ print(curve.periods)  # 入力の順番と重複を保持する
 
 GRIDは `interpolation="stiffness"` または `"velocity"` が必須。同じノード値でも
 補間する物理量が違えば異なるモデルであり、Hessianの都合で自動変換しない。
-重複する二つの深度は不連続面の上下を表す。最終ノードが半無限層となる。
-補間・逆解析に使う深さの選び方は[剛性 GRID の深さ座標](#grid-depth-coordinates)を参照。
+重複する二つの深度は不連続面の上下を表す。最深ノードの物性値が、その深さ以深の半無限媒質を定める。
+補間・逆解析に使う深さの選び方は[弾性定数補間 GRID の深さ座標](#grid-depth-coordinates)を参照。
 
 曲線は周期を内部で整列・重複除去して計算し、入力順に戻す。このGRIDを既定の細分化上限で
 計算すると、例では `ConvergenceWarning` が出ることがある。各解の `diagnostics` で採用レベルと
@@ -105,7 +105,7 @@ Layer-cake Love 波の Hessian で `integration="trapezoidal"` を指定する�
 両追跡方式の `verify_mode=True` は全点確認に切り替える。
 `None` / `False` は表の方式を使う（recoverの初期・復帰確認は無効化しない）。
 `standard` と `mode_order` は `verify_mode=False` を拒否する。`verify="every"` などの方針を指定するときは `verify_mode` を省略する。`level_mode_verified` は実際に
-確認した根だけtrueとなる。端点の確認だけでは途中のbranch jumpを排除できない。
+確認した根だけtrueとなる。端点の確認だけでは、途中で別のモードブランチ（mode branch）に移ったことを見落とす場合がある。
 
 `predictor="history"` は同じレベルの直近最大3点とレベル間情報を使う。
 `"auto"` は既に求めた同じレベルの群速度を再利用する。群速度を出力しない場合も、
@@ -193,10 +193,10 @@ curve = d26.compute_dispersion_curve(model, periods=[2., 5., 10., 20.], options=
 重複周期は一度だけ計算する。`c_range` は最初に解を得られる周期の各生成GRIDレベルに
 適用し、その開始点では `c_guess` を使わない。高次モードが最長の要求周期に存在しない場合、
 欠損周期を飛ばした最初の有効周期に範囲を適用する。
-範囲の両端は有限・正で `lo < hi` が必要。上端を半無限媒質S波速度の0.9995倍で
-切り詰め、空になった範囲は入力エラーとする。Rayleighは鉛直、Loveは水平S波速度を使う。
-確認付きの初期範囲が要求番号を1つだけ挟み、永年関数の有限な符号変化も得られれば
-広い区間から直接Brent法を使う。接する根や残差の問題には従来の狭い区間での探索を使う。
+範囲の両端は有限・正で `lo < hi` が必要。探索範囲の上端は、半無限媒質のS波速度を用いて
+Rayleigh波では $0.9995\,V_{SV}$、Love波では $0.9995\,V_{SH}$ に制限する。切り詰めた範囲が空なら入力エラーとする。
+初期範囲のモードカウントから指定したモードが1つだけ含まれると確認でき、区間の両端で分散関数が有限な値をとって根を挟む場合は、
+その区間で直接Brent法を使う。接する根や残差の問題には従来の狭い区間での探索を使う。
 
 `verify` を明示するとmethod別の確認頻度を置き換える。`verify_mode` との同時指定は拒否する。
 `verify="none"` の走査は、走査の分解能で検出できた根が1つであることだけを調べ、
@@ -238,6 +238,10 @@ GRIDは0からの非減少深度列で、不連続面の重複は2点まで。�
 LayerCakeのモデル情報は引き続き `thicknesses` と別の `halfspace` を保持する。
 従来のオブジェクト入力は `create_layer_cake_model` / `create_grid_model` で利用できる。
 
+VTI固体では、`vpv`（$V_{PV}$）と `vph`（$V_{PH}$）はそれぞれ鉛直方向と水平方向に伝播するP波の速度である。
+水平に伝播するS波のうち、鉛直偏波の速度は `vsv`（$V_{SV}=\sqrt{c_{44}/\rho}$）、
+水平偏波の速度は `vsh`（$V_{SH}=\sqrt{c_{66}/\rho}$）である。
+
 正式なモデル種別は `layer_cake`。旧 `kind="pancake"` と `create_pancake_model`
 も引数・既定値を維持した legacy 入口として使える。新名で作ったモデルの `kind` は
 `"layer_cake"`、旧名で作ったモデルは `"pancake"` を返す。この表記は解、平坦化、
@@ -276,10 +280,11 @@ Q 補正後も保持され、C++・C・Fortran でも同じ規則を使う。計
 従来の振幅比から意味が変わった。C・Fortranと旧名を含め、同じ規約を使う。
 zを上向き、波の位相を exp(i(kx−ωt)) とすると、固有関数配列 `uz` と `ur` は
 それぞれ y1 と y3 を格納し、水平変位の複素振幅は i·y3 である。
-正のx方向に伝播するとき、ε < 0 は逆行、ε > 0 は順行を表す。
+波が正の x 方向に伝播するとき、ε > 0 は媒質粒子の楕円運動が prograde、ε < 0 は retrograde であることを示す。
+粒子が楕円の最上点を通る瞬間の水平速度は、prograde では波の進行方向、retrograde ではその反対を向く。
 
 Layer-cakeとGRIDでは、固体自由表面、または海底の固体側で評価する。
-せん断応力ゼロの条件から、固体側の小行列式を用いて ε = −Y12/Y14 と表せる。
+せん断応力ゼロの条件から、$Y_{14}\ne 0$ のとき、固体側の小行列式を用いて $\epsilon=-Y_{12}/Y_{14}$ と表せる。
 従来の海底振幅には自由表面の法線応力条件が使われていた。
 GRIDでは値と勾配を符号付きで外挿する。一定物性の区間を一様に摂動した場合の層感度は、
 その区間の両端ノードの感度を足して比較できる。
@@ -301,48 +306,48 @@ Love 波の H/V は未定義であり、要求していない値には既存の�
 | `stiffness_iso` | Lambda, Mu, Rho |
 | `velocity_iso` | Vs, Vp, Rho（等方モデルに限定） |
 | `velocity_vti` | rho, vph, vpv, vsh, vsv, eta |
-| `log_velocity_vti` | 上記6量の自然対数（能動座標は正値に限定） |
+| `log_velocity_vti` | 上記6量の自然対数。微分対象のパラメータ（`active=True`）は対数を取る前の値が正であること。 |
 
 両方の `_iso` 基底は等方な基準媒質に対して等方性を保つ摂動を扱う。
-`stiffness_iso` の独立な弾性定数はラメ定数（GPa）である。密度微分では両ラメ定数を固定し、
+`stiffness_iso` の独立な弾性定数はラメ定数 $\lambda$ と $\mu$（GPa）である。密度微分では $\lambda$ と $\mu$ を固定し、
 `velocity_iso` の密度微分では両波速度を固定する。同じ等方解に対し、
 `compute_kernels(solution, basis="velocity_iso")` は Vs と Vp を、
-`basis="velocity_vti"` は水平・鉛直方向の速度を独立に摂動する。
+`basis="velocity_vti"` は $V_{PH}$、$V_{PV}$、$V_{SH}$、$V_{SV}$ を独立に摂動する。
 `isotropic` と `stiffness` もそれぞれ `velocity_iso` と `stiffness_vti` の別名として使える。
 結果の基底名には指定時の表記を返す。
 
 A = 2L で VTI 速度座標を選ぶには、eta を含む VTI 速度配列を与える。
-等方速度配列では eta = 1 である。この点では剛性だけから eta を復元できない。
-速度補間 GRID の独立な VTI 剛性感度には、速度への逆変換が一意に定まることが必要である。
+等方速度配列では eta = 1 である。この点では弾性定数だけから eta を復元できない。
+速度補間 GRID の個々の VTI 弾性定数に対する感度には、速度への逆変換が一意に定まることが必要である。
 
-半無限層は `entity="halfspace"` で区別する。速度・対数座標のHessianには
+半無限媒質は `entity="halfspace"` で区別する。速度・対数座標のHessianには
 `Jᵀ H J` に加え、物性写像の2階微分と勾配の項も含める。
-`compute_hessian_reduced(solution, projection)` は剛性軸×縮約軸の**線形**写像を受け取る。
+`compute_hessian_reduced(solution, projection)` は縮約パラメータの摂動を弾性定数・密度の摂動に変換する**線形**写像を受け取る。
 非線形写像の曲率項はこの関数の対象外。フルHessianを生成する代替処理は行わない。
 
 | 操作 | 対応 |
 |---|---|
-| 分散、曲線、カーネル | Layer-cake、剛性GRID、速度GRID |
-| 物性のフルHessian | Layer-cake、剛性GRID |
-| 物性の縮約Hessian | 剛性GRID |
-| `compute_interface_kernels` | 全層が固体の flat Layer-cake または全層が固体の剛性 GRID（flat・球面） |
-| `compute_interface_hessian_row` | 全層が固体の剛性 GRID（flat・球面） |
+| 分散、曲線、カーネル | Layer-cake、弾性定数補間 GRID、速度補間 GRID |
+| 物性のフルHessian | Layer-cake、弾性定数補間 GRID |
+| 物性の縮約Hessian | 弾性定数補間 GRID |
+| `compute_interface_kernels` | 全層が固体の flat Layer-cake または全層が固体の弾性定数補間 GRID（flat・球面） |
+| `compute_interface_hessian_row` | 全層が固体の弾性定数補間 GRID（flat・球面） |
 | `compute_eigenfunctions`、`compute_energy_integrals`、`compute_frequency_curvature` | 解を保持する各モデル。GRIDの波動場と積分は採用メッシュ上の量 |
 | `compute_gravity_correction` | 非Cowling、flat LayerCakeのRayleigh。`region="fluid"/"solid"/"all"` |
 
-剛性 GRID で界面を動かすときは、同じ深さにある上下のノードを一緒に動かし、各ノードの**入力座標系での物性値**を固定する。
+弾性定数補間 GRID で界面を動かすときは、同じ深さにある上下のノードを一緒に動かし、各ノードの**入力座標系での物性値**を固定する。
 `compute_interface_kernels` は各界面の深さに対する位相速度勾配を返す。`compute_interface_hessian_row` の各列は、指定した基底のノード物性、続いて全界面の深さに対応する。
 既定手法は flat では勾配が `variational`、Hessian 行が `variational_ad`、球面ではどちらも `ad` である。
-順計算・微分・結果表示で使う深さの選び方は[剛性 GRID の深さ座標](#grid-depth-coordinates)を参照。
+順計算・微分・結果表示で使う深さの選び方は[弾性定数補間 GRID の深さ座標](#grid-depth-coordinates)を参照。
 
-Rayleighの固体半無限層の上に表面流体層が連続する場合、`compute_energy_integrals` の `integration="auto"` は解析積分を選ぶ。低水準の点列版 `compute_energy_integrals_analytical_rayleigh` は固体専用である。
+Rayleighの固体半無限媒質の上に表面流体層が連続する場合、`compute_energy_integrals` の `integration="auto"` は解析積分を選ぶ。低水準の点列版 `compute_energy_integrals_analytical_rayleigh` は固体専用である。
 
 GRIDの周波数曲率は固有のRomberg停止条件を使うため、戻り値の位相速度が元の
 解と異なる場合がある。固有関数・積分の採用メッシュ上の値とは区別する。
 
 流体を含むLoveのモード探索は対象外。実際のモデルについて
 `get_capabilities(model, wave=...)` が対応可否と理由を返す。未対応の手法は `unsupported`、基底の不整合や変換の二重適用は `invalid_argument` となる。CとFortranはステータスコードで通知する。
-共通 API と低水準 API の物性・界面微分には非重力の参照モデルを使う。
+共通 API と低水準 API の物性・界面微分には重力を無視した基準モデル（$g=0$）を使う。
 流体 Cowling の順計算は、別途求める一次重力補正の検算に使える。
 
 標準経路は `Options(method="standard")`。明示的な `ad`、`variational`、
@@ -353,23 +358,23 @@ GRIDの周波数曲率は固有のRomberg停止条件を使うため、戻り値
 
 <a id="grid-depth-coordinates"></a>
 
-### 剛性 GRID の深さ座標を選ぶ
+### 弾性定数補間 GRID の深さ座標を選ぶ
 
-**どの深さで剛性・密度を区分線形と仮定し、どの深さで界面を動かすか**で選ぶ。$d$ は地表から測った球面深さ、$z$ は平坦化深さで、どちらも km、下向き正とする。$R$ は地球（または対象天体）の半径である。
+**どの深さで弾性定数と密度を区分線形と仮定し、どの深さで界面を動かすか**で選ぶ。$d$ は地表から測った球面深さ、$z$ は平坦化深さで、どちらも km、下向き正とする。$R$ は地球（または対象天体）の半径である。
 
 | 目的 | モデルの渡し方 | 順計算・逆解析で使う座標 |
 |---|---|---|
-| Flat で閉じる | Flat のノードをそのまま渡す。`Geometry("flat")` が既定 | 剛性・密度は $z$ で区分線形。界面勾配は $\partial c/\partial z$ |
-| 球面で閉じる（内部で EFT） | 球面ノードを `Geometry("spherical_ba97")` または `Geometry("spherical_experimental_density", flattening_exponent=...)` で渡す | 剛性・密度は $d$ で区分線形。MCMC の提案、界面勾配 $\partial c/\partial d$、Hessian を球面のモデル変数で扱う |
+| Flat で閉じる | Flat のノードをそのまま渡す。`Geometry("flat")` が既定 | 弾性定数と密度は $z$ で区分線形。界面勾配は $\partial c/\partial z$ |
+| 球面で閉じる（内部で EFT） | 球面ノードを `Geometry("spherical_ba97")` または `Geometry("spherical_experimental_density", flattening_exponent=...)` で渡す | 弾性定数と密度は $d$ で区分線形。MCMC の提案、界面勾配 $\partial c/\partial d$、Hessian を球面のモデル変数で扱う |
 | Flat で計算し、入出力を球面で扱う | 球面の参照ノードを最初に一度だけ `earth_flattening_transformation` で変換し、返された Flat モデルを使う | 1 行目と同じく、提案・勾配・Hessian は Flat 座標。推定したノードや各事後サンプルを、表示時に球面座標へ戻す |
 
 たとえば「球面でのノード物性を固定し、不連続面を実深さで 1 km 下げたときの位相速度」を求めるなら、球面モデルをそのまま渡す。
-ソルバーは各ノード間を $z$ で等分し、小層の中点を $d$ に戻す。その深さで剛性・密度を補間し、その半径で EFT を適用する。半無限層は上端の半径を使う。
+ソルバーは各ノード間を $z$ で等分し、小層の中点を $d$ に戻す。その深さで弾性定数と密度を補間し、その半径で EFT を適用する。半無限媒質は上端の半径を使う。
 
 界面を動かすと小層厚、補間位置、物性の変換係数が変わる。界面の勾配と Hessian 行を要求すると、各細分化レベルでこれらの変化と分散方程式の根を自動微分し、外挿する。
 サロゲートを使わず MCMC で位相速度だけを求める場合は、各提案で順計算の EFT を行う。界面微分の計算は生じない。
 
-同じ球面ノードから、球面深さと平坦化深さに対する勾配をそれぞれ求める例を示す（非重力・全層固体）。
+同じ球面ノードから、球面深さと平坦化深さに対する勾配をそれぞれ求める例を示す（重力を無視した全層固体モデル）。
 
 ```python
 import disper26 as d26
@@ -398,9 +403,9 @@ $J=\partial y/\partial x$ とすると、$g_x=J^\top g_y$、$H_x=J^\top H_yJ+\su
 
 ### Layer-cake・減衰補正・PREM
 
-球面 Layer-cake は順計算前に明示的に平坦化する。均質な半無限層の物性は上端深度で平坦化する。
+球面 Layer-cake は順計算前に明示的に平坦化する。均質な半無限媒質の物性は上端深度で平坦化する。
 
-`apply_mineos_physical_dispersion` は半無限層を含むQ配列を受け取り、補正周期と
+`apply_mineos_physical_dispersion` は半無限媒質を含むQ配列を受け取り、補正周期と
 基準周期を保存する。LayerCakeでは層数+1、GRIDではノード数。補正済みモデルの
 再補正・別周期での利用を拒否する。周期列を計算するときは元モデルから各周期用の
 モデルを作る。
@@ -408,7 +413,7 @@ $J=\partial y/\partial x$ とすると、$g_x=J^\top g_y$、$H_x=J^\top H_yJ+\su
 同梱 PREM を使う場合、`load_prem_spherical` は内部で EFT を行うための球面ノードを、`load_prem_flat` は一度平坦化した Flat 計算用のノードを返す。
 いずれも Python 専用で、上部地殻を地表まで延長する。キーワード専用引数 `max_depth_km=500.0`、
 `max_spacing_km=10.0`、`density_exponent=-2.275` で深さ・間隔・密度指数を指定する。同梱PREMでは深さ2,891 kmまで指定でき、
-境界上ではマントル側の物性を半無限層に使う。それより深い指定では `ValueError` が発生する。
+境界上ではマントル側の物性を半無限媒質に使う。それより深い指定では `ValueError` が発生する。
 
 補正量は `delta_c = c(g) − c(0)`、`delta_u = U(g) − U(0)` で、観測値から引く。既定は `gravity=9.80665e-3` km/s²、`region="solid"`。既定は層内40分割、角周波数の相対差分幅
 0.005で、これらの値を変える場合は対象モデルで収束を確認する。結果は元の解を

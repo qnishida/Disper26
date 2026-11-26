@@ -13,7 +13,10 @@
 
 §1–8のPythonブロックは、練習例とは独立したPythonセッションで上から順に実行できます。入力の準備も本書で完結します。
 
-例の `alpha_v`・`alpha_h` はP波速度、`beta_v`・`beta_h` はS波速度で、添字 `v` / `h` は鉛直／水平方向を表します。`depth`・`rho`・`eta` を含め、モデル入力の変数は層・ノードごとの配列です。これらは例の変数名であり、APIの引数名は変更しません。単位は深さ・厚さがkm、速度がkm/s、密度がg/cm³、弾性定数がGPaです。
+例の `alpha_v`（$V_{PV}$）と `alpha_h`（$V_{PH}$）は、それぞれ鉛直方向と水平方向に伝播するP波の速度です。
+VTI固体を水平に伝播するS波では、`beta_v`（$V_{SV}=\sqrt{c_{44}/\rho}$）は鉛直偏波の速度、
+`beta_h`（$V_{SH}=\sqrt{c_{66}/\rho}$）は水平偏波の速度です。
+`depth`・`rho`・`eta` を含め、モデル入力の変数は層・ノードごとの配列です。これらは例の変数名であり、APIの引数名は変更しません。単位は深さ・厚さがkm、速度がkm/s、密度がg/cm³、弾性定数がGPaです。
 
 | 操作 | 周期・周波数の指定 |
 |---|---|
@@ -69,7 +72,7 @@ beta_v = [3.2, 3.5, 3.8, 4.5, 4.6]
 is_disc = [False, False, True, False, False]  # 30 kmの浅い側をTrueにする
 grid_params = [d26_lowlevel.create_isotropic_parameters(b, a, r)
                for b, a, r in zip(beta_v, alpha_v, rho)]
-# 速度補間API用のVTI配列。この例は等方性なので水平・鉛直速度は等しい
+# 速度補間API用のVTI配列。この例は等方性なので VPH = VPV、VSH = VSV
 alpha_h = list(alpha_v)
 beta_h = list(beta_v)
 eta = [1.0] * len(depth)
@@ -97,8 +100,8 @@ if not roots_rayleigh or not roots_love:
 c_rayleigh = roots_rayleigh[0]
 c_love = roots_love[0]
 
-# この単純モデルの基本モードを、根の両側のカウントの跳びで確認
-delta_rel = 3e-4  # 既存の分岐確認で使用する相対窓幅
+# 根の両側のカウントからモードブランチ（mode branch）を確認（この例では基本モード）
+delta_rel = 3e-4  # 根の両側を調べる相対窓幅
 for wave, cp in (("Rayleigh", c_rayleigh), ("Love", c_love)):
     counts = [d26_lowlevel.compute_mode_count(
         layers, thicknesses, half_space, omega, cp * (1.0 + sign * delta_rel), wave
@@ -111,7 +114,7 @@ cont_mode = d26_lowlevel.compute_continuous_mode_count(
 )
 ```
 
-根そのものの整数カウントは丸めに左右されます。近接した根では上の固定窓に複数の根が入ることがあるため、窓の調整と分岐確認が必要です。`search_roots` の符号変化スキャンには取り逃しの可能性もあります。分岐を指定したGRID計算には§5の `branch` または [高度な利用](../example_jp/README.md#advanced) の `ForwardEngine` を使い、診断は [モードカウント](../docs/mode_counting.md) を参照してください。
+根そのものの整数カウントは丸めに左右されます。近接した根では上の固定窓に複数の根が入ることがあるため、窓幅の調整とモードブランチの確認が必要です。`search_roots` の符号変化スキャンには取り逃しの可能性もあります。モードブランチを指定したGRID計算には§5の `branch` または [高度な利用](../example_jp/README.md#advanced) の `ForwardEngine` を使い、診断は [モードカウント](../docs/mode_counting.md) を参照してください。
 
 ---
 
@@ -145,7 +148,7 @@ c_grid_velocity = grid_curve["phase_velocities"]
 print("GRID fallback回数:", grid_curve["fallback_count"])
 ```
 
-Layer-cakeの `branch=0` は初回・再探索時の速度順の基本モードを選び、`verify_branch=True` は予測した根の整数カウントも確認します。GRIDの `branch=0` は各レベルでモード順を指定します。既定の `branch=None` は近い根を追跡する経路で、分岐を指定した場合とは処理時間も異なります。
+Layer-cakeの `branch=0` は初回・再探索時の速度順の基本モードを選び、`verify_branch=True` は予測した根の整数カウントも確認します。GRIDの `branch=0` は各レベルで基本モードを指定します。既定の `branch=None` は近い根を追跡する経路で、モードブランチを指定した場合とは処理時間も異なります。
 
 戻り値には `relative_errors`、`converged_levels`、`fallback_mask` もあります。fallbackは予測から通常探索へ戻ったことを示し、それ自体は失敗ではありません。Layer-cakeのレベルは `-1`、相対誤差は `NaN` です。バッチと単点計算の整合性・fallbackの回帰確認は [test_phase_velocity_curves.py](../tests/python/test_phase_velocity_curves.py) を参照してください。
 
@@ -187,10 +190,11 @@ I1, I2, I3, c_energy = d26_lowlevel.compute_energy_integrals_analytical_rayleigh
 従来の振幅比から意味が変わりました。C・Fortranと旧名を含め、同じ規約を使います。
 zを上向き、波の位相を exp(i(kx−ωt)) とすると、固有関数配列 `uz` と `ur` は
 それぞれ y1 と y3 を格納し、水平変位の複素振幅は i·y3 です。
-正のx方向に伝播するとき、ε < 0 は逆行、ε > 0 は順行を表します。
+波が正の x 方向に伝播するとき、ε > 0 は媒質粒子の楕円運動が prograde、ε < 0 は retrograde であることを示します。
+粒子が楕円の最上点を通る瞬間の水平速度は、prograde では波の進行方向、retrograde ではその反対を向きます。
 
 Layer-cakeとGRIDでは、固体自由表面、または海底の固体側で評価します。
-せん断応力ゼロの条件から、固体側の小行列式を用いて ε = −Y12/Y14 と表せます。
+せん断応力ゼロの条件から、$Y_{14}\ne 0$ のとき、固体側の小行列式を用いて $\epsilon=-Y_{12}/Y_{14}$ と表せます。
 従来の海底振幅には自由表面の法線応力条件が使われていました。
 GRIDでは値と勾配を符号付きで外挿します。一定物性の区間を一様に摂動した場合の層感度は、
 その区間の両端ノードの感度を足して比較できます。
@@ -229,7 +233,7 @@ for k in kernels:
 
 ### GRID モデル (Romberg 加速)
 
-ここから§7までは**弾性定数線形補間のモデル**を使います。§3の速度補間の曲線とは区別し、このモデルの10秒・Rayleigh基本モードの根を求め直します。レベル別の根を共有して、感度とヘシアンの分岐をそろえます。
+ここから§7までは**弾性定数補間 GRID**を使います。§3の速度補間の曲線とは区別し、このモデルの10秒・Rayleigh基本モードの根を求め直します。レベル別の根を共有して、感度とヘシアンを同じモードブランチで評価します。
 
 ```python
 period_grid = 10.0
@@ -367,10 +371,10 @@ corrected_layers = d26_lowlevel.apply_mineos_physical_dispersion_model(
 
 Layer-cakeの平坦化関数は渡した有限層だけを変換し、`half_space` を自動変換しません。上の出力だけでは半無限媒質まで平坦化した一式にはなりません。GRID関数は最深ノードも変換します。
 
-上の GRID 変換で得たノードは `grid_policy="flat"` で使います。球面深さで補間する場合は、元の球面ノードを渡し、順計算と微分の両方に同じ `grid_policy="spherical_ba97"` または `"spherical_experimental_density"` を指定します。使い分けは[剛性 GRID の深さ座標](public_api.md#grid-depth-coordinates)を参照してください。
+上の GRID 変換で得たノードは `grid_policy="flat"` で使います。球面深さで補間する場合は、元の球面ノードを渡し、順計算と微分の両方に同じ `grid_policy="spherical_ba97"` または `"spherical_experimental_density"` を指定します。使い分けは[弾性定数補間 GRID の深さ座標](public_api.md#grid-depth-coordinates)を参照してください。
 
-`compute_kernels_ad_grid` は既定で界面ごとに `Depth` 成分を返します。全層が固体の非重力・球面剛性 GRID では、要求した位相速度・群速度・Rayleigh 波の H/V の球面深さ微分が入ります。物性成分だけを求めるには `include_interface_depths=False` を指定します。固定レベルの `compute_interface_hessian_row_ad_grid` には順計算と同じ `grid_policy`、`planet_radius`、`flattening_exponent` を渡し、そのレベルの位相速度の深さ微分を `dc_dz` に指定します。
+`compute_kernels_ad_grid` は既定で界面ごとに `Depth` 成分を返します。重力を無視した全層固体の球面 GRID で弾性定数を補間する場合は、要求した位相速度・群速度・Rayleigh 波の H/V の球面深さ微分が入ります。物性成分だけを求めるには `include_interface_depths=False` を指定します。固定レベルの `compute_interface_hessian_row_ad_grid` には順計算と同じ `grid_policy`、`planet_radius`、`flattening_exponent` を渡し、そのレベルの位相速度の深さ微分を `dc_dz` に指定します。
 
-Q補正も渡したリストのみが対象です。半無限媒質には `apply_mineos_physical_dispersion` を別途適用します。Qのリスト長は物性リストに合わせ、各対象周期の補正は元の参照周期モデルから行います。この補正は実弾性定数の物理分散で、複素減衰波動場の計算ではありません。補正後の分散を求める場合は、その対象周期で根を計算し直します。
+Q補正も渡したリストのみが対象です。半無限媒質には `apply_mineos_physical_dispersion` を別途適用します。Qのリスト長は物性リストに合わせ、各対象周期の補正は元の参照周期モデルから行います。この補正では $Q_\kappa$ と $Q_\mu$ を使い、非弾性による分散を対象周期での実数の弾性定数に反映します。補正後の分散を求めるには、その周期で実数の分散方程式を解き直します。
 
 ---

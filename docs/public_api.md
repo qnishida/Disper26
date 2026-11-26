@@ -214,9 +214,10 @@ This example computes 20, 10, 5 and 2 s and returns results at 2, 5, 10 and
 20 s. Repeated periods are computed once. `c_range` overrides `c_guess` at
 every generated GRID level of the first valid period. If an overtone is
 absent at the longest period, the interval applies at the first period where
-it exists. Bounds must be finite and positive with `lo < hi`. The upper
-bound is clipped to 0.9995 times the half-space shear velocity (vertical for
-Rayleigh, horizontal for Love). An empty clipped range is an input error.
+it exists. Bounds must be finite and positive with `lo < hi`. The search caps
+the upper bound at $0.9995\,V_{SV}$ for Rayleigh waves and $0.9995\,V_{SH}$
+for Love waves, using the S-wave speeds of the half-space. An empty clipped
+range is an input error.
 A verified initial range enclosing just the requested index and a finite
 sign change of the secular function permits a direct Brent solve. Tangencies
 or residual problems use the narrow-interval search.
@@ -266,6 +267,11 @@ derivative axes follow the same contract as the object-based constructors
 `create_layer_cake_model` and `create_grid_model`. Layer-cake metadata expose
 `thicknesses` and a separate `halfspace`.
 
+In a VTI solid, `vpv` ($V_{PV}$) and `vph` ($V_{PH}$) are the P-wave speeds
+for vertical and horizontal propagation, respectively. For horizontal propagation,
+`vsv` ($V_{SV}=\sqrt{c_{44}/\rho}$) is the vertically polarized S-wave speed
+and `vsh` ($V_{SH}=\sqrt{c_{66}/\rho}$) is the horizontally polarized S-wave speed.
+
 The canonical kind is `layer_cake`. The legacy `kind="pancake"` and
 `create_pancake_model` preserve their arguments and defaults. All languages
 preserve the construction spelling in model metadata, solutions, flattening
@@ -311,7 +317,7 @@ store y3 and y1, respectively; the horizontal phase factor i is implicit.
 
 Both layer-cake (`layer_cake`) and GRID models evaluate the solid free surface,
 or the solid side of the seabed when surface fluid layers are present.
-The common expression is -Y12/Y14, obtained from zero shear traction.
+Zero shear traction gives $\epsilon=-Y_{12}/Y_{14}$ wherever $Y_{14}\ne 0$.
 This also corrects the former seabed amplitude, which used a free-surface
 normal-traction relation under fluid loading. GRID values and gradients are
 extrapolated while signed. A uniform layer perturbation corresponds to
@@ -345,12 +351,13 @@ Specify `basis` independently of model interpolation.
 | `log_velocity_vti` | Natural logs of the same six quantities. Active coordinates must be positive. |
 
 The two `_iso` bases require an isotropic reference and preserve isotropy during
-perturbation. `stiffness_iso` uses the Lamé moduli (GPa). Its density derivative
-holds both moduli fixed, while `velocity_iso` holds both wave speeds fixed.
+perturbation. `stiffness_iso` uses the Lamé parameters $\lambda$ and $\mu$
+(GPa). Its density derivative holds $\lambda$ and $\mu$ fixed, while
+`velocity_iso` holds both wave speeds fixed.
 On the same isotropic solution, use `compute_kernels(solution, basis="velocity_iso")`
-to vary Vs and Vp or `basis="velocity_vti"` to vary horizontal and vertical speeds
-independently. `isotropic` and `stiffness` remain aliases for `velocity_iso` and
-`stiffness_vti`. Results echo the requested spelling.
+to vary Vs and Vp or `basis="velocity_vti"` to vary $V_{PH}$, $V_{PV}$,
+$V_{SH}$ and $V_{SV}$ independently. `isotropic` and `stiffness` remain aliases
+for `velocity_iso` and `stiffness_vti`. Results echo the requested spelling.
 
 At A = 2L, supply VTI velocity arrays with explicit eta to select the VTI
 reference coordinates. Isotropic velocity arrays select eta = 1. Stiffness

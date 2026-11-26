@@ -78,7 +78,7 @@ void testRayleigh() {
     const double pi = std::acos(-1.0);
     const auto params = solid();
 
-    // The old Y12=1 fixture has x=y=0 initially. At k=0.5 and
+    // The old Y_12=1 fixture has x=y=0 initially. At k=0.5 and
     // r_s*d=6*pi, r_p*d=2*pi: the exact 4-state propagator is the identity,
     // so the endpoint phase is undefined too. Its former decimal expectation
     // measured atan2 of roundoff, not a reference solution.
@@ -90,8 +90,8 @@ void testRayleigh() {
     assert(std::abs(returned(I14)+returned(I23)) < 1e-12L);
 
     // Decomposable, nonzero phase state: (.3*e1+e2) wedge e4.
-    // In contrast to Y12 alone, this also satisfies the Pluecker constraint
-    // Y12*Y34-Y13*Y24+Y14*Y23=0, with the reduction Y34=-Y12.
+    // The decomposable state satisfies the Plücker relation
+    // Y_12*Y_34-Y_13*Y_24+Y_14*Y_23=0, with the reduction Y_34=-Y_12.
     RefState initial = RefState::Zero();
     initial(I14) = .3L;
     initial(I24) = 1;
