@@ -5,6 +5,7 @@ message: >-
 type: software
 title: Disper26
 version: 0.1.104
+repository-code: "https://github.com/qnishida/Disper26"
 authors:
   - family-names: Nishida
     given-names: Kiwamu
