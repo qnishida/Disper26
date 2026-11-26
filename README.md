@@ -47,9 +47,10 @@ takes responsibility for the software.
 
 ## Citation
 
-If you use Disper26, cite the software version you used. The
-[citation metadata](CITATION.cff) gives the author, version, release date,
-and repository URL.
+If you use Disper26, cite the DOI of the software version you used. The
+[citation metadata](CITATION.cff) gives the version-specific DOI for this
+release. The [Disper26 DOI for all versions](https://doi.org/10.5281/zenodo.24566845)
+links to the software archive.
 
 Please also cite the accompanying paper when it is available. Software and
 paper citations identify different research contributions. Citation is
