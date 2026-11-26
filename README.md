@@ -5,7 +5,7 @@ vertically transversely isotropic (VTI) layered media. Its C++, C, Fortran
 and Python interfaces provide eigenfunctions, sensitivity kernels and
 phase-velocity Hessians.
 
-**0.1.104** is the release candidate for the first public version of Disper26.
+**Version 0.1.104** · 26 November 2026
 
 ## Quick start
 
@@ -47,12 +47,9 @@ takes responsibility for the software.
 
 ## Citation
 
-At manuscript submission, this repository will become public with its history
-preserved, and a versioned GitHub release will be archived with Zenodo.
-
-If you use Disper26, cite the software version you used. Until the first public
-release, also identify the source commit. See the [citation metadata](CITATION.cff)
-and the [Disper26 repository](https://github.com/qnishida/Disper26).
+If you use Disper26, cite the software version you used. The
+[citation metadata](CITATION.cff) gives the author, version, release date,
+and repository URL.
 
 Please also cite the accompanying paper when it is available. Software and
 paper citations identify different research contributions. Citation is
